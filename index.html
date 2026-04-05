@@ -616,7 +616,7 @@
 
     // ─── Main App ─────────────────────────────────────────────────────────────────
     function App() {
-      const [phase, setPhase] = useState("setup");
+      const [phase, setPhase] = useState("loading"); // start loading from Firebase
       const [activeTeamIds, setActiveTeamIds] = useState([]);
       const [courtNumbers, setCourtNumbers] = useState([]);
       const [timerDuration, setTimerDuration] = useState(0);
@@ -643,19 +643,25 @@
       const alarmFiredRef = useRef(false);
 
       // ── 3. CLOUD SYNC LISTENERS ───────────────────────────────────────────
-      // Listen for updates from Firebase (For Players)
+      // Use a ref so the listener is registered once (no deps), but can still
+      // read the latest isAdmin without causing a re-subscribe loop.
+      const isAdminRef = useRef(isAdmin);
+      useEffect(() => { isAdminRef.current = isAdmin; }, [isAdmin]);
+
       useEffect(() => {
         const tournamentRef = db.ref('current_tournament');
         tournamentRef.on('value', (snapshot) => {
           const data = snapshot.val();
-          // We only update if data exists AND we are NOT the active admin
-          // (to prevent recursive loops when we are the one pushing)
-          if (data && !isAdmin) {
+          // Never apply cloud data when we are the admin — we are the source of truth.
+          if (data && !isAdminRef.current) {
             updateAllStates(data);
           }
         });
         return () => tournamentRef.off();
-      }, [isAdmin]);
+      }, []); // registered once, never re-subscribes
+
+      // Track last-seen roundNum so we only bump roundKey when the round genuinely changes
+      const lastSeenRoundNum = useRef(-1);
 
       // Helper function to update all internal React state from a single data object
       const updateAllStates = (s) => {
@@ -673,7 +679,7 @@
         } else {
           nr = generateRound(ns, s.courtNumbers.length, s.history.length, s.history, s.pausedIds || []);
         }
-        
+
         setActiveTeamIds(s.activeTeamIds);
         setCourtNumbers(s.courtNumbers);
         setTimerDuration(s.timerDuration || 0);
@@ -683,19 +689,44 @@
         setRound(nr);
         setRoundNum(s.roundNum);
         setPausedIds(s.pausedIds || []);
-        setPending({});
-        setRoundKey((k) => k + 1);
-        
-        const restoreSecs = s.timerSecsLeft ?? s.timerDuration ?? 0;
-        setTimerSecsLeft(restoreSecs);
+
+        // Only reset pending/roundKey when a genuinely new round arrives
+        if (s.roundNum !== lastSeenRoundNum.current) {
+          lastSeenRoundNum.current = s.roundNum;
+          setPending({});
+          setRoundKey((k) => k + 1);
+        }
+
+        // Never touch timerRunning here — the viewer's own timer keeps ticking.
+        // Only sync the seconds if the round changed (admin reset the clock).
+        if (s.roundNum !== lastSeenRoundNum.current) {
+          const restoreSecs = s.timerSecsLeft ?? s.timerDuration ?? 0;
+          setTimerSecsLeft(restoreSecs);
+        }
+
         setPhase("play");
       };
 
-      // ── On mount: check for saved state ──────────────────────────────────────
+      // ── On mount: connect to Firebase first; fall back to localStorage ─────
       useEffect(() => {
-        const saved = loadState();
-        if (saved && saved.phase === "play") setSavedState(saved);
-      }, []);
+        // One-time read to get current tournament state on load
+        db.ref('current_tournament').once('value').then((snapshot) => {
+          const data = snapshot.val();
+          if (data && data.phase === "play") {
+            // Live tournament in Firebase — go straight to viewer
+            updateAllStates(data);
+          } else {
+            // No live tournament — show setup only if admin; otherwise show waiting screen
+            const saved = loadState();
+            if (saved && saved.phase === "play") {
+              setSavedState(saved);
+            }
+            setPhase("waiting"); // not "setup" — viewers wait for admin to start
+          }
+        }).catch(() => {
+          setPhase("waiting");
+        });
+      }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
       // ── Auto-save (LOCAL & CLOUD) ───────────────────────────────────────────
       useEffect(() => {
@@ -721,7 +752,7 @@
         if (isAdmin) {
           db.ref('current_tournament').set(snapshot);
         }
-      }, [phase, history, roundNum, pausedIds, timerSecsLeft, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins, isAdmin, round]);
+      }, [phase, history, roundNum, pausedIds, timerSecsLeft, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins, isAdmin]);
 
       const handleRestore = () => {
         const s = savedState;
@@ -796,8 +827,9 @@
         else if (pinPurpose === "reset") {
           clearSave();
           // Clear Cloud too
-          db.ref('current_tournament').set(null); 
-          setPhase("setup");
+          db.ref('current_tournament').set(null);
+          lastSeenRoundNum.current = -1;
+          setPhase("setup"); // admin goes to setup to configure new tournament
           setIsAdmin(false);
           setHistory([]);
           setStandings([]);
@@ -941,6 +973,34 @@
 
             {phase === "setup" && <SetupScreen onStart={handleStart} />}
 
+            {(phase === "loading" || phase === "waiting") && (
+              <div className="rounded-2xl p-10 text-center flex flex-col items-center gap-4"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                {phase === "loading" ? (
+                  <>
+                    <div className="text-3xl">🔄</div>
+                    <p className="text-slate-400 text-sm">Connecting to tournament…</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-3xl">🏓</div>
+                    <p className="text-slate-300 font-bold">No active tournament</p>
+                    <p className="text-slate-500 text-sm">Waiting for the admin to start a game.</p>
+                    {savedState && (
+                      <RestoreBanner saved={savedState} onRestore={handleRestore} onDiscard={() => { setSavedState(null); clearSave(); }} />
+                    )}
+                  </>
+                )}
+                {isAdmin && (
+                  <button onClick={() => setPhase("setup")}
+                    className="mt-2 px-5 py-2 rounded-xl text-sm font-bold"
+                    style={{ background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff", cursor: "pointer" }}>
+                    Open Setup →
+                  </button>
+                )}
+              </div>
+            )}
+
             {phase === "play" && (
               <>
                 {timerDuration > 0 && (
@@ -1062,19 +1122,24 @@
                           {h.games.map((game, gi) => {
                             const w = teamById(game.winnerId), l = teamById(game.loserId);
                             return (
-                              <div key={gi} className="mb-2">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-slate-500 text-xs flex-shrink-0" style={{ minWidth: 58 }}>Court {game.courtNumber}</span>
-                                  <TeamChip teamId={game.winnerId} />
-                                  <span className="font-bold text-sm" style={{ color: w?.color }}>{game.winnerScore}</span>
-                                  <span className="text-slate-600 text-xs">–</span>
-                                  <span className="font-bold text-sm" style={{ color: l?.color }}>{game.loserScore}</span>
-                                  <TeamChip teamId={game.loserId} />
+                              <div key={gi} className="mb-2" style={{
+                                display: "grid",
+                                gridTemplateColumns: "64px 1fr 28px 12px 28px 1fr auto",
+                                alignItems: "center",
+                                gap: "6px",
+                              }}>
+                                <span className="text-slate-500 text-xs truncate">Court {game.courtNumber}</span>
+                                <div className="flex justify-end"><TeamChip teamId={game.winnerId} /></div>
+                                <span className="font-bold text-sm text-right" style={{ color: w?.color }}>{game.winnerScore}</span>
+                                <span className="text-slate-600 text-xs text-center">–</span>
+                                <span className="font-bold text-sm text-left" style={{ color: l?.color }}>{game.loserScore}</span>
+                                <div className="flex justify-start"><TeamChip teamId={game.loserId} /></div>
+                                <div>
                                   {isAdmin && (
                                     <button onClick={() => setEditTarget({ ri, gameIdx: gi })}
-                                      className="ml-auto text-xs px-2 py-1 rounded-lg"
+                                      className="text-xs px-2 py-1 rounded-lg"
                                       style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc",
-                                        border: "1px solid rgba(99,102,241,0.3)", cursor: "pointer" }}>
+                                        border: "1px solid rgba(99,102,241,0.3)", cursor: "pointer", whiteSpace: "nowrap" }}>
                                       &#x270F;&#xFE0F; Edit
                                     </button>
                                   )}
@@ -1083,7 +1148,7 @@
                             );
                           })}
                           {h.bye?.length > 0 && (
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
                               <span className="text-slate-500 text-xs" style={{ minWidth: 58 }}>Bye</span>
                               {h.bye.map((id) => <TeamChip key={id} teamId={id} />)}
                             </div>
