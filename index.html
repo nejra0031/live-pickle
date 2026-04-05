@@ -690,19 +690,19 @@
         setRoundNum(s.roundNum);
         setPausedIds(s.pausedIds || []);
 
-        // Only reset pending/roundKey when a genuinely new round arrives
-        if (s.roundNum !== lastSeenRoundNum.current) {
+        // Capture whether this is a new round BEFORE updating the ref
+        const isNewRound = s.roundNum !== lastSeenRoundNum.current;
+        if (isNewRound) {
           lastSeenRoundNum.current = s.roundNum;
           setPending({});
           setRoundKey((k) => k + 1);
         }
 
-        // Never touch timerRunning here — the viewer's own timer keeps ticking.
-        // Only sync the seconds if the round changed (admin reset the clock).
-        if (s.roundNum !== lastSeenRoundNum.current) {
-          const restoreSecs = s.timerSecsLeft ?? s.timerDuration ?? 0;
-          setTimerSecsLeft(restoreSecs);
-        }
+        // Always sync timerSecsLeft from the snapshot so viewers/admin-switchers
+        // never see a stale zero. We never touch timerRunning so the local
+        // countdown keeps ticking uninterrupted.
+        const restoreSecs = s.timerSecsLeft ?? s.timerDuration ?? 0;
+        setTimerSecsLeft(restoreSecs > 0 ? restoreSecs : (s.timerDuration || 0));
 
         setPhase("play");
       };
@@ -962,9 +962,9 @@
                     {isAdmin ? "🔓 Admin" : "🔒 Unlock Admin"}
                   </button>
                 </div>
-              ) : (
+              ) : phase === "setup" ? (
                 <p className="text-slate-400 text-sm">Tournament Setup</p>
-              )}
+              ) : null}
             </div>
 
             {phase === "setup" && savedState && (
