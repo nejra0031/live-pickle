@@ -660,7 +660,19 @@
       // Helper function to update all internal React state from a single data object
       const updateAllStates = (s) => {
         const ns = rebuildStandings(s.activeTeamIds, s.history);
-        const nr = generateRound(ns, s.courtNumbers.length, s.history.length, s.history, s.pausedIds || []);
+
+        // Prefer the stored round (so viewers see exactly what admin sees).
+        // Fall back to generating it if roundData is missing (e.g. old saves).
+        let nr;
+        if (s.roundData && s.roundData.courtTeamIds) {
+          nr = {
+            courts: s.roundData.courtTeamIds.map(pair => pair.map(id => teamById(id)).filter(Boolean)),
+            bye: (s.roundData.byeIds || []).map(id => teamById(id)).filter(Boolean),
+            paused: (s.roundData.pausedTeamIds || []).map(id => teamById(id)).filter(Boolean),
+          };
+        } else {
+          nr = generateRound(ns, s.courtNumbers.length, s.history.length, s.history, s.pausedIds || []);
+        }
         
         setActiveTeamIds(s.activeTeamIds);
         setCourtNumbers(s.courtNumbers);
@@ -688,9 +700,17 @@
       // ── Auto-save (LOCAL & CLOUD) ───────────────────────────────────────────
       useEffect(() => {
         if (phase !== "play") return;
+
+        // Serialise current round as plain IDs so Firebase can store it
+        const roundData = round ? {
+          courtTeamIds: round.courts.map(pair => pair.map(t => t.id)),
+          byeIds: round.bye.map(t => t.id),
+          pausedTeamIds: (round.paused || []).map(t => t.id),
+        } : null;
+
         const snapshot = {
           phase, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins,
-          history, roundNum, pausedIds, timerSecsLeft,
+          history, roundNum, pausedIds, timerSecsLeft, roundData,
           savedAt: Date.now(),
         };
         
@@ -701,7 +721,7 @@
         if (isAdmin) {
           db.ref('current_tournament').set(snapshot);
         }
-      }, [phase, history, roundNum, pausedIds, timerSecsLeft, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins, isAdmin]);
+      }, [phase, history, roundNum, pausedIds, timerSecsLeft, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins, isAdmin, round]);
 
       const handleRestore = () => {
         const s = savedState;
@@ -743,9 +763,23 @@
       const handleStart = (teamIds, courts, durSecs) => {
         const s = mkStandings(teamIds);
         const r = generateRound(s, courts.length, 0, [], []);
-        
+
+        const roundData = {
+          courtTeamIds: r.courts.map(pair => pair.map(t => t.id)),
+          byeIds: r.bye.map(t => t.id),
+          pausedTeamIds: [],
+        };
+        const snapshot = {
+          phase: "play", activeTeamIds: teamIds, courtNumbers: courts,
+          timerDuration: durSecs, timerDefaultMins: 12,
+          history: [], roundNum: 1, pausedIds: [],
+          timerSecsLeft: durSecs, roundData, savedAt: Date.now(),
+        };
+        saveState(snapshot);
+        db.ref('current_tournament').set(snapshot);
+
         // Become Admin on start
-        setIsAdmin(true); 
+        setIsAdmin(true);
 
         setActiveTeamIds(teamIds); setCourtNumbers(courts); setTimerDuration(durSecs);
         setStandings(s); setRound(r); setRoundNum(1); setHistory([]);
@@ -779,6 +813,18 @@
         setPausedIds((prev) => {
           const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
           const nr = generateRound(standings, numCourts, history.length, history, next);
+
+          // Immediately push updated round to Firebase
+          if (isAdmin) {
+            const roundData = {
+              courtTeamIds: nr.courts.map(pair => pair.map(t => t.id)),
+              byeIds: nr.bye.map(t => t.id),
+              pausedTeamIds: (nr.paused || []).map(t => t.id),
+            };
+            db.ref('current_tournament/roundData').set(roundData);
+            db.ref('current_tournament/pausedIds').set(next);
+          }
+
           setRound(nr); setPending({}); setRoundKey((k) => k + 1);
           return next;
         });
@@ -795,8 +841,27 @@
           const nh = [...history, entry];
           const ns = rebuildStandings(activeTeamIds, nh);
           const nr = generateRound(ns, numCourts, nh.length, nh, pausedIds);
+          const newRoundNum = roundNum + 1;
+
+          // Push new round to Firebase immediately (don't wait for effect)
+          if (isAdmin) {
+            const roundData = {
+              courtTeamIds: nr.courts.map(pair => pair.map(t => t.id)),
+              byeIds: nr.bye.map(t => t.id),
+              pausedTeamIds: (nr.paused || []).map(t => t.id),
+            };
+            const snapshot = {
+              phase: "play", activeTeamIds, courtNumbers,
+              timerDuration, timerDefaultMins,
+              history: nh, roundNum: newRoundNum, pausedIds,
+              timerSecsLeft: timerDuration, roundData, savedAt: Date.now(),
+            };
+            saveState(snapshot);
+            db.ref('current_tournament').set(snapshot);
+          }
+
           setHistory(nh); setStandings(ns); setRound(nr);
-          setRoundNum((n) => n + 1); setPending({}); setRoundKey((k) => k + 1);
+          setRoundNum(newRoundNum); setPending({}); setRoundKey((k) => k + 1);
           resetTimer(timerDuration); if (timerDuration > 0) setTimeout(() => setTimerRunning(true), 50);
         }
       };
