@@ -787,22 +787,26 @@
         const tournamentRef = db.ref('current_tournament');
         tournamentRef.on('value', (snapshot) => {
           const data = snapshot.val();
-          // Mark initial load done regardless of whether data exists
+
+          // Always mark initial load done
           if (!initialLoadDone.current) {
             initialLoadDone.current = true;
-            if (!data || data.phase !== "play") {
-              setPhase("waiting");
-              return;
-            }
           }
-          if (!data) return;
-          // Skip if this is our own write (echo prevention)
+
+          // No data at all — no active tournament
+          if (!data) { setPhase(p => p === "play" ? "waiting" : p); return; }
+
+          // Skip our own writes (echo prevention)
           if (data._writeToken && data._writeToken === lastWriteToken.current) return;
+
+          // Tournament ended / reset
           if (data.phase !== "play") { setPhase("waiting"); return; }
+
+          // Active tournament — update everyone (viewers AND admins)
           updateAllStates(normaliseSnapshot(data));
         });
         return () => tournamentRef.off();
-      }, []); // registered once
+      }, []); // registered once — fires immediately with current DB state
 
       // Also listen for individual pending game results from other admins
       useEffect(() => {
@@ -890,17 +894,16 @@
       };
 
       // ── On mount: continuous listener handles initial load ─────────────────
-      // The on('value') listener fires immediately with current DB state,
-      // so we don't need a separate once(). Track whether we've received the
-      // first snapshot to decide whether to show "waiting" or "play".
+      // The on('value') listener always fires immediately with current DB state.
+      // initialLoadDone tracks whether we've received the first snapshot yet.
       const initialLoadDone = useRef(false);
       useEffect(() => {
         const saved = loadState();
         if (saved && saved.phase === "play") setSavedState(saved);
-        // Set a short timeout: if Firebase hasn't fired within 3s, show waiting
+        // Fallback: if Firebase hasn't responded in 4s, show waiting screen
         const timeout = setTimeout(() => {
-          if (!initialLoadDone.current) setPhase("waiting");
-        }, 3000);
+          if (!initialLoadDone.current) { initialLoadDone.current = true; setPhase("waiting"); }
+        }, 4000);
         return () => clearTimeout(timeout);
       }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1184,38 +1187,36 @@
                 style={{ background: "linear-gradient(90deg,#a5b4fc,#f0abfc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                 Ari's Ladder Tournament
               </h1>
-              {phase === "play" ? (
-                <div className="flex flex-col items-center gap-1">
-                  <div className="flex items-center justify-center gap-3 flex-wrap">
+              <div className="flex flex-col items-center gap-1">
+                <div className="flex items-center justify-center gap-3 flex-wrap">
+                  {phase === "play" && (
                     <p className="text-slate-400 text-sm">
                       {activeTeamIds.length} teams · {isAdmin ? '🟢 Admin Mode' : '🔵 Live Viewer'}
                     </p>
-                    <button
-                      onClick={() => { if (isAdmin) setIsAdmin(false); else setPinPurpose("admin"); }}
-                      className="text-xs px-2 py-1 rounded-lg font-bold"
-                      style={{ background: isAdmin ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.05)",
-                        color: isAdmin ? "#fbbf24" : "#475569", cursor: "pointer",
-                        border: `1px solid ${isAdmin ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)"}` }}>
-                      {isAdmin ? "🔓 Admin" : "🔒 Unlock Admin"}
-                    </button>
-                  </div>
+                  )}
+                  {phase === "setup" && <p className="text-slate-400 text-sm">Tournament Setup</p>}
+                  {(phase === "waiting" || phase === "loading") && !isAdmin && (
+                    <p className="text-slate-400 text-sm">🔵 Live Viewer</p>
+                  )}
+                  <button
+                    onClick={() => { if (isAdmin) setIsAdmin(false); else setPinPurpose("admin"); }}
+                    className="text-xs px-2 py-1 rounded-lg font-bold"
+                    style={{ background: isAdmin ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.05)",
+                      color: isAdmin ? "#fbbf24" : "#475569", cursor: "pointer",
+                      border: `1px solid ${isAdmin ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)"}` }}>
+                    {isAdmin ? "🔓 Admin" : "🔒"}
+                  </button>
+                </div>
+                {phase === "play" && (
                   <div className="flex items-center gap-3 text-xs text-slate-600">
                     {presence.admins > 0 && <span>🟢 {presence.admins} admin{presence.admins !== 1 ? 's' : ''}</span>}
                     <span>🔵 {presence.viewers} viewer{presence.viewers !== 1 ? 's' : ''}</span>
                   </div>
-                </div>
-              ) : phase === "setup" ? (
-                <p className="text-slate-400 text-sm">Tournament Setup</p>
-              ) : null}
+                )}
+              </div>
             </div>
 
-            {phase === "setup" && savedState && (
-              <RestoreBanner saved={savedState} onRestore={handleRestore} onDiscard={() => { setSavedState(null); clearSave(); }} />
-            )}
-
-            {phase === "setup" && <SetupScreen onStart={handleStart} />}
-
-            {(phase === "loading" || phase === "waiting") && (
+            {(phase === "loading" || phase === "waiting") && !isAdmin && (
               <div className="rounded-2xl p-10 text-center flex flex-col items-center gap-4"
                 style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 {phase === "loading" ? (
@@ -1233,14 +1234,17 @@
                     )}
                   </>
                 )}
-                {isAdmin && (
-                  <button onClick={() => setPhase("setup")}
-                    className="mt-2 px-5 py-2 rounded-xl text-sm font-bold"
-                    style={{ background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff", cursor: "pointer" }}>
-                    Open Setup →
-                  </button>
-                )}
               </div>
+            )}
+
+            {/* Admin sees setup screen when no tournament is running */}
+            {(phase === "loading" || phase === "waiting" || phase === "setup") && isAdmin && (
+              <>
+                {savedState && (
+                  <RestoreBanner saved={savedState} onRestore={handleRestore} onDiscard={() => { setSavedState(null); clearSave(); }} />
+                )}
+                <SetupScreen onStart={handleStart} />
+              </>
             )}
 
             {phase === "play" && (
@@ -1373,6 +1377,18 @@
                     {history.length === 0 && <div className="text-center text-slate-500 py-8 text-sm">No rounds completed yet.</div>}
                     {[...history].reverse().map((h, revI) => {
                       const ri = history.length - 1 - revI;
+
+                      // Compute rankings before and after this round
+                      const standingsBefore = rebuildStandings(activeTeamIds, history.slice(0, ri));
+                      const standingsAfter  = rebuildStandings(activeTeamIds, history.slice(0, ri + 1));
+                      const ranksBefore = rerank(standingsBefore); // index = rank-1
+                      const ranksAfter  = rerank(standingsAfter);
+                      const rankBefore = (id) => ranksBefore.findIndex(t => t.id === id) + 1;
+                      const rankAfter  = (id) => ranksAfter.findIndex(t => t.id === id)  + 1;
+
+                      // Collect all team IDs that played this round
+                      const playedIds = h.games.flatMap(g => [g.winnerId, g.loserId]);
+
                       return (
                         <div key={ri} className="rounded-2xl p-4"
                           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -1387,10 +1403,10 @@
                                 gap: "6px",
                               }}>
                                 <span className="text-slate-500 text-xs truncate">Court {game.courtNumber}</span>
-                                <div className="flex justify-end items-center gap-1"><span style={{fontSize:11}}>🏆</span><TeamChip teamId={game.winnerId} /></div>
+                                <div className="flex justify-end"><TeamChip teamId={game.winnerId} /></div>
                                 <span className="font-bold text-sm text-right" style={{ color: w?.color }}>{game.winnerScore}</span>
                                 <span className="text-slate-600 text-xs text-center">–</span>
-                                <span className="font-bold text-sm text-left" style={{ color: l?.color, opacity: 0.6 }}>{game.loserScore}</span>
+                                <span className="font-bold text-sm text-left" style={{ color: l?.color }}>{game.loserScore}</span>
                                 <div className="flex justify-start"><TeamChip teamId={game.loserId} /></div>
                                 <div>
                                   {isAdmin && (
@@ -1411,6 +1427,30 @@
                               {h.bye.map((id) => <TeamChip key={id} teamId={id} />)}
                             </div>
                           )}
+                          {/* Ranking changes */}
+                          <div className="mt-3 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                            <p className="text-xs text-slate-600 mb-1 uppercase tracking-wide">Rankings</p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1">
+                              {playedIds.map(id => {
+                                const before = rankBefore(id), after = rankAfter(id);
+                                const delta = before - after; // positive = moved up
+                                const t = teamById(id);
+                                if (!t) return null;
+                                return (
+                                  <div key={id} className="flex items-center gap-1 text-xs">
+                                    <span style={{ color: t.color, fontWeight: 700 }}>{t.name}</span>
+                                    <span className="text-slate-600">#{before}</span>
+                                    <span className="text-slate-600">→</span>
+                                    <span style={{ fontWeight: 700, color: delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#94a3b8" }}>
+                                      #{after}
+                                    </span>
+                                    {delta > 0 && <span style={{ color: "#4ade80", fontSize: 10 }}>▲{delta}</span>}
+                                    {delta < 0 && <span style={{ color: "#f87171", fontSize: 10 }}>▼{Math.abs(delta)}</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
