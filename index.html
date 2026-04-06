@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Pickleball Ladder (Live)</title>
+  <title>Ari's Ladder Tournament</title>
   
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -66,7 +66,44 @@
       { id: "sky",    name: "Sky",    color: "#38bdf8", text: "#000" },
       { id: "gold",   name: "Gold",   color: "#d97706", text: "#fff" },
     ];
-    const teamById = (id) => ALL_TEAMS.find((t) => t.id === id);
+    // Runtime team registry — includes both color teams and named custom teams
+    // Custom teams are added at setup time and stored in Firebase alongside tournament data
+    let TEAM_REGISTRY = [...ALL_TEAMS];
+    const teamById = (id) => TEAM_REGISTRY.find((t) => t.id === id);
+    const registerTeams = (teams) => { TEAM_REGISTRY = teams; };
+
+    // ─── Firebase array normalisation ──────────────────────────────────────────
+    // Firebase converts JS arrays to objects with "0","1",... keys on round-trips.
+    // This helper converts them back to arrays safely.
+    function toArr(val) {
+      if (!val) return [];
+      if (Array.isArray(val)) return val;
+      // Firebase object with numeric-ish keys → sort and extract values
+      return Object.keys(val).sort((a,b) => Number(a)-Number(b)).map(k => val[k]);
+    }
+    function normaliseSnapshot(s) {
+      if (!s) return s;
+      const h = toArr(s.history).map(round => ({
+        ...round,
+        games: toArr(round.games),
+        bye: toArr(round.bye),
+        paused: toArr(round.paused),
+      }));
+      const rd = s.roundData ? {
+        courtTeamIds: toArr(s.roundData.courtTeamIds).map(pair => toArr(pair)),
+        byeIds: toArr(s.roundData.byeIds),
+        pausedTeamIds: toArr(s.roundData.pausedTeamIds),
+      } : null;
+      return {
+        ...s,
+        history: h,
+        roundData: rd,
+        activeTeamIds: toArr(s.activeTeamIds),
+        courtNumbers: toArr(s.courtNumbers),
+        pausedIds: toArr(s.pausedIds),
+        teamRegistry: s.teamRegistry ? toArr(s.teamRegistry) : null,
+      };
+    }
 
     // ─── Persistence (localStorage) ──────────────────────────────────────────────
     const SAVE_KEY = "pickleball_tournament_v1";
@@ -452,100 +489,164 @@
       );
     }
 
-    // ─── Setup Screen ─────────────────────────────────────────────────────────────
+    // ─── Setup Screen ──────────────────────────────────────────────────────────
     function SetupScreen({ onStart }) {
-      const [selectedTeams, setSelectedTeams] = useState(["red","blue","yellow","green","orange","pink"]);
-      const [courtNumbers, setCourtNumbers] = useState([1, 2]);
+      const [selectedColors, setSelectedColors] = useState(["red","blue","yellow","green","orange","pink"]);
+      const [namedTeamsInput, setNamedTeamsInput] = useState("");
+      const [namedTeams, setNamedTeams] = useState([]);
+      const [courts, setCourts] = useState(["1", "2"]);
       const [courtInput, setCourtInput] = useState("");
       const [timerMins, setTimerMins] = useState(12);
       const [timerEnabled, setTimerEnabled] = useState(true);
-      const toggleTeam = (id) => setSelectedTeams((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
+
+      const toggleColor = (id) => setSelectedColors(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+
+      const parseNamedTeams = (input, usedColorIds) => {
+        const usedColors = new Set(usedColorIds);
+        const available = ALL_TEAMS.filter(t => !usedColors.has(t.id));
+        const names = input.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+        return names.map((name, i) => {
+          const c = available[i % available.length] || ALL_TEAMS[i % ALL_TEAMS.length];
+          return { id: "custom_" + i + "_" + name.replace(/[^a-z0-9]/gi,"").toLowerCase(), name, color: c.color, text: c.text };
+        });
+      };
+
+      const handleNamedInput = (val) => {
+        setNamedTeamsInput(val);
+        setNamedTeams(parseNamedTeams(val, selectedColors));
+      };
+
+      const allSelectedTeams = [
+        ...selectedColors.map(id => ALL_TEAMS.find(t => t.id === id)).filter(Boolean),
+        ...namedTeams,
+      ];
+      const allTeamIds = allSelectedTeams.map(t => t.id);
+
+      const PRESET_COURTS = ["1","2","3","4","5","6","7","8","9","10","11","12"];
       const addCourt = () => {
-        const n = parseInt(courtInput.trim(), 10);
-        if (!n || n < 1 || n > 99 || courtNumbers.includes(n)) { setCourtInput(""); return; }
-        setCourtNumbers((p) => [...p, n].sort((a, b) => a - b));
+        const val = courtInput.trim();
+        if (!val || courts.includes(val)) { setCourtInput(""); return; }
+        setCourts(p => [...p, val]);
         setCourtInput("");
       };
-      const numPlaying = courtNumbers.length * 2;
-      const canStart = selectedTeams.length >= 3;
+      const toggleCourt = (val) => {
+        if (courts.includes(val)) { if (courts.length > 1) setCourts(p => p.filter(x => x !== val)); }
+        else setCourts(p => [...p, val].sort((a,b) => { const na=Number(a), nb=Number(b); return (na&&nb) ? na-nb : a.localeCompare(b); }));
+      };
+
+      const numPlaying = courts.length * 2;
+      const canStart = allTeamIds.length >= 3;
+      const iStyle = { padding: "6px 10px", borderRadius: 8, fontSize: 13, fontWeight: 700,
+        background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "#e2e8f0", outline: "none" };
+
       return (
         <div className="rounded-2xl p-6 flex flex-col gap-6"
           style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+
           <div>
-            <p className="text-sm font-bold text-slate-300 mb-3">Select Teams</p>
+            <p className="text-sm font-bold text-slate-300 mb-1">Team Colors</p>
+            <p className="text-slate-500 text-xs mb-3">Tap to select</p>
             <div className="flex flex-wrap gap-2">
-              {ALL_TEAMS.map((t) => {
-                const sel = selectedTeams.includes(t.id);
+              {ALL_TEAMS.map(t => {
+                const sel = selectedColors.includes(t.id);
                 return (
-                  <button key={t.id} onClick={() => toggleTeam(t.id)} className="rounded-full px-3 py-1 text-xs font-bold"
+                  <button key={t.id} onClick={() => toggleColor(t.id)} className="rounded-full px-3 py-1 text-xs font-bold"
                     style={{ background: sel ? t.color : "rgba(255,255,255,0.05)", color: sel ? t.text : "#64748b",
-                      border: `2px solid ${sel ? t.color : "rgba(255,255,255,0.1)"}`, cursor: "pointer" }}>
+                      border: "2px solid " + (sel ? t.color : "rgba(255,255,255,0.1)"), cursor: "pointer" }}>
                     {t.name}
                   </button>
                 );
               })}
             </div>
-            <p className="text-slate-500 text-xs mt-2">{selectedTeams.length} teams selected</p>
           </div>
+
+          <div>
+            <p className="text-sm font-bold text-slate-300 mb-1">Named Teams</p>
+            <p className="text-slate-500 text-xs mb-2">Names separated by commas or new lines — colors auto-assigned</p>
+            <textarea value={namedTeamsInput} onChange={e => handleNamedInput(e.target.value)}
+              placeholder={"Smith & Jones\nThe Dinksters\nNet Ninjas"} rows={3}
+              style={{ ...iStyle, width: "100%", resize: "vertical", fontWeight: 400, fontSize: 12, lineHeight: 1.5 }} />
+            {namedTeams.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {namedTeams.map(t => (
+                  <span key={t.id} className="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold"
+                    style={{ background: t.color, color: t.text, border: "2px solid rgba(255,255,255,0.15)" }}>
+                    {t.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <p className="text-slate-400 text-xs -mt-3 font-bold">{allTeamIds.length} teams total</p>
+
           <div>
             <p className="text-sm font-bold text-slate-300 mb-3">Courts to Use</p>
             <div className="flex flex-wrap gap-2 mb-3">
-              {[1,2,3,4,5,6,7,8,9,10,11,12].map((n) => {
-                const sel = courtNumbers.includes(n);
+              {PRESET_COURTS.map(n => {
+                const sel = courts.includes(n);
                 return (
-                  <button key={n} onClick={() => setCourtNumbers((p) =>
-                    sel ? (p.length > 1 ? p.filter((x) => x !== n) : p) : [...p, n].sort((a,b) => a-b)
-                  )}
-                    className="rounded-full px-3 py-1 text-xs font-bold"
+                  <button key={n} onClick={() => toggleCourt(n)} className="rounded-full px-3 py-1 text-xs font-bold"
                     style={{ background: sel ? "rgba(99,102,241,0.35)" : "rgba(255,255,255,0.05)",
                       color: sel ? "#a5b4fc" : "#475569",
-                      border: `2px solid ${sel ? "rgba(99,102,241,0.7)" : "rgba(255,255,255,0.1)"}`,
-                      cursor: "pointer" }}>
+                      border: "2px solid " + (sel ? "rgba(99,102,241,0.7)" : "rgba(255,255,255,0.1)"), cursor: "pointer" }}>
                     {n}
                   </button>
                 );
               })}
             </div>
-            <p className="text-slate-500 text-xs mb-2">Or enter a custom court number:</p>
+            {courts.filter(c => !PRESET_COURTS.includes(c)).length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {courts.filter(c => !PRESET_COURTS.includes(c)).map(c => (
+                  <div key={c} className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold"
+                    style={{ background: "rgba(99,102,241,0.35)", color: "#a5b4fc", border: "2px solid rgba(99,102,241,0.7)" }}>
+                    {c}
+                    <button onClick={() => setCourts(p => p.filter(x => x !== c))}
+                      style={{ cursor: "pointer", marginLeft: 4, fontWeight: 900, background: "none", border: "none", color: "#a5b4fc" }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-slate-500 text-xs mb-2">Or enter any custom court name:</p>
             <div className="flex gap-2">
-              <input type="number" min={1} max={99} placeholder="Court #" value={courtInput}
-                onChange={(e) => setCourtInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCourt()}
-                style={{ width: 80, padding: "6px 10px", borderRadius: 8, fontSize: 13, fontWeight: 700,
-                  background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "#e2e8f0", outline: "none" }} />
+              <input placeholder="Name or number" value={courtInput}
+                onChange={e => setCourtInput(e.target.value)} onKeyDown={e => e.key === "Enter" && addCourt()}
+                style={{ ...iStyle, flex: 1 }} />
               <button onClick={addCourt} className="px-3 py-1 rounded-lg text-xs font-bold"
                 style={{ background: "rgba(99,102,241,0.25)", color: "#a5b4fc", cursor: "pointer", border: "1px solid rgba(99,102,241,0.4)" }}>+ Add</button>
             </div>
-            <p className="text-slate-500 text-xs mt-2">{courtNumbers.length} court{courtNumbers.length !== 1 ? "s" : ""} selected: {courtNumbers.join(", ")}</p>
+            <p className="text-slate-500 text-xs mt-2">{courts.length} court{courts.length !== 1 ? "s" : ""}: {courts.join(", ")}</p>
           </div>
+
           <div>
             <div className="flex items-center gap-3 mb-2">
               <p className="text-sm font-bold text-slate-300">Round Timer</p>
-              <button onClick={() => setTimerEnabled((p) => !p)} className="text-xs px-2 py-1 rounded-lg font-bold"
+              <button onClick={() => setTimerEnabled(p => !p)} className="text-xs px-2 py-1 rounded-lg font-bold"
                 style={{ background: timerEnabled ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.05)",
                   color: timerEnabled ? "#a5b4fc" : "#475569", cursor: "pointer",
-                  border: `1px solid ${timerEnabled ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)"}` }}>
+                  border: "1px solid " + (timerEnabled ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)") }}>
                 {timerEnabled ? "On" : "Off"}
               </button>
             </div>
             {timerEnabled && (
               <div className="flex items-center gap-3">
                 <input type="number" min={1} max={99} value={timerMins}
-                  onChange={(e) => setTimerMins(Math.max(1, Number(e.target.value)))}
-                  style={{ width: 64, padding: "6px 10px", borderRadius: 8, fontSize: 14, fontWeight: 700, textAlign: "center",
-                    background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "#e2e8f0", outline: "none" }} />
+                  onChange={e => setTimerMins(Math.max(1, Number(e.target.value)))}
+                  style={{ ...iStyle, width: 64, textAlign: "center", fontSize: 14 }} />
                 <span className="text-slate-400 text-sm">minutes per round</span>
               </div>
             )}
             {timerEnabled && <p className="text-slate-500 text-xs mt-2">A loud alarm sounds when time runs out.</p>}
           </div>
+
           <div className="rounded-xl p-3 text-xs leading-relaxed"
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", color: "#94a3b8" }}>
-            {courtNumbers.length} court{courtNumbers.length !== 1 ? "s" : ""} → {numPlaying} play,{" "}
-            {Math.max(0, selectedTeams.length - numPlaying)} bye per round{timerEnabled ? ` · ${timerMins} min rounds` : ""}.<br/>
+            {courts.length} court{courts.length !== 1 ? "s" : ""} → {numPlaying} play,{" "}
+            {Math.max(0, allTeamIds.length - numPlaying)} bye per round{timerEnabled ? " · " + timerMins + " min rounds" : ""}.<br/>
             No back-to-back byes. Bye partnerships rotate.
           </div>
           {!canStart && <p className="text-amber-400 text-xs text-center">Need at least 3 teams.</p>}
-          <button onClick={() => canStart && onStart(selectedTeams, courtNumbers, timerEnabled ? timerMins * 60 : 0)}
+          <button onClick={() => canStart && onStart(allSelectedTeams, allTeamIds, courts, timerEnabled ? timerMins * 60 : 0)}
             disabled={!canStart} className="w-full py-3 rounded-xl font-bold text-base"
             style={{ background: canStart ? "linear-gradient(90deg,#6366f1,#8b5cf6)" : "rgba(255,255,255,0.05)",
               color: canStart ? "#fff" : "#475569", cursor: canStart ? "pointer" : "not-allowed" }}>
@@ -631,7 +732,10 @@
       const [editTarget, setEditTarget] = useState(null);
       const [pausedIds, setPausedIds] = useState([]);
       const [isAdmin, setIsAdmin] = useState(false);
+      const isAdminRef = useRef(false);
+      useEffect(() => { isAdminRef.current = isAdmin; }, [isAdmin]);
       const [pinPurpose, setPinPurpose] = useState(null);
+      const [presence, setPresence] = useState({ viewers: 0, admins: 0 });
       const [showTimerSettings, setShowTimerSettings] = useState(false);
       const [savedState, setSavedState] = useState(null);
 
@@ -675,28 +779,71 @@
       }, [timerRunning, timerPausedSecsLeft]);
 
       // ── 3. CLOUD SYNC LISTENERS ───────────────────────────────────────────
-      // Use a ref so the listener is registered once (no deps), but can still
-      // read the latest isAdmin without causing a re-subscribe loop.
-      const isAdminRef = useRef(isAdmin);
-      useEffect(() => { isAdminRef.current = isAdmin; }, [isAdmin]);
+      // Everyone (including admins) listens to Firebase.
+      // We track the last write token we pushed so we can skip our own echo.
+      const lastWriteToken = useRef(null);
 
       useEffect(() => {
         const tournamentRef = db.ref('current_tournament');
         tournamentRef.on('value', (snapshot) => {
           const data = snapshot.val();
-          // Never apply cloud data when we are the admin — we are the source of truth.
-          if (data && !isAdminRef.current) {
-            updateAllStates(data);
+          // Mark initial load done regardless of whether data exists
+          if (!initialLoadDone.current) {
+            initialLoadDone.current = true;
+            if (!data || data.phase !== "play") {
+              setPhase("waiting");
+              return;
+            }
           }
+          if (!data) return;
+          // Skip if this is our own write (echo prevention)
+          if (data._writeToken && data._writeToken === lastWriteToken.current) return;
+          if (data.phase !== "play") { setPhase("waiting"); return; }
+          updateAllStates(normaliseSnapshot(data));
         });
         return () => tournamentRef.off();
-      }, []); // registered once, never re-subscribes
+      }, []); // registered once
+
+      // Also listen for individual pending game results from other admins
+      useEffect(() => {
+        const pendingRef = db.ref('current_tournament/pendingResults');
+        pendingRef.on('value', (snapshot) => {
+          const data = snapshot.val();
+          if (!data) return;
+          // Convert Firebase object back to our pending map format
+          setPending(prev => {
+            const merged = { ...prev };
+            Object.keys(data).forEach(k => {
+              if (!merged[k]) merged[k] = data[k];
+            });
+            return merged;
+          });
+        });
+        return () => pendingRef.off();
+      }, []);
 
       // Track last-seen roundNum so we only bump roundKey when the round genuinely changes
       const lastSeenRoundNum = useRef(-1);
 
+      // ── pushSnapshot: write full tournament state to Firebase ──────────────
+      const pushSnapshot = (snapshot) => {
+        const token = Math.random().toString(36).slice(2);
+        lastWriteToken.current = token;
+        db.ref('current_tournament').set({ ...snapshot, _writeToken: token });
+      };
+
+      // ── pushPatch: write a partial update (e.g. single game score) ─────────
+      const pushPatch = (path, value) => {
+        const token = Math.random().toString(36).slice(2);
+        lastWriteToken.current = token;
+        db.ref('current_tournament/' + path).set(value);
+        db.ref('current_tournament/_writeToken').set(token);
+      };
+
       // Helper function to update all internal React state from a single data object
       const updateAllStates = (s) => {
+        // Register any custom named teams from the snapshot before rebuilding
+        if (s.teamRegistry) registerTeams(s.teamRegistry);
         const ns = rebuildStandings(s.activeTeamIds, s.history);
 
         // Prefer the stored round (so viewers see exactly what admin sees).
@@ -742,35 +889,52 @@
         setPhase("play");
       };
 
-      // ── On mount: connect to Firebase first; fall back to localStorage ─────
+      // ── On mount: continuous listener handles initial load ─────────────────
+      // The on('value') listener fires immediately with current DB state,
+      // so we don't need a separate once(). Track whether we've received the
+      // first snapshot to decide whether to show "waiting" or "play".
+      const initialLoadDone = useRef(false);
       useEffect(() => {
-        // One-time read to get current tournament state on load
-        db.ref('current_tournament').once('value').then((snapshot) => {
-          const data = snapshot.val();
-          if (data && data.phase === "play") {
-            // Live tournament in Firebase — go straight to viewer
-            updateAllStates(data);
-          } else {
-            // No live tournament — show setup only if admin; otherwise show waiting screen
-            const saved = loadState();
-            if (saved && saved.phase === "play") {
-              setSavedState(saved);
-            }
-            setPhase("waiting"); // not "setup" — viewers wait for admin to start
-          }
-        }).catch(() => {
-          setPhase("waiting");
-        });
+        const saved = loadState();
+        if (saved && saved.phase === "play") setSavedState(saved);
+        // Set a short timeout: if Firebase hasn't fired within 3s, show waiting
+        const timeout = setTimeout(() => {
+          if (!initialLoadDone.current) setPhase("waiting");
+        }, 3000);
+        return () => clearTimeout(timeout);
       }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+      // ── Presence tracking ─────────────────────────────────────────────────
+      // Use Firebase's onDisconnect to clean up automatically
+      useEffect(() => {
+        const presenceRef = db.ref('presence').push();
+        presenceRef.set({ role: isAdmin ? 'admin' : 'viewer', joinedAt: Date.now() });
+        presenceRef.onDisconnect().remove();
+
+        const allPresenceRef = db.ref('presence');
+        allPresenceRef.on('value', (snap) => {
+          const data = snap.val() || {};
+          const entries = Object.values(data);
+          setPresence({
+            viewers: entries.filter(e => e.role === 'viewer').length,
+            admins: entries.filter(e => e.role === 'admin').length,
+          });
+        });
+
+        return () => {
+          presenceRef.remove();
+          allPresenceRef.off();
+        };
+      }, [isAdmin]); // re-register when role changes
 
       // ── Auto-save (LOCAL & CLOUD) ───────────────────────────────────────────
       useEffect(() => {
         if (phase !== "play") return;
 
         // Serialise current round as plain IDs so Firebase can store it
-        const roundData = round ? {
+        const roundData = (round && round.courts && round.courts.length > 0) ? {
           courtTeamIds: round.courts.map(pair => pair.map(t => t.id)),
-          byeIds: round.bye.map(t => t.id),
+          byeIds: (round.bye || []).map(t => t.id),
           pausedTeamIds: (round.paused || []).map(t => t.id),
         } : null;
 
@@ -785,15 +949,15 @@
         saveState(snapshot);
 
         // ONLY push to cloud if we are the Admin making the changes
-        if (isAdmin) {
-          db.ref('current_tournament').set(snapshot);
+        if (isAdminRef.current) {
+          pushSnapshot(snapshot);
         }
-      }, [phase, history, roundNum, pausedIds, timerRunning, timerStartedAt, timerPausedSecsLeft, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins, isAdmin]);
+      }, [phase, history, roundNum, pausedIds, timerRunning, timerStartedAt, timerPausedSecsLeft, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins]);
 
       const handleRestore = () => {
         const s = savedState;
         setSavedState(null);
-        updateAllStates(s); // updateAllStates now handles timer fields
+        updateAllStates(normaliseSnapshot(s)); // normalise + handle timer fields
         setActiveTab("play");
       };
 
@@ -811,11 +975,9 @@
 
       // ── pushTimerState: write timer fields to Firebase (admin only) ────────
       const pushTimerState = (running, startedAt, pausedSecsLeft) => {
-        db.ref('current_tournament').update({
-          timerRunning: running,
-          timerStartedAt: startedAt,
-          timerPausedSecsLeft: pausedSecsLeft,
-        });
+        pushPatch('timerRunning', running);
+        pushPatch('timerStartedAt', startedAt);
+        pushPatch('timerPausedSecsLeft', pausedSecsLeft);
       };
 
       // ── resetTimer: reset clock locally + push to Firebase ────────────────
@@ -834,7 +996,8 @@
       const numCourts = courtNumbers.length;
       const courtKey = (idx) => `court_${idx}`;
 
-      const handleStart = (teamIds, courts, durSecs) => {
+      const handleStart = (allTeams, teamIds, courts, durSecs) => {
+        registerTeams(allTeams);
         const s = mkStandings(teamIds);
         const r = generateRound(s, courts.length, 0, [], []);
 
@@ -846,6 +1009,7 @@
         const startedAt = durSecs > 0 ? Date.now() : null;
         const snapshot = {
           phase: "play", activeTeamIds: teamIds, courtNumbers: courts,
+          teamRegistry: allTeams,
           timerDuration: durSecs, timerDefaultMins: 12,
           history: [], roundNum: 1, pausedIds: [],
           timerRunning: durSecs > 0, timerStartedAt: startedAt,
@@ -853,7 +1017,7 @@
           roundData, savedAt: Date.now(),
         };
         saveState(snapshot);
-        db.ref('current_tournament').set(snapshot);
+        pushSnapshot(snapshot);
 
         // Become Admin on start
         setIsAdmin(true);
@@ -877,7 +1041,7 @@
         else if (pinPurpose === "reset") {
           clearSave();
           // Clear Cloud too
-          db.ref('current_tournament').set(null);
+          pushSnapshot(null);
           lastSeenRoundNum.current = -1;
           setPhase("setup"); // admin goes to setup to configure new tournament
           setIsAdmin(false);
@@ -903,8 +1067,8 @@
               byeIds: nr.bye.map(t => t.id),
               pausedTeamIds: (nr.paused || []).map(t => t.id),
             };
-            db.ref('current_tournament/roundData').set(roundData);
-            db.ref('current_tournament/pausedIds').set(next);
+            pushPatch('roundData', roundData);
+            pushPatch('pausedIds', next);
           }
 
           setRound(nr); setPending({}); setRoundKey((k) => k + 1);
@@ -917,6 +1081,12 @@
         const key = courtKey(courtIdx);
         const np = { ...pending, [key]: result };
         setPending(np);
+
+        // Push individual game result immediately so other admins see it
+        if (isAdmin) {
+          pushPatch(`pendingResults/${key}`, result);
+        }
+
         if (round.courts.every((_, idx) => np[courtKey(idx)])) {
           const games = round.courts.map((_, idx) => ({ ...np[courtKey(idx)], courtNumber: courtNumbers[idx] ?? idx + 1 }));
           const entry = { roundNum, games, bye: round.bye.map((t) => t.id), paused: (round.paused || []).map((t) => t.id) };
@@ -935,6 +1105,7 @@
             const newStartedAt = timerDuration > 0 ? Date.now() : null;
             const snapshot = {
               phase: "play", activeTeamIds, courtNumbers,
+              teamRegistry: TEAM_REGISTRY,
               timerDuration, timerDefaultMins,
               history: nh, roundNum: newRoundNum, pausedIds,
               timerRunning: timerDuration > 0,
@@ -943,7 +1114,8 @@
               roundData, savedAt: Date.now(),
             };
             saveState(snapshot);
-            db.ref('current_tournament').set(snapshot);
+            pushSnapshot(snapshot);
+            pushPatch('pendingResults', null);
           }
 
           setHistory(nh); setStandings(ns); setRound(nr);
@@ -965,8 +1137,10 @@
           i !== ri ? h : { ...h, games: h.games.map((g, gi) => gi !== gameIdx ? g : { ...g, ...newGame }) }
         );
         const ns = rebuildStandings(activeTeamIds, nh);
+        const nr = generateRound(ns, numCourts, nh.length, nh, pausedIds);
+        if (isAdmin) pushPatch('history', nh);
         setHistory(nh); setStandings(ns);
-        setRound(generateRound(ns, numCourts, nh.length, nh, pausedIds));
+        setRound(nr);
         setEditTarget(null);
       };
 
@@ -1008,21 +1182,27 @@
               <div className="text-4xl mb-1">&#x1F3D3;</div>
               <h1 className="text-3xl font-black tracking-tight mb-1"
                 style={{ background: "linear-gradient(90deg,#a5b4fc,#f0abfc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                Pickleball Ladder
+                Ari's Ladder Tournament
               </h1>
               {phase === "play" ? (
-                <div className="flex items-center justify-center gap-3 flex-wrap">
-                  <p className="text-slate-400 text-sm">
-                    {activeTeamIds.length} teams · {isAdmin ? '🟢 Admin Mode' : '🔵 Live Viewer'}
-                  </p>
-                  <button
-                    onClick={() => { if (isAdmin) setIsAdmin(false); else setPinPurpose("admin"); }}
-                    className="text-xs px-2 py-1 rounded-lg font-bold"
-                    style={{ background: isAdmin ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.05)",
-                      color: isAdmin ? "#fbbf24" : "#475569", cursor: "pointer",
-                      border: `1px solid ${isAdmin ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)"}` }}>
-                    {isAdmin ? "🔓 Admin" : "🔒 Unlock Admin"}
-                  </button>
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex items-center justify-center gap-3 flex-wrap">
+                    <p className="text-slate-400 text-sm">
+                      {activeTeamIds.length} teams · {isAdmin ? '🟢 Admin Mode' : '🔵 Live Viewer'}
+                    </p>
+                    <button
+                      onClick={() => { if (isAdmin) setIsAdmin(false); else setPinPurpose("admin"); }}
+                      className="text-xs px-2 py-1 rounded-lg font-bold"
+                      style={{ background: isAdmin ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.05)",
+                        color: isAdmin ? "#fbbf24" : "#475569", cursor: "pointer",
+                        border: `1px solid ${isAdmin ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)"}` }}>
+                      {isAdmin ? "🔓 Admin" : "🔒 Unlock Admin"}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-slate-600">
+                    {presence.admins > 0 && <span>🟢 {presence.admins} admin{presence.admins !== 1 ? 's' : ''}</span>}
+                    <span>🔵 {presence.viewers} viewer{presence.viewers !== 1 ? 's' : ''}</span>
+                  </div>
                 </div>
               ) : phase === "setup" ? (
                 <p className="text-slate-400 text-sm">Tournament Setup</p>
@@ -1207,10 +1387,10 @@
                                 gap: "6px",
                               }}>
                                 <span className="text-slate-500 text-xs truncate">Court {game.courtNumber}</span>
-                                <div className="flex justify-end"><TeamChip teamId={game.winnerId} /></div>
+                                <div className="flex justify-end items-center gap-1"><span style={{fontSize:11}}>🏆</span><TeamChip teamId={game.winnerId} /></div>
                                 <span className="font-bold text-sm text-right" style={{ color: w?.color }}>{game.winnerScore}</span>
                                 <span className="text-slate-600 text-xs text-center">–</span>
-                                <span className="font-bold text-sm text-left" style={{ color: l?.color }}>{game.loserScore}</span>
+                                <span className="font-bold text-sm text-left" style={{ color: l?.color, opacity: 0.6 }}>{game.loserScore}</span>
                                 <div className="flex justify-start"><TeamChip teamId={game.loserId} /></div>
                                 <div>
                                   {isAdmin && (
