@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Ari's Ladder Tournament</title>
+  <title>Tournament: Not A Round Robin</title>
   
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -740,43 +740,71 @@
       const [savedState, setSavedState] = useState(null);
 
       // ── Timer model ───────────────────────────────────────────────────────
-      // We store timerRunning, timerStartedAt (ms epoch), timerPausedSecsLeft
-      // in Firebase. Every client computes secsLeft locally — no per-second writes.
-      const [timerRunning, setTimerRunning] = useState(false);
-      const [timerStartedAt, setTimerStartedAt] = useState(null);   // ms epoch when last started
-      const [timerPausedSecsLeft, setTimerPausedSecsLeft] = useState(0); // secs left at last pause/reset
-      const [timerAlarmed, setTimerAlarmed] = useState(false);
-      const alarmFiredRef = useRef(false);
-      const timerTickRef = useRef(null); // setInterval id for local display
+      // Firebase stores: timerRunning (bool), timerStartedAt (ms epoch when
+      // last started/resumed), timerPausedSecsLeft (secs left when last paused).
+      // Every client computes current secsLeft from wall-clock time — no per-second writes.
+      //
+      // We keep timer config in REFS so updates are immediately visible to the
+      // tick interval without waiting for React's async state batching.
+      // Only timerSecsLeft (the display value) is React state.
 
-      // Compute current seconds left from stored timestamps
-      const computeSecsLeft = (running, startedAt, pausedSecsLeft) => {
-        if (!running || !startedAt) return pausedSecsLeft;
-        const elapsed = Math.floor((Date.now() - startedAt) / 1000);
-        return Math.max(0, pausedSecsLeft - elapsed);
+      const timerRunningRef    = useRef(false);
+      const timerStartedAtRef  = useRef(null);   // ms epoch
+      const timerPausedSecsRef = useRef(0);       // secs left at last pause/reset
+      const timerDurationRef   = useRef(0);
+      const alarmFiredRef      = useRef(false);
+      const timerTickRef       = useRef(null);
+
+      // React state only for rendering
+      const [timerRunning, setTimerRunning]       = useState(false);
+      const [timerPausedSecsLeft, setTimerPausedSecsLeft] = useState(0);
+      const [timerAlarmed, setTimerAlarmed]       = useState(false);
+      const [timerSecsLeft, setTimerSecsLeft]     = useState(0);
+
+      // Sync refs when timerDuration state changes
+      useEffect(() => { timerDurationRef.current = timerDuration; }, [timerDuration]);
+
+      // Core compute — reads from refs, always up-to-date
+      const computeSecsLeft = () => {
+        if (!timerRunningRef.current || !timerStartedAtRef.current) {
+          return timerPausedSecsRef.current;
+        }
+        const elapsed = Math.floor((Date.now() - timerStartedAtRef.current) / 1000);
+        return Math.max(0, timerPausedSecsRef.current - elapsed);
       };
 
-      // Local display state — updated by a tick every second
-      const [timerSecsLeft, setTimerSecsLeft] = useState(0);
-
-      // Tick effect: keep timerSecsLeft in sync with wall clock when running
-      useEffect(() => {
+      // applyTimerState: update refs AND state in one go, then restart tick
+      const applyTimerState = (running, startedAt, pausedSecs) => {
+        timerRunningRef.current    = running;
+        timerStartedAtRef.current  = startedAt;
+        timerPausedSecsRef.current = pausedSecs;
+        // Compute display value immediately — no async lag
+        const secs = running && startedAt
+          ? Math.max(0, pausedSecs - Math.floor((Date.now() - startedAt) / 1000))
+          : pausedSecs;
+        setTimerSecsLeft(secs);
+        setTimerRunning(running);
+        setTimerPausedSecsLeft(pausedSecs);
+        // Restart tick interval
         clearInterval(timerTickRef.current);
-        if (!timerRunning || !timerStartedAt || timerDuration === 0) return;
-        const tick = () => {
-          const secs = computeSecsLeft(timerRunning, timerStartedAt, timerPausedSecsLeft);
-          setTimerSecsLeft(secs);
-          if (secs <= 0) clearInterval(timerTickRef.current);
-        };
-        tick(); // immediate first tick
-        timerTickRef.current = setInterval(tick, 500); // 500ms for smooth display
-        return () => clearInterval(timerTickRef.current);
-      }, [timerRunning, timerStartedAt, timerPausedSecsLeft, timerDuration]);
-
-      // When paused, just display timerPausedSecsLeft directly
-      useEffect(() => {
-        if (!timerRunning) setTimerSecsLeft(timerPausedSecsLeft);
-      }, [timerRunning, timerPausedSecsLeft]);
+        if (running && startedAt) {
+          timerTickRef.current = setInterval(() => {
+            const s = computeSecsLeft();
+            setTimerSecsLeft(s);
+            if (s <= 0) {
+              clearInterval(timerTickRef.current);
+              if (!alarmFiredRef.current && timerDurationRef.current > 0) {
+                alarmFiredRef.current = true;
+                playAlarm();
+                // Mark expired — don't push to Firebase; let admin see it
+                timerRunningRef.current = false;
+                setTimerRunning(false);
+                setTimerAlarmed(true);
+              }
+            }
+          }, 500);
+        }
+      };
 
       // ── 3. CLOUD SYNC LISTENERS ───────────────────────────────────────────
       // Everyone (including admins) listens to Firebase.
@@ -836,12 +864,15 @@
         db.ref('current_tournament').set({ ...snapshot, _writeToken: token });
       };
 
-      // ── pushPatch: write a partial update (e.g. single game score) ─────────
+      // ── pushPatch: write a partial update atomically (path + token together)
       const pushPatch = (path, value) => {
         const token = Math.random().toString(36).slice(2);
         lastWriteToken.current = token;
-        db.ref('current_tournament/' + path).set(value);
-        db.ref('current_tournament/_writeToken').set(token);
+        // Use update() so both writes land in a single Firebase event,
+        // preventing the listener from firing with a stale token.
+        const update = { _writeToken: token };
+        update[path] = value;
+        db.ref('current_tournament').update(update);
       };
 
       // Helper function to update all internal React state from a single data object
@@ -881,14 +912,12 @@
           setRoundKey((k) => k + 1);
         }
 
-        // Restore timestamp-based timer state — each client computes secsLeft locally
-        const running = s.timerRunning || false;
+        // Restore timer state — applyTimerState updates refs+state synchronously
+        alarmFiredRef.current = false; // re-arm alarm for new session
+        const running  = s.timerRunning || false;
         const startedAt = s.timerStartedAt || null;
         const pausedSecs = s.timerPausedSecsLeft ?? s.timerDuration ?? 0;
-        setTimerRunning(running);
-        setTimerStartedAt(startedAt);
-        setTimerPausedSecsLeft(pausedSecs);
-        alarmFiredRef.current = false; // re-arm alarm for new session
+        applyTimerState(running, startedAt, pausedSecs);
 
         setPhase("play");
       };
@@ -944,7 +973,9 @@
         const snapshot = {
           phase, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins,
           history, roundNum, pausedIds, roundData,
-          timerRunning, timerStartedAt, timerPausedSecsLeft,
+          timerRunning,
+          timerStartedAt: timerStartedAtRef.current,
+          timerPausedSecsLeft: timerPausedSecsRef.current,
           savedAt: Date.now(),
         };
         
@@ -955,7 +986,7 @@
         if (isAdminRef.current) {
           pushSnapshot(snapshot);
         }
-      }, [phase, history, roundNum, pausedIds, timerRunning, timerStartedAt, timerPausedSecsLeft, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins]);
+      }, [phase, history, roundNum, pausedIds, timerRunning, timerPausedSecsLeft, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins]);
 
       const handleRestore = () => {
         const s = savedState;
@@ -963,18 +994,6 @@
         updateAllStates(normaliseSnapshot(s)); // normalise + handle timer fields
         setActiveTab("play");
       };
-
-      // ── Alarm: fire once when secsLeft reaches 0 ─────────────────────────────
-      useEffect(() => {
-        if (timerSecsLeft === 0 && timerDuration > 0 && timerRunning && !alarmFiredRef.current) {
-          alarmFiredRef.current = true;
-          playAlarm();
-          // Locally mark as stopped; admin pause will sync to Firebase
-          setTimerRunning(false);
-          setTimerPausedSecsLeft(0);
-          setTimerAlarmed(true);
-        }
-      }, [timerSecsLeft, timerDuration, timerRunning]);
 
       // ── pushTimerState: write timer fields to Firebase (admin only) ────────
       const pushTimerState = (running, startedAt, pausedSecsLeft) => {
@@ -985,14 +1004,10 @@
 
       // ── resetTimer: reset clock locally + push to Firebase ────────────────
       const resetTimer = (newSecs) => {
-        clearInterval(timerTickRef.current);
         alarmFiredRef.current = false;
         const secs = newSecs ?? timerDuration;
-        setTimerRunning(false);
-        setTimerStartedAt(null);
-        setTimerPausedSecsLeft(secs);
-        setTimerSecsLeft(secs);
         setTimerAlarmed(false);
+        applyTimerState(false, null, secs);
         if (isAdmin) pushTimerState(false, null, secs);
       };
 
@@ -1027,13 +1042,11 @@
 
         setActiveTeamIds(teamIds); setCourtNumbers(courts); setTimerDuration(durSecs);
         setStandings(s); setRound(r); setRoundNum(1); setHistory([]);
+        lastSeenRoundNum.current = 1; // prevent echo from triggering isNewRound
         setPending({}); setPausedIds([]); setRoundKey(0);
         alarmFiredRef.current = false;
-        setTimerRunning(durSecs > 0);
-        setTimerStartedAt(startedAt);
-        setTimerPausedSecsLeft(durSecs);
-        setTimerSecsLeft(durSecs);
         setTimerAlarmed(false);
+        applyTimerState(durSecs > 0, startedAt, durSecs);
         setPhase("play"); setActiveTab("play");
       };
 
@@ -1121,17 +1134,13 @@
             pushPatch('pendingResults', null);
           }
 
+          lastSeenRoundNum.current = newRoundNum; // prevent echo from triggering isNewRound
           setHistory(nh); setStandings(ns); setRound(nr);
           setRoundNum(newRoundNum); setPending({}); setRoundKey((k) => k + 1);
-          // Reset and auto-start timer locally (Firebase already pushed above)
-          clearInterval(timerTickRef.current);
           alarmFiredRef.current = false;
-          const newStartedAtLocal = timerDuration > 0 ? Date.now() : null;
-          setTimerRunning(timerDuration > 0);
-          setTimerStartedAt(newStartedAtLocal);
-          setTimerPausedSecsLeft(timerDuration);
-          setTimerSecsLeft(timerDuration);
           setTimerAlarmed(false);
+          const newStartedAtLocal = timerDuration > 0 ? Date.now() : null;
+          applyTimerState(timerDuration > 0, newStartedAtLocal, timerDuration);
         }
       };
 
@@ -1182,10 +1191,9 @@
 
           <div className="max-w-2xl mx-auto">
             <div className="text-center mb-5">
-              <div className="text-4xl mb-1">&#x1F3D3;</div>
               <h1 className="text-3xl font-black tracking-tight mb-1"
                 style={{ background: "linear-gradient(90deg,#a5b4fc,#f0abfc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                Ari's Ladder Tournament
+                Tournament: Not A Round Robin
               </h1>
               <div className="flex flex-col items-center gap-1">
                 <div className="flex items-center justify-center gap-3 flex-wrap">
@@ -1254,19 +1262,15 @@
                     secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum}
                     timerRunning={timerRunning} isAdmin={isAdmin}
                     onToggle={() => {
-                      const nowRunning = !timerRunning;
-                      if (nowRunning) {
-                        // Resume: record when we resumed
+                      if (!timerRunning) {
+                        // Resume
                         const startedAt = Date.now();
-                        setTimerRunning(true);
-                        setTimerStartedAt(startedAt);
-                        pushTimerState(true, startedAt, timerPausedSecsLeft);
+                        applyTimerState(true, startedAt, timerPausedSecsRef.current);
+                        pushTimerState(true, startedAt, timerPausedSecsRef.current);
                       } else {
-                        // Pause: snapshot current secsLeft
-                        const secs = computeSecsLeft(timerRunning, timerStartedAt, timerPausedSecsLeft);
-                        setTimerRunning(false);
-                        setTimerPausedSecsLeft(secs);
-                        setTimerSecsLeft(secs);
+                        // Pause — snapshot current computed secs
+                        const secs = computeSecsLeft();
+                        applyTimerState(false, null, secs);
                         pushTimerState(false, null, secs);
                       }
                     }}
