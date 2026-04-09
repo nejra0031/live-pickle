@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Tournament: Not A Round Robin</title>
+  <title>This is NOT a Round Robin</title>
   
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -66,11 +66,21 @@
       { id: "sky",    name: "Sky",    color: "#38bdf8", text: "#000" },
       { id: "gold",   name: "Gold",   color: "#d97706", text: "#fff" },
     ];
-    // Runtime team registry — includes both color teams and named custom teams
-    // Custom teams are added at setup time and stored in Firebase alongside tournament data
-    let TEAM_REGISTRY = [...ALL_TEAMS];
-    const teamById = (id) => TEAM_REGISTRY.find((t) => t.id === id);
-    const registerTeams = (teams) => { TEAM_REGISTRY = teams; };
+    // Runtime team registry — custom named teams added at setup time.
+    // Color teams are always available via ALL_TEAMS as a base.
+    let CUSTOM_TEAMS = []; // only the non-color teams
+    const teamById = (id) => {
+      // Check custom teams first (they can override), then fall back to ALL_TEAMS
+      const custom = CUSTOM_TEAMS.find(t => t.id === id);
+      if (custom) return custom;
+      return ALL_TEAMS.find(t => t.id === id);
+    };
+    // registerTeams receives the full list (color + custom); extract just the custom ones
+    const registerTeams = (teams) => {
+      if (!teams || !teams.length) { CUSTOM_TEAMS = []; return; }
+      const colorIds = new Set(ALL_TEAMS.map(t => t.id));
+      CUSTOM_TEAMS = teams.filter(t => !colorIds.has(t.id));
+    };
 
     // ─── Firebase array normalisation ──────────────────────────────────────────
     // Firebase converts JS arrays to objects with "0","1",... keys on round-trips.
@@ -83,6 +93,20 @@
     }
     function normaliseSnapshot(s) {
       if (!s) return s;
+      // Normalise teamRegistry first and register immediately so teamById works
+      // for everything that follows (round construction, etc.)
+      // Normalise and validate teamRegistry entries
+      const rawRegistry = s.teamRegistry ? toArr(s.teamRegistry) : null;
+      const registry = rawRegistry
+        ? rawRegistry.filter(t => t && t.id && t.name && t.color).map(t => ({
+            id: String(t.id),
+            name: String(t.name),
+            color: String(t.color),
+            text: String(t.text || "#fff"),
+          }))
+        : null;
+      if (registry && registry.length > 0) registerTeams(registry);
+
       const h = toArr(s.history).map(round => ({
         ...round,
         games: toArr(round.games),
@@ -101,7 +125,7 @@
         activeTeamIds: toArr(s.activeTeamIds),
         courtNumbers: toArr(s.courtNumbers),
         pausedIds: toArr(s.pausedIds),
-        teamRegistry: s.teamRegistry ? toArr(s.teamRegistry) : null,
+        teamRegistry: registry,
       };
     }
 
@@ -507,7 +531,10 @@
         const names = input.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
         return names.map((name, i) => {
           const c = available[i % available.length] || ALL_TEAMS[i % ALL_TEAMS.length];
-          return { id: "custom_" + i + "_" + name.replace(/[^a-z0-9]/gi,"").toLowerCase(), name, color: c.color, text: c.text };
+          // Simple numeric ID — completely independent of the name content.
+          // This avoids any Firebase key safety issues with special characters.
+          const id = "t" + i;
+          return { id, name, color: c.color, text: c.text };
         });
       };
 
@@ -719,6 +746,9 @@
     function App() {
       const [phase, setPhase] = useState("loading"); // start loading from Firebase
       const [activeTeamIds, setActiveTeamIds] = useState([]);
+      // Full team objects for this tournament (color + custom named teams)
+      // Kept in state so it's always available for Firebase pushes
+      const [tournamentTeams, setTournamentTeams] = useState([]);
       const [courtNumbers, setCourtNumbers] = useState([]);
       const [timerDuration, setTimerDuration] = useState(0);
       const [timerDefaultMins, setTimerDefaultMins] = useState(12);
@@ -727,6 +757,7 @@
       const [round, setRound] = useState(null);
       const [roundNum, setRoundNum] = useState(1);
       const [pending, setPending] = useState({});
+      const [roundComplete, setRoundComplete] = useState(false); // all scores in, awaiting generation
       const [roundKey, setRoundKey] = useState(0);
       const [activeTab, setActiveTab] = useState("play");
       const [editTarget, setEditTarget] = useState(null);
@@ -877,18 +908,23 @@
 
       // Helper function to update all internal React state from a single data object
       const updateAllStates = (s) => {
-        // Register any custom named teams from the snapshot before rebuilding
-        if (s.teamRegistry) registerTeams(s.teamRegistry);
+        // teamRegistry already registered by normaliseSnapshot before we get here.
+        // Also store it in React state so it's available for all future pushes.
+        if (s.teamRegistry && s.teamRegistry.length > 0) {
+          setTournamentTeams(s.teamRegistry);
+        }
         const ns = rebuildStandings(s.activeTeamIds, s.history);
 
         // Prefer the stored round (so viewers see exactly what admin sees).
         // Fall back to generating it if roundData is missing (e.g. old saves).
         let nr;
         if (s.roundData && s.roundData.courtTeamIds) {
+          // safeTeam: always returns a valid team object; never returns undefined
+          const safeTeam = (id) => teamById(id) || { id, name: String(id), color: "#475569", text: "#fff" };
           nr = {
-            courts: s.roundData.courtTeamIds.map(pair => pair.map(id => teamById(id)).filter(Boolean)),
-            bye: (s.roundData.byeIds || []).map(id => teamById(id)).filter(Boolean),
-            paused: (s.roundData.pausedTeamIds || []).map(id => teamById(id)).filter(Boolean),
+            courts: s.roundData.courtTeamIds.map(pair => pair.map(safeTeam)),
+            bye: (s.roundData.byeIds || []).map(safeTeam),
+            paused: (s.roundData.pausedTeamIds || []).map(safeTeam),
           };
         } else {
           nr = generateRound(ns, s.courtNumbers.length, s.history.length, s.history, s.pausedIds || []);
@@ -903,6 +939,7 @@
         setRound(nr);
         setRoundNum(s.roundNum);
         setPausedIds(s.pausedIds || []);
+        setRoundComplete(s.roundComplete || false);
 
         // Capture whether this is a new round BEFORE updating the ref
         const isNewRound = s.roundNum !== lastSeenRoundNum.current;
@@ -937,27 +974,40 @@
       }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
       // ── Presence tracking ─────────────────────────────────────────────────
-      // Use Firebase's onDisconnect to clean up automatically
-      useEffect(() => {
-        const presenceRef = db.ref('presence').push();
-        presenceRef.set({ role: isAdmin ? 'admin' : 'viewer', joinedAt: Date.now() });
-        presenceRef.onDisconnect().remove();
+      // One stable presence node per session (stored in ref).
+      // Only the role field is updated when isAdmin changes.
+      const myPresenceRef = useRef(null);
 
-        const allPresenceRef = db.ref('presence');
-        allPresenceRef.on('value', (snap) => {
+      useEffect(() => {
+        // Create the presence node once on mount
+        const ref = db.ref('presence').push();
+        myPresenceRef.current = ref;
+        ref.set({ role: 'viewer', joinedAt: Date.now() });
+        ref.onDisconnect().remove();
+
+        // Listen for all presence entries with a named callback
+        const handlePresence = (snap) => {
           const data = snap.val() || {};
           const entries = Object.values(data);
           setPresence({
-            viewers: entries.filter(e => e.role === 'viewer').length,
-            admins: entries.filter(e => e.role === 'admin').length,
+            viewers: entries.filter(e => e && e.role === 'viewer').length,
+            admins:  entries.filter(e => e && e.role === 'admin').length,
           });
-        });
+        };
+        db.ref('presence').on('value', handlePresence);
 
         return () => {
-          presenceRef.remove();
-          allPresenceRef.off();
+          ref.remove();
+          db.ref('presence').off('value', handlePresence);
         };
-      }, [isAdmin]); // re-register when role changes
+      }, []); // only once on mount
+
+      // Update role in Firebase when admin status changes (no new node)
+      useEffect(() => {
+        if (myPresenceRef.current) {
+          myPresenceRef.current.update({ role: isAdmin ? 'admin' : 'viewer' });
+        }
+      }, [isAdmin]);
 
       // ── Auto-save (LOCAL & CLOUD) ───────────────────────────────────────────
       useEffect(() => {
@@ -965,14 +1015,15 @@
 
         // Serialise current round as plain IDs so Firebase can store it
         const roundData = (round && round.courts && round.courts.length > 0) ? {
-          courtTeamIds: round.courts.map(pair => pair.map(t => t.id)),
-          byeIds: (round.bye || []).map(t => t.id),
-          pausedTeamIds: (round.paused || []).map(t => t.id),
+          courtTeamIds: round.courts.map(pair => pair.map(t => t && t.id).filter(Boolean)),
+          byeIds: (round.bye || []).map(t => t && t.id).filter(Boolean),
+          pausedTeamIds: (round.paused || []).map(t => t && t.id).filter(Boolean),
         } : null;
 
         const snapshot = {
           phase, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins,
           history, roundNum, pausedIds, roundData,
+          teamRegistry: tournamentTeams,
           timerRunning,
           timerStartedAt: timerStartedAtRef.current,
           timerPausedSecsLeft: timerPausedSecsRef.current,
@@ -1016,6 +1067,7 @@
 
       const handleStart = (allTeams, teamIds, courts, durSecs) => {
         registerTeams(allTeams);
+        setTournamentTeams(allTeams);
         const s = mkStandings(teamIds);
         const r = generateRound(s, courts.length, 0, [], []);
 
@@ -1043,7 +1095,7 @@
         setActiveTeamIds(teamIds); setCourtNumbers(courts); setTimerDuration(durSecs);
         setStandings(s); setRound(r); setRoundNum(1); setHistory([]);
         lastSeenRoundNum.current = 1; // prevent echo from triggering isNewRound
-        setPending({}); setPausedIds([]); setRoundKey(0);
+        setPending({}); setPausedIds([]); setRoundKey(0); setRoundComplete(false);
         alarmFiredRef.current = false;
         setTimerAlarmed(false);
         applyTimerState(durSecs > 0, startedAt, durSecs);
@@ -1104,44 +1156,77 @@
         }
 
         if (round.courts.every((_, idx) => np[courtKey(idx)])) {
+          // All courts done — commit results to history but don't generate next round yet.
+          // Admin will click "Generate Next Round" after adjusting pauses if needed.
           const games = round.courts.map((_, idx) => ({ ...np[courtKey(idx)], courtNumber: courtNumbers[idx] ?? idx + 1 }));
           const entry = { roundNum, games, bye: round.bye.map((t) => t.id), paused: (round.paused || []).map((t) => t.id) };
           const nh = [...history, entry];
           const ns = rebuildStandings(activeTeamIds, nh);
-          const nr = generateRound(ns, numCourts, nh.length, nh, pausedIds);
-          const newRoundNum = roundNum + 1;
 
-          // Push new round to Firebase immediately (don't wait for effect)
           if (isAdmin) {
-            const roundData = {
-              courtTeamIds: nr.courts.map(pair => pair.map(t => t.id)),
-              byeIds: nr.bye.map(t => t.id),
-              pausedTeamIds: (nr.paused || []).map(t => t.id),
-            };
-            const newStartedAt = timerDuration > 0 ? Date.now() : null;
+            // Push committed results to Firebase (no new round yet)
             const snapshot = {
               phase: "play", activeTeamIds, courtNumbers,
-              teamRegistry: TEAM_REGISTRY,
+              teamRegistry: tournamentTeams,
               timerDuration, timerDefaultMins,
-              history: nh, roundNum: newRoundNum, pausedIds,
-              timerRunning: timerDuration > 0,
-              timerStartedAt: newStartedAt,
+              history: nh, roundNum, pausedIds,
+              roundComplete: true,
+              timerRunning: false,
+              timerStartedAt: null,
               timerPausedSecsLeft: timerDuration,
-              roundData, savedAt: Date.now(),
+              roundData: null, // no next round yet
+              savedAt: Date.now(),
             };
             saveState(snapshot);
             pushSnapshot(snapshot);
             pushPatch('pendingResults', null);
           }
 
-          lastSeenRoundNum.current = newRoundNum; // prevent echo from triggering isNewRound
-          setHistory(nh); setStandings(ns); setRound(nr);
-          setRoundNum(newRoundNum); setPending({}); setRoundKey((k) => k + 1);
+          setHistory(nh);
+          setStandings(ns);
+          setRoundComplete(true);
           alarmFiredRef.current = false;
           setTimerAlarmed(false);
-          const newStartedAtLocal = timerDuration > 0 ? Date.now() : null;
-          applyTimerState(timerDuration > 0, newStartedAtLocal, timerDuration);
+          applyTimerState(false, null, timerDuration);
         }
+      };
+
+      // Admin manually triggers generation of the next round
+      const handleGenerateRound = () => {
+        const ns = rebuildStandings(activeTeamIds, history);
+        const nr = generateRound(ns, numCourts, history.length, history, pausedIds);
+        const newRoundNum = roundNum + 1;
+
+        if (isAdmin) {
+          const roundData = {
+            courtTeamIds: nr.courts.map(pair => pair.map(t => t.id)),
+            byeIds: nr.bye.map(t => t.id),
+            pausedTeamIds: (nr.paused || []).map(t => t.id),
+          };
+          const newStartedAt = timerDuration > 0 ? Date.now() : null;
+          const snapshot = {
+            phase: "play", activeTeamIds, courtNumbers,
+            teamRegistry: tournamentTeams,
+            timerDuration, timerDefaultMins,
+            history, roundNum: newRoundNum, pausedIds,
+            roundComplete: false,
+            timerRunning: timerDuration > 0,
+            timerStartedAt: newStartedAt,
+            timerPausedSecsLeft: timerDuration,
+            roundData, savedAt: Date.now(),
+          };
+          lastSeenRoundNum.current = newRoundNum;
+          saveState(snapshot);
+          pushSnapshot(snapshot);
+        }
+
+        setRound(nr);
+        setRoundNum(newRoundNum);
+        setPending({});
+        setRoundKey((k) => k + 1);
+        setRoundComplete(false);
+        const newStartedAtLocal = timerDuration > 0 ? Date.now() : null;
+        applyTimerState(timerDuration > 0, newStartedAtLocal, timerDuration);
       };
 
       const handleEditSave = (ri, gameIdx, newGame) => {
@@ -1193,7 +1278,7 @@
             <div className="text-center mb-5">
               <h1 className="text-3xl font-black tracking-tight mb-1"
                 style={{ background: "linear-gradient(90deg,#a5b4fc,#f0abfc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                Tournament: Not A Round Robin
+                This is NOT a Round Robin
               </h1>
               <div className="flex flex-col items-center gap-1">
                 <div className="flex items-center justify-center gap-3 flex-wrap">
@@ -1215,10 +1300,10 @@
                     {isAdmin ? "🔓 Admin" : "🔒"}
                   </button>
                 </div>
-                {phase === "play" && (
+                {(presence.admins > 0 || presence.viewers > 0) && (
                   <div className="flex items-center gap-3 text-xs text-slate-600">
                     {presence.admins > 0 && <span>🟢 {presence.admins} admin{presence.admins !== 1 ? 's' : ''}</span>}
-                    <span>🔵 {presence.viewers} viewer{presence.viewers !== 1 ? 's' : ''}</span>
+                    {presence.viewers > 0 && <span>🔵 {presence.viewers} viewer{presence.viewers !== 1 ? 's' : ''}</span>}
                   </div>
                 )}
               </div>
@@ -1310,7 +1395,21 @@
                       </div>
                     </div>
                     
-                    {isAdmin ? (
+                    {roundComplete ? (
+                      // All scores entered — show summary and generation controls
+                      <div className="rounded-2xl p-5 text-center flex flex-col gap-3"
+                        style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.25)" }}>
+                        <p className="text-green-400 font-bold text-sm">✓ Round {roundNum} complete</p>
+                        <p className="text-slate-400 text-xs">All results logged. Adjust team pauses below, then generate the next round.</p>
+                        {isAdmin && (
+                          <button onClick={handleGenerateRound}
+                            className="w-full py-3 rounded-xl font-bold text-base mt-1"
+                            style={{ background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff", cursor: "pointer" }}>
+                            Generate Round {roundNum + 1} →
+                          </button>
+                        )}
+                      </div>
+                    ) : isAdmin ? (
                       round.courts.map((teams, idx) => (
                         <CourtCard key={`${roundKey}-court-${idx}`} courtLabel={`Court ${courtNumbers[idx] ?? idx + 1}`}
                           teams={teams} onResult={(r) => handleResult(idx, r)} done={!!pending[courtKey(idx)]} />
@@ -1402,11 +1501,11 @@
                             return (
                               <div key={gi} className="mb-2" style={{
                                 display: "grid",
-                                gridTemplateColumns: "64px 1fr 28px 12px 28px 1fr auto",
+                                gridTemplateColumns: "32px 1fr 28px 12px 28px 1fr auto",
                                 alignItems: "center",
                                 gap: "6px",
                               }}>
-                                <span className="text-slate-500 text-xs truncate">Court {game.courtNumber}</span>
+                                <span className="text-slate-500 text-xs font-bold text-center">{game.courtNumber}</span>
                                 <div className="flex justify-end"><TeamChip teamId={game.winnerId} /></div>
                                 <span className="font-bold text-sm text-right" style={{ color: w?.color }}>{game.winnerScore}</span>
                                 <span className="text-slate-600 text-xs text-center">–</span>
