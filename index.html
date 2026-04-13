@@ -14,7 +14,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body { margin: 0; padding: 0; background: #0a0a0f; }
+    body { margin: 0; padding: 0; background: #40E0D0; }
     input[type=number]::-webkit-inner-spin-button,
     input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
@@ -23,1535 +23,1128 @@
 <body>
   <div id="root"></div>
   <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+    const { useState, useEffect, useRef, useCallback } = React;
 
-    // ─── 2. FIREBASE INITIALIZATION ──────────────────────────────────────────
-    // PASTE YOUR CONFIG FROM FIREBASE CONSOLE HERE:
-	const firebaseConfig = {
-	  apiKey: "AIzaSyBWcUvEUzlvUb0CwM_GsjLY0AmiYHa8GhA",
-	  authDomain: "live-pickle.firebaseapp.com",
-	  databaseURL: "https://live-pickle-default-rtdb.asia-southeast1.firebasedatabase.app",
-	  projectId: "live-pickle",
-	  storageBucket: "live-pickle.firebasestorage.app",
-	  messagingSenderId: "419584191740",
-	  appId: "1:419584191740:web:430fdc01037a21838bfb79"
-	};
-
-    // Initialize Firebase once
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
+    // ─── FIREBASE ──────────────────────────────────────────────────────────
+    const firebaseConfig = {
+      apiKey: "AIzaSyBWcUvEUzlvUb0CwM_GsjLY0AmiYHa8GhA",
+      authDomain: "live-pickle.firebaseapp.com",
+      databaseURL: "https://live-pickle-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "live-pickle",
+      storageBucket: "live-pickle.firebasestorage.app",
+      messagingSenderId: "419584191740",
+      appId: "1:419584191740:web:430fdc01037a21838bfb79"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // ─── Team definitions ─────────────────────────────────────────────────────────
+    // ─── Team definitions ───────────────────────────────────────────────────
     const ALL_TEAMS = [
-      { id: "red",    name: "Red",    color: "#ef4444", text: "#fff" },
-      { id: "blue",   name: "Blue",   color: "#3b82f6", text: "#fff" },
-      { id: "yellow", name: "Yellow", color: "#eab308", text: "#000" },
-      { id: "green",  name: "Green",  color: "#22c55e", text: "#fff" },
-      { id: "orange", name: "Orange", color: "#f97316", text: "#fff" },
-      { id: "purple", name: "Purple", color: "#a855f7", text: "#fff" },
-      { id: "pink",   name: "Pink",   color: "#ec4899", text: "#fff" },
-      { id: "grey",   name: "Grey",   color: "#6b7280", text: "#fff" },
-      { id: "brown",  name: "Brown",  color: "#92400e", text: "#fff" },
-      { id: "teal",   name: "Teal",   color: "#14b8a6", text: "#fff" },
-      { id: "lime",   name: "Lime",   color: "#84cc16", text: "#000" },
-      { id: "cyan",   name: "Cyan",   color: "#06b6d4", text: "#000" },
-      { id: "indigo", name: "Indigo", color: "#6366f1", text: "#fff" },
-      { id: "rose",   name: "Rose",   color: "#f43f5e", text: "#fff" },
-      { id: "amber",  name: "Amber",  color: "#f59e0b", text: "#000" },
-      { id: "navy",   name: "Navy",   color: "#1e40af", text: "#fff" },
-      { id: "mint",   name: "Mint",   color: "#6ee7b7", text: "#000" },
-      { id: "coral",  name: "Coral",  color: "#fb7185", text: "#fff" },
-      { id: "sky",    name: "Sky",    color: "#38bdf8", text: "#000" },
-      { id: "gold",   name: "Gold",   color: "#d97706", text: "#fff" },
+      { id:"red",    name:"Red",    color:"#ef4444", text:"#fff" },
+      { id:"blue",   name:"Blue",   color:"#3b82f6", text:"#fff" },
+      { id:"yellow", name:"Yellow", color:"#eab308", text:"#000" },
+      { id:"green",  name:"Green",  color:"#22c55e", text:"#fff" },
+      { id:"orange", name:"Orange", color:"#f97316", text:"#fff" },
+      { id:"purple", name:"Purple", color:"#a855f7", text:"#fff" },
+      { id:"pink",   name:"Pink",   color:"#ec4899", text:"#fff" },
+      { id:"grey",   name:"Grey",   color:"#6b7280", text:"#fff" },
+      { id:"brown",  name:"Brown",  color:"#92400e", text:"#fff" },
+      { id:"teal",   name:"Teal",   color:"#14b8a6", text:"#fff" },
+      { id:"lime",   name:"Lime",   color:"#84cc16", text:"#000" },
+      { id:"cyan",   name:"Cyan",   color:"#06b6d4", text:"#000" },
+      { id:"indigo", name:"Indigo", color:"#6366f1", text:"#fff" },
+      { id:"rose",   name:"Rose",   color:"#f43f5e", text:"#fff" },
+      { id:"amber",  name:"Amber",  color:"#f59e0b", text:"#000" },
+      { id:"navy",   name:"Navy",   color:"#1e40af", text:"#fff" },
+      { id:"mint",   name:"Mint",   color:"#6ee7b7", text:"#000" },
+      { id:"coral",  name:"Coral",  color:"#fb7185", text:"#fff" },
+      { id:"sky",    name:"Sky",    color:"#38bdf8", text:"#000" },
+      { id:"gold",   name:"Gold",   color:"#d97706", text:"#fff" },
     ];
-    // Runtime team registry — custom named teams added at setup time.
-    // Color teams are always available via ALL_TEAMS as a base.
-    let CUSTOM_TEAMS = []; // only the non-color teams
+
+    // CUSTOM_TEAMS stores ALL teams for the current tournament (including renamed colour teams).
+    // teamById first checks here, so custom names take effect everywhere.
+    let CUSTOM_TEAMS = [];
     const teamById = (id) => {
-      // Check custom teams first (they can override), then fall back to ALL_TEAMS
-      const custom = CUSTOM_TEAMS.find(t => t.id === id);
-      if (custom) return custom;
+      const c = CUSTOM_TEAMS.find(t => t.id === id);
+      if (c) return c;
       return ALL_TEAMS.find(t => t.id === id);
     };
-    // registerTeams receives the full list (color + custom); extract just the custom ones
-    const registerTeams = (teams) => {
-      if (!teams || !teams.length) { CUSTOM_TEAMS = []; return; }
-      const colorIds = new Set(ALL_TEAMS.map(t => t.id));
-      CUSTOM_TEAMS = teams.filter(t => !colorIds.has(t.id));
-    };
+    // registerTeams stores the full registry (including colour teams with custom names)
+    const registerTeams = (teams) => { CUSTOM_TEAMS = teams || []; };
 
-    // ─── Firebase array normalisation ──────────────────────────────────────────
-    // Firebase converts JS arrays to objects with "0","1",... keys on round-trips.
-    // This helper converts them back to arrays safely.
+    // ─── Firebase normalisation ─────────────────────────────────────────────
     function toArr(val) {
       if (!val) return [];
       if (Array.isArray(val)) return val;
-      // Firebase object with numeric-ish keys → sort and extract values
-      return Object.keys(val).sort((a,b) => Number(a)-Number(b)).map(k => val[k]);
+      return Object.keys(val).sort((a,b)=>Number(a)-Number(b)).map(k=>val[k]);
     }
     function normaliseSnapshot(s) {
       if (!s) return s;
-      // Normalise teamRegistry first and register immediately so teamById works
-      // for everything that follows (round construction, etc.)
-      // Normalise and validate teamRegistry entries
-      const rawRegistry = s.teamRegistry ? toArr(s.teamRegistry) : null;
-      const registry = rawRegistry
-        ? rawRegistry.filter(t => t && t.id && t.name && t.color).map(t => ({
-            id: String(t.id),
-            name: String(t.name),
-            color: String(t.color),
-            text: String(t.text || "#fff"),
-          }))
+      const rawReg = s.teamRegistry ? toArr(s.teamRegistry) : null;
+      const registry = rawReg
+        ? rawReg.filter(t=>t&&t.id&&t.name&&t.color).map(t=>({id:String(t.id),name:String(t.name),color:String(t.color),text:String(t.text||"#fff")}))
         : null;
       if (registry && registry.length > 0) registerTeams(registry);
-
-      const h = toArr(s.history).map(round => ({
-        ...round,
-        games: toArr(round.games),
-        bye: toArr(round.bye),
-        paused: toArr(round.paused),
-      }));
+      const h = toArr(s.history).map(r=>({...r,games:toArr(r.games),bye:toArr(r.bye),paused:toArr(r.paused)}));
       const rd = s.roundData ? {
-        courtTeamIds: toArr(s.roundData.courtTeamIds).map(pair => toArr(pair)),
+        courtTeamIds: toArr(s.roundData.courtTeamIds).map(p=>toArr(p)),
         byeIds: toArr(s.roundData.byeIds),
         pausedTeamIds: toArr(s.roundData.pausedTeamIds),
       } : null;
-      return {
-        ...s,
-        history: h,
-        roundData: rd,
-        activeTeamIds: toArr(s.activeTeamIds),
-        courtNumbers: toArr(s.courtNumbers),
-        pausedIds: toArr(s.pausedIds),
-        teamRegistry: registry,
-      };
+      return { ...s, history:h, roundData:rd,
+        activeTeamIds:toArr(s.activeTeamIds), courtNumbers:toArr(s.courtNumbers),
+        pausedIds:toArr(s.pausedIds), teamRegistry:registry };
     }
 
-    // ─── Persistence (localStorage) ──────────────────────────────────────────────
+    // ─── Persistence ────────────────────────────────────────────────────────
     const SAVE_KEY = "pickleball_tournament_v1";
+    function saveState(s){ try{ localStorage.setItem(SAVE_KEY,JSON.stringify(s)); }catch(e){} }
+    function loadState(){ try{ const r=localStorage.getItem(SAVE_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
+    function clearSave(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
 
-    function saveState(state) {
-      try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}
-    }
-
-    function loadState() {
-      try {
-        const raw = localStorage.getItem(SAVE_KEY);
-        return raw ? JSON.parse(raw) : null;
-      } catch (e) { return null; }
-    }
-
-    function clearSave() {
-      try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
-    }
-
-    // ─── Alarm (Web Audio API) ────────────────────────────────────────────────────
-    let _audioCtx = null;
-    function getAudioCtx() {
-      if (!_audioCtx || _audioCtx.state === "closed")
-        _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      return _audioCtx;
-    }
-    function playAlarm() {
-      try {
-        const ctx = getAudioCtx();
-        const fire = () => {
-          const beepCount = 8, beepDuration = 0.22, beepGap = 0.1;
-          for (let i = 0; i < beepCount; i++) {
-            const osc = ctx.createOscillator(), gain = ctx.createGain();
-            osc.connect(gain); gain.connect(ctx.destination);
-            osc.type = "square";
-            osc.frequency.value = i % 2 === 0 ? 960 : 1280;
-            const t = ctx.currentTime + i * (beepDuration + beepGap);
-            gain.gain.setValueAtTime(0, t);
-            gain.gain.linearRampToValueAtTime(0.7, t + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + beepDuration);
-            osc.start(t); osc.stop(t + beepDuration + 0.02);
+    // ─── Alarm ──────────────────────────────────────────────────────────────
+    let _audioCtx=null;
+    function getAudioCtx(){ if(!_audioCtx||_audioCtx.state==="closed") _audioCtx=new(window.AudioContext||window.webkitAudioContext)(); return _audioCtx; }
+    function playAlarm(){
+      try{
+        const ctx=getAudioCtx();
+        const fire=()=>{
+          for(let i=0;i<8;i++){
+            const osc=ctx.createOscillator(),gain=ctx.createGain();
+            osc.connect(gain);gain.connect(ctx.destination);
+            osc.type="square";osc.frequency.value=i%2===0?960:1280;
+            const t=ctx.currentTime+i*0.32;
+            gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(0.7,t+0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001,t+0.22);
+            osc.start(t);osc.stop(t+0.24);
           }
         };
-        ctx.state === "suspended" ? ctx.resume().then(fire) : fire();
-      } catch (e) { console.warn("Audio error", e); }
+        ctx.state==="suspended"?ctx.resume().then(fire):fire();
+      }catch(e){}
     }
-    function warmUpAudio() { try { getAudioCtx(); } catch (e) {} }
+    function warmUpAudio(){ try{ getAudioCtx(); }catch(e){} }
 
-    // ─── Standings helpers ────────────────────────────────────────────────────────
-    function mkStandings(teamIds) {
-      return teamIds.map((id) => ({
-        ...teamById(id), wins: 0, losses: 0, scoreDiff: 0, played: 0,
-        lastPlayedRound: -999, lastByeRound: -999,
-      }));
+    // ─── Standings ──────────────────────────────────────────────────────────
+    function mkStandings(ids){
+      return ids.map(id=>({...teamById(id),id,wins:0,losses:0,scoreDiff:0,played:0,lastPlayedRound:-999,lastByeRound:-999}));
     }
-    function rerank(standings) {
-      return [...standings].sort((a, b) => {
-        if (b.wins !== a.wins) return b.wins - a.wins;
-        if (b.scoreDiff !== a.scoreDiff) return b.scoreDiff - a.scoreDiff;
-        return a.played - b.played;
-      });
-    }
-    function rebuildStandings(teamIds, history) {
-      const map = Object.fromEntries(mkStandings(teamIds).map((t) => [t.id, { ...t }]));
-      history.forEach((round, ri) => {
-        round.games.forEach((game) => {
-          const w = map[game.winnerId], l = map[game.loserId];
-          if (!w || !l) return;
-          w.wins++; w.scoreDiff += game.winnerScore - game.loserScore; w.played++; w.lastPlayedRound = ri;
-          l.losses++; l.scoreDiff += game.loserScore - game.winnerScore; l.played++; l.lastPlayedRound = ri;
-        });
-        (round.bye || []).forEach((id) => { if (map[id]) map[id].lastByeRound = ri; });
+    function rerank(st){ return [...st].sort((a,b)=>{ if(b.wins!==a.wins)return b.wins-a.wins; if(b.scoreDiff!==a.scoreDiff)return b.scoreDiff-a.scoreDiff; return a.played-b.played; }); }
+    function rebuildStandings(ids,history){
+      const map=Object.fromEntries(mkStandings(ids).map(t=>[t.id,{...t}]));
+      history.forEach((rd,ri)=>{
+        rd.games.forEach(g=>{ const w=map[g.winnerId],l=map[g.loserId]; if(!w||!l)return;
+          w.wins++;w.scoreDiff+=g.winnerScore-g.loserScore;w.played++;w.lastPlayedRound=ri;
+          l.losses++;l.scoreDiff+=g.loserScore-g.winnerScore;l.played++;l.lastPlayedRound=ri; });
+        (rd.bye||[]).forEach(id=>{ if(map[id])map[id].lastByeRound=ri; });
       });
       return Object.values(map);
     }
 
-    // ─── Scheduling ───────────────────────────────────────────────────────────────
-    function combinations(arr, k) {
-      if (k === 0) return [[]];
-      if (arr.length < k) return [];
-      const [first, ...rest] = arr;
-      return [...combinations(rest, k - 1).map((c) => [first, ...c]), ...combinations(rest, k)];
+    // ─── Matchmaking ────────────────────────────────────────────────────────
+    function combinations(arr,k){
+      if(k===0)return[[]]; if(arr.length<k)return [];
+      const[f,...r]=arr; return [...combinations(r,k-1).map(c=>[f,...c]),...combinations(r,k)];
     }
-    function buildByeCounts(history) {
-      const solo = {}, pairs = {};
-      history.forEach((round) => {
-        const ids = round.bye || [];
-        ids.forEach((id) => { solo[id] = (solo[id] || 0) + 1; });
-        for (let i = 0; i < ids.length; i++)
-          for (let j = i + 1; j < ids.length; j++) {
-            const key = [ids[i], ids[j]].sort().join("|");
-            pairs[key] = (pairs[key] || 0) + 1;
-          }
+    function buildMatchupCounts(history){
+      const c={};
+      history.forEach(rd=>rd.games.forEach(g=>{ const key=[g.winnerId,g.loserId].sort().join("|"); c[key]=(c[key]||0)+1; }));
+      return c;
+    }
+    function getLastRoundMatchups(history){
+      if(!history.length)return new Set();
+      const s=new Set(); history[history.length-1].games.forEach(g=>s.add([g.winnerId,g.loserId].sort().join("|"))); return s;
+    }
+    function buildByeCounts(history){
+      const solo={},pairs={};
+      history.forEach(rd=>{ const ids=rd.bye||[];
+        ids.forEach(id=>{ solo[id]=(solo[id]||0)+1; });
+        for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){ const k=[ids[i],ids[j]].sort().join("|"); pairs[k]=(pairs[k]||0)+1; }
       });
-      return { solo, pairs };
+      return{solo,pairs};
     }
-    function scoreByeGroup(ids, { solo, pairs }) {
-      let pairScore = 0, soloScore = 0;
-      for (let i = 0; i < ids.length; i++) {
-        soloScore += solo[ids[i]] || 0;
-        for (let j = i + 1; j < ids.length; j++) {
-          const key = [ids[i], ids[j]].sort().join("|");
-          pairScore += pairs[key] || 0;
+    function scoreByeGroup(ids,{solo,pairs}){
+      let ps=0,ss=0;
+      for(let i=0;i<ids.length;i++){ ss+=solo[ids[i]]||0; for(let j=i+1;j<ids.length;j++){ const k=[ids[i],ids[j]].sort().join("|"); ps+=pairs[k]||0; } }
+      return ps*1000+ss+Math.random()*0.001;
+    }
+    function scoreCourtPairings(courts,mc,lrm){
+      let s=0; courts.forEach(([a,b])=>{ const k=[a.id,b.id].sort().join("|"); if(lrm.has(k))s+=100000; s+=(mc[k]||0)*1000; }); return s+Math.random()*0.1;
+    }
+    function bestCourtPairings(playing,numCourts,allStandings,mc,lrm){
+      const ranked=rerank(allStandings), rankOf=id=>ranked.findIndex(t=>t.id===id);
+      const byRank=[...playing].sort((a,b)=>rankOf(a.id)-rankOf(b.id));
+      const def=[]; for(let c=0;c<numCourts;c++) if(byRank[c*2]&&byRank[c*2+1]) def.push([byRank[c*2],byRank[c*2+1]]);
+      if(!def.some(([a,b])=>lrm.has([a.id,b.id].sort().join("|")))) return def;
+      let best=def, bs=scoreCourtPairings(def,mc,lrm);
+      for(let c=0;c<def.length-1;c++){
+        const s1=def.map(p=>[...p]); [s1[c][1],s1[c+1][0]]=[s1[c+1][0],s1[c][1]]; const sc1=scoreCourtPairings(s1,mc,lrm); if(sc1<bs){bs=sc1;best=s1;}
+        const s2=def.map(p=>[...p]); [s2[c][1],s2[c+1][1]]=[s2[c+1][1],s2[c][1]]; const sc2=scoreCourtPairings(s2,mc,lrm); if(sc2<bs){bs=sc2;best=s2;}
+      }
+      return best;
+    }
+    function generateRound(allSt,numCourts,roundIdx,history=[],pausedIds=[],finalRound=false){
+      const pSet=new Set(pausedIds), active=allSt.filter(t=>!pSet.has(t.id));
+      const mc=buildMatchupCounts(history), lrm=getLastRoundMatchups(history);
+      const lastByeSet=history.length>0?new Set(history[history.length-1].bye||[]):new Set();
+      let ec=numCourts;
+      if(finalRound&&active.length>0){
+        const minP=Math.min(...active.map(t=>t.played));
+        const need=active.filter(t=>t.played===minP);
+        if(need.length<active.length){ ec=Math.min(numCourts,Math.floor(need.length/2)); if(ec===0)ec=1; }
+      }
+      const numBye=active.length-ec*2;
+      if(numBye<=0){
+        return{courts:bestCourtPairings(active,Math.floor(active.length/2),allSt,mc,lrm),bye:[],paused:allSt.filter(t=>pSet.has(t.id))};
+      }
+      const byeCounts=buildByeCounts(history);
+      const hadBye=active.filter(t=>lastByeSet.has(t.id)), didnt=active.filter(t=>!lastByeSet.has(t.id));
+      let byeGroup=[];
+      if(didnt.length>=numBye){
+        const sorted=[...didnt].sort((a,b)=>b.played-a.played); let idx=0;
+        while(byeGroup.length<numBye&&idx<sorted.length){
+          const cur=sorted[idx].played, tier=[];
+          while(idx<sorted.length&&sorted[idx].played===cur)tier.push(sorted[idx++]);
+          const sl=numBye-byeGroup.length;
+          if(tier.length<=sl){byeGroup.push(...tier);}
+          else{ const cs=combinations(tier,sl); let bc=cs[0],bs2=Infinity;
+            for(const c of cs){ const sc=scoreByeGroup(c.map(t=>t.id),byeCounts); if(sc<bs2){bs2=sc;bc=c;} } byeGroup.push(...bc); }
         }
+      } else {
+        byeGroup=[...didnt];
+        byeGroup.push(...[...hadBye].sort((a,b)=>b.played-a.played).slice(0,numBye-byeGroup.length));
       }
-      return pairScore * 1000 + soloScore + Math.random() * 0.001;
-    }
-    function generateRound(allStandings, numCourts, roundIdx, history = [], pausedIds = []) {
-      const pausedSet = new Set(pausedIds);
-      const active = allStandings.filter((t) => !pausedSet.has(t.id));
-      const numBye = active.length - numCourts * 2;
-      if (numBye <= 0) {
-        const usableCourts = Math.floor(active.length / 2);
-        return { courts: chunkByRank(active, usableCourts, allStandings), bye: [], paused: allStandings.filter((t) => pausedSet.has(t.id)) };
-      }
-      const byeCounts = buildByeCounts(history);
-      const lastRoundByeIds = history.length > 0 ? new Set(history[history.length - 1].bye || []) : new Set();
-      const byMostPlayed = [...active].sort((a, b) => b.played - a.played);
-      const byeGroup = [];
-      let idx = 0;
-      while (byeGroup.length < numBye && idx < byMostPlayed.length) {
-        const currentPlayed = byMostPlayed[idx].played;
-        const tier = [];
-        while (idx < byMostPlayed.length && byMostPlayed[idx].played === currentPlayed) tier.push(byMostPlayed[idx++]);
-        const slotsLeft = numBye - byeGroup.length;
-        if (tier.length <= slotsLeft) {
-          byeGroup.push(...tier);
-        } else {
-          const combos = combinations(tier, slotsLeft);
-          let bestCombo = combos[0], bestScore = Infinity;
-          for (const combo of combos) {
-            const ids = combo.map((t) => t.id);
-            let score = scoreByeGroup(ids, byeCounts);
-            score += ids.filter((id) => lastRoundByeIds.has(id)).length * 1_000_000;
-            if (score < bestScore) { bestScore = score; bestCombo = combo; }
-          }
-          byeGroup.push(...bestCombo);
-        }
-      }
-      const byeIds = new Set(byeGroup.map((t) => t.id));
-      const playing = active.filter((t) => !byeIds.has(t.id));
-      return { courts: chunkByRank(playing, numCourts, allStandings), bye: byeGroup, paused: allStandings.filter((t) => pausedSet.has(t.id)) };
-    }
-    function chunkByRank(playing, numCourts, allStandings) {
-      const ranked = rerank(allStandings);
-      const rankOf = (id) => ranked.findIndex((t) => t.id === id);
-      const byRank = [...playing].sort((a, b) => rankOf(a.id) - rankOf(b.id));
-      const courts = [];
-      for (let c = 0; c < numCourts; c++)
-        if (byRank[c * 2] && byRank[c * 2 + 1]) courts.push([byRank[c * 2], byRank[c * 2 + 1]]);
-      return courts;
+      const byeSet=new Set(byeGroup.map(t=>t.id));
+      const playing=active.filter(t=>!byeSet.has(t.id));
+      return{courts:bestCourtPairings(playing,ec,allSt,mc,lrm),bye:byeGroup,paused:allSt.filter(t=>pSet.has(t.id))};
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────────
-    const ORDINAL = (n) => { const s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v-20)%10] || s[v] || s[0]); };
-
-    function TeamChip({ teamId }) {
-      const team = teamById(teamId);
-      if (!team) return null;
-      return (
-        <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold"
-          style={{ background: team.color, color: team.text, border: "2px solid rgba(255,255,255,0.15)" }}>
-          {team.name}
-        </span>
-      );
+    // ─── Helpers ────────────────────────────────────────────────────────────
+    const ORDINAL=n=>{const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
+    function TeamChip({teamId}){
+      const t=teamById(teamId); if(!t)return null;
+      return <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold"
+        style={{background:t.color,color:t.text,border:"2px solid rgba(255,255,255,0.15)"}}>{t.name}</span>;
     }
-    function NumInput({ value, onChange }) {
-      return (
-        <input type="number" min={0} max={99} value={value}
-          onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}
-          style={{ width: 54, textAlign: "center", padding: "5px 0", background: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, color: "#e2e8f0", fontWeight: 700, fontSize: 14, outline: "none" }} />
-      );
+    function NumInput({value,onChange}){
+      return <input type="number" min={0} max={99} value={value}
+        onChange={e=>onChange(e.target.value===""?"":Number(e.target.value))}
+        style={{width:54,textAlign:"center",padding:"5px 0",background:"rgba(255,255,255,0.9)",
+          border:"1px solid rgba(0,0,0,0.15)",borderRadius:8,color:"#1e293b",fontWeight:700,fontSize:14,outline:"none"}}/>;
     }
 
-    // ─── PIN Modal (generic) ──────────────────────────────────────────────────────
-    function PinModal({ title = "Admin PIN", onSuccess, onClose }) {
-      const [pin, setPin] = useState("");
-      const [error, setError] = useState(false);
-      const check = () => {
-        if (pin === "1177") { onSuccess(); }
-        else { setError(true); setPin(""); setTimeout(() => setError(false), 1200); }
+    // ─── PIN Modal ───────────────────────────────────────────────────────────
+    function PinModal({title="Admin PIN",correctPin,onSuccess,onClose}){
+      const[pin,setPin]=useState(""); const[err,setErr]=useState(false);
+      const check=()=>{
+        if(!correctPin){setErr(true);setTimeout(()=>setErr(false),1200);return;}
+        if(pin===String(correctPin))onSuccess();
+        else{setErr(true);setPin("");setTimeout(()=>setErr(false),1200);}
       };
-      return (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
-          style={{ background: "rgba(0,0,0,0.85)" }} onClick={onClose}>
-          <div className="rounded-2xl p-6 w-full max-w-xs flex flex-col gap-4"
-            style={{ background: "#1e293b", border: `1px solid ${error ? "#ef4444" : "rgba(99,102,241,0.4)"}` }}
-            onClick={(e) => e.stopPropagation()}>
-            <div className="text-center">
-              <div className="text-2xl mb-1">🔐</div>
-              <div className="text-sm font-bold text-indigo-300">{title}</div>
-              {error && <div className="text-xs text-red-400 mt-1">Incorrect PIN</div>}
-            </div>
-            <input type="password" inputMode="numeric" maxLength={4} value={pin} placeholder="••••"
-              onChange={(e) => setPin(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && check()}
-              autoFocus
-              style={{ textAlign: "center", padding: "10px", borderRadius: 10, fontSize: 20, letterSpacing: 6,
-                background: "rgba(255,255,255,0.07)", border: `1px solid ${error ? "#ef4444" : "rgba(255,255,255,0.15)"}`,
-                color: "#e2e8f0", outline: "none" }} />
+      return(
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{background:"rgba(0,0,0,0.85)"}} onClick={onClose}>
+          <div className="rounded-2xl p-6 w-full max-w-xs flex flex-col gap-4" style={{background:"#1e293b",border:`1px solid ${err?"#ef4444":"rgba(99,102,241,0.4)"}`}} onClick={e=>e.stopPropagation()}>
+            <div className="text-center"><div className="text-2xl mb-1">🔐</div><div className="text-sm font-bold text-indigo-300">{title}</div>{err&&<div className="text-xs text-red-400 mt-1">Incorrect PIN</div>}</div>
+            <input type="password" inputMode="numeric" maxLength={4} value={pin} placeholder="••••" onChange={e=>setPin(e.target.value)} onKeyDown={e=>e.key==="Enter"&&check()} autoFocus
+              style={{textAlign:"center",padding:"10px",borderRadius:10,fontSize:20,letterSpacing:6,background:"rgba(255,255,255,0.07)",border:`1px solid ${err?"#ef4444":"rgba(255,255,255,0.15)"}`,color:"#e2e8f0",outline:"none"}}/>
             <div className="flex gap-2">
-              <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold"
-                style={{ background: "rgba(255,255,255,0.06)", color: "#94a3b8", cursor: "pointer" }}>Cancel</button>
-              <button onClick={check} className="flex-1 py-2 rounded-xl text-sm font-bold"
-                style={{ background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff", cursor: "pointer" }}>Unlock</button>
+              <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"rgba(255,255,255,0.06)",color:"#94a3b8",cursor:"pointer"}}>Cancel</button>
+              <button onClick={check} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"linear-gradient(90deg,#6366f1,#8b5cf6)",color:"#fff",cursor:"pointer"}}>Unlock</button>
             </div>
           </div>
         </div>
       );
     }
 
-    // ─── Timer Settings Modal ─────────────────────────────────────────────────────
-    function TimerSettingsModal({ currentMins, onSave, onClose }) {
-      const [mins, setMins] = useState(currentMins);
-      return (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
-          style={{ background: "rgba(0,0,0,0.75)" }} onClick={onClose}>
-          <div className="rounded-2xl p-6 w-full max-w-xs flex flex-col gap-4"
-            style={{ background: "#1e293b", border: "1px solid rgba(99,102,241,0.4)" }}
-            onClick={(e) => e.stopPropagation()}>
+    // ─── Timer Settings Modal ────────────────────────────────────────────────
+    function TimerSettingsModal({currentMins,onSave,onClose}){
+      const[mins,setMins]=useState(currentMins);
+      return(
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{background:"rgba(0,0,0,0.75)"}} onClick={onClose}>
+          <div className="rounded-2xl p-6 w-full max-w-xs flex flex-col gap-4" style={{background:"#1e293b",border:"1px solid rgba(99,102,241,0.4)"}} onClick={e=>e.stopPropagation()}>
             <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">⚙️ Timer Settings</div>
             <div className="flex items-center gap-3">
-              <input type="number" min={1} max={99} value={mins}
-                onChange={(e) => setMins(Math.max(1, Number(e.target.value)))}
-                style={{ width: 70, textAlign: "center", padding: "8px", borderRadius: 8, fontSize: 18, fontWeight: 700,
-                  background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#e2e8f0", outline: "none" }} />
+              <input type="number" min={1} max={99} value={mins} onChange={e=>setMins(Math.max(1,Number(e.target.value)))}
+                style={{width:70,textAlign:"center",padding:"8px",borderRadius:8,fontSize:18,fontWeight:700,background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.2)",color:"#e2e8f0",outline:"none"}}/>
               <span className="text-slate-400 text-sm">minutes per round</span>
             </div>
             <p className="text-slate-500 text-xs">Applies after next ↺ reset.</p>
             <div className="flex gap-2">
-              <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold"
-                style={{ background: "rgba(255,255,255,0.06)", color: "#94a3b8", cursor: "pointer" }}>Cancel</button>
-              <button onClick={() => { onSave(mins); onClose(); }} className="flex-1 py-2 rounded-xl text-sm font-bold"
-                style={{ background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff", cursor: "pointer" }}>Save</button>
+              <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"rgba(255,255,255,0.06)",color:"#94a3b8",cursor:"pointer"}}>Cancel</button>
+              <button onClick={()=>{onSave(mins);onClose();}} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"linear-gradient(90deg,#6366f1,#8b5cf6)",color:"#fff",cursor:"pointer"}}>Save</button>
             </div>
           </div>
         </div>
       );
     }
 
-    // ─── Timer display ─────────────────────────────────────────────────────────────
-    function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning, isAdmin, onToggle, onRestart, onOpenSettings }) {
-      const mins = Math.floor(secsLeft / 60), secs = secsLeft % 60;
-      const pct = totalSecs > 0 ? secsLeft / totalSecs : 1;
-      const expired = secsLeft === 0, urgent = pct < 0.2 && !expired;
-      const color = expired ? "#ef4444" : urgent ? "#f97316" : "#6366f1";
-      return (
-        <div className="flex items-center gap-2 rounded-xl px-3 py-2 mb-1"
-          style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}44` }}>
-          <svg width={34} height={34} style={{ flexShrink: 0 }}>
-            <circle cx={17} cy={17} r={13} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={3} />
+    // ─── Compact timer bar ───────────────────────────────────────────────────
+    function RoundTimer({secsLeft,totalSecs,roundNum,timerRunning,isAdmin,onToggle,onRestart,onOpenSettings}){
+      const mins=Math.floor(secsLeft/60),secs=secsLeft%60;
+      const pct=totalSecs>0?secsLeft/totalSecs:1;
+      const expired=secsLeft===0,urgent=pct<0.2&&!expired;
+      const color=expired?"#ef4444":urgent?"#f97316":"#6366f1";
+      return(
+        <div className="flex items-center gap-2 rounded-xl px-3 py-2 mb-1" style={{background:"rgba(255,255,255,0.6)",border:`1px solid ${color}66`}}>
+          <svg width={34} height={34} style={{flexShrink:0}}>
+            <circle cx={17} cy={17} r={13} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={3}/>
             <circle cx={17} cy={17} r={13} fill="none" stroke={color} strokeWidth={3}
-              strokeDasharray={`${2 * Math.PI * 13}`}
-              strokeDashoffset={`${2 * Math.PI * 13 * (1 - pct)}`}
-              strokeLinecap="round"
-              style={{ transform: "rotate(-90deg)", transformOrigin: "17px 17px", transition: "stroke-dashoffset 1s linear, stroke 0.3s" }} />
-            {expired && <text x={17} y={21} textAnchor="middle" fontSize={9} fill="#ef4444" fontWeight="bold">!</text>}
+              strokeDasharray={`${2*Math.PI*13}`} strokeDashoffset={`${-2*Math.PI*13*(1-pct)}`}
+              strokeLinecap="round" transform="rotate(-90 17 17)"
+              style={{transition:"stroke-dashoffset 1s linear,stroke 0.3s"}}/>
+            {expired&&<text x={17} y={21} textAnchor="middle" fontSize={9} fill="#ef4444" fontWeight="bold">!</text>}
           </svg>
           <div className="flex-1">
             <div className="text-xs text-slate-500 leading-none mb-0.5">Round {roundNum}</div>
-            <div className="font-mono font-bold text-sm leading-none"
-              style={{ color: expired ? "#ef4444" : urgent ? "#f97316" : "#e2e8f0" }}>
-              {expired ? "TIME'S UP" : `${mins}:${String(secs).padStart(2, "0")}`}
+            <div className="font-mono font-bold text-sm leading-none" style={{color:expired?"#ef4444":urgent?"#f97316":"#1e293b"}}>
+              {expired?"TIME'S UP":`${mins}:${String(secs).padStart(2,"0")}`}
             </div>
           </div>
-          {isAdmin && (
+          {isAdmin&&(
             <div className="flex gap-1">
               <button onClick={onToggle} className="text-xs px-2 py-1 rounded-lg font-bold"
-                style={{ background: timerRunning ? "rgba(239,68,68,0.15)" : "rgba(99,102,241,0.2)",
-                  color: timerRunning ? "#f87171" : "#a5b4fc", cursor: "pointer",
-                  border: `1px solid ${timerRunning ? "rgba(239,68,68,0.3)" : "rgba(99,102,241,0.3)"}` }}>
-                {timerRunning ? "⏸" : "▶"}
+                style={{background:timerRunning?"rgba(239,68,68,0.12)":"rgba(15,76,117,0.12)",color:timerRunning?"#dc2626":"#0f4c75",cursor:"pointer",border:`1px solid ${timerRunning?"rgba(239,68,68,0.3)":"rgba(15,76,117,0.3)"}`}}>
+                {timerRunning?"⏸":"▶"}
               </button>
-              <button onClick={onRestart} className="text-xs px-2 py-1 rounded-lg font-bold"
-                style={{ background: "rgba(255,255,255,0.05)", color: "#64748b", cursor: "pointer", border: "1px solid rgba(255,255,255,0.08)" }}>↺</button>
-              <button onClick={onOpenSettings} className="text-xs px-2 py-1 rounded-lg font-bold"
-                style={{ background: "rgba(255,255,255,0.05)", color: "#64748b", cursor: "pointer", border: "1px solid rgba(255,255,255,0.08)" }}>⚙</button>
+              <button onClick={onRestart} className="text-xs px-2 py-1 rounded-lg font-bold" style={{background:"rgba(0,0,0,0.05)",color:"#64748b",cursor:"pointer",border:"1px solid rgba(0,0,0,0.1)"}}>↺</button>
+              <button onClick={onOpenSettings} className="text-xs px-2 py-1 rounded-lg font-bold" style={{background:"rgba(0,0,0,0.05)",color:"#64748b",cursor:"pointer",border:"1px solid rgba(0,0,0,0.1)"}}>⚙</button>
             </div>
           )}
         </div>
       );
     }
 
-    // ─── CourtCard ────────────────────────────────────────────────────────────────
-    function CourtCard({ courtLabel, teams, onResult, done }) {
-      const [s0, setS0] = useState(""), [s1, setS1] = useState("");
-      const valid = s0 !== "" && s1 !== "" && Number(s0) !== Number(s1);
-      const wIdx = valid ? (Number(s0) > Number(s1) ? 0 : 1) : null;
-      const confirm = () => {
-        if (!valid) return;
-        const w = teams[wIdx], l = teams[1 - wIdx];
-        onResult({ winnerId: w.id, loserId: l.id,
-          winnerScore: wIdx === 0 ? Number(s0) : Number(s1),
-          loserScore:  wIdx === 0 ? Number(s1) : Number(s0) });
-      };
-      if (done) return (
-        <div className="rounded-2xl p-4 flex items-center gap-3"
-          style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.25)" }}>
-          <span className="text-green-400 text-lg">✓</span>
-          <span className="text-sm text-slate-400">{courtLabel} result logged</span>
+    // ─── Full-screen Timer ───────────────────────────────────────────────────
+    // Ring sized via viewBox so it scales with screen; text safely inside the ring.
+    function FullScreenTimer({secsLeft,totalSecs,roundNum,timerRunning,isAdmin,timerDuration,onToggle,onRestart,onOpenSettings}){
+      const mins=Math.floor(secsLeft/60),secs=secsLeft%60;
+      const pct=totalSecs>0?secsLeft/totalSecs:1;
+      const expired=secsLeft===0,urgent=pct<0.2&&!expired;
+      const color=expired?"#dc2626":urgent?"#ea580c":"#0f4c75";
+      // SVG coordinate space: 500×500. Stroke 20. Radius 220 → inner clear = 2*(220-10)=420px coord units.
+      const SZ=500,SW=20,R=220,cx=250,cy=250;
+      const circ=2*Math.PI*R;
+      // Inner safe diameter in SVG units: 2*(R - SW/2) = 400. Time text is ~130 SVG units tall, well inside.
+      return(
+        <div className="flex flex-col items-center justify-center gap-6 py-4">
+          <div className="text-slate-500 text-sm uppercase tracking-widest font-bold">Round {roundNum}</div>
+          {/* Responsive ring — caps at 460px, uses full width on mobile */}
+          <div style={{position:"relative",width:"min(92vw,460px)",aspectRatio:"1"}}>
+            <svg viewBox={`0 0 ${SZ} ${SZ}`} width="100%" height="100%" style={{display:"block"}}>
+              {/* Background track */}
+              <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={SW}/>
+              {/* Progress arc: starts at 12-o'clock and drains clockwise.
+                  rotate(-90deg) sets start to top; the circle path is naturally clockwise in SVG,
+                  so reducing dashoffset from circ→0 shrinks the arc from the clockwise end (correct). */}
+              <circle cx={cx} cy={cy} r={R} fill="none" stroke={color} strokeWidth={SW}
+                strokeDasharray={circ} strokeDashoffset={-circ*(1-pct)} strokeLinecap="round"
+                transform={`rotate(-90 ${cx} ${cy})`}
+                style={{transition:"stroke-dashoffset 1s linear,stroke 0.4s"}}/>
+            </svg>
+            {/* Text overlay — not rotated, absolutely centred, padded from ring edges */}
+            <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+              padding:`${SW+12}px`}}>
+              <div style={{
+                fontFamily:"'Courier New',monospace",
+                fontSize:expired?"clamp(24px,7vw,46px)":"clamp(48px,14vw,108px)",
+                fontWeight:900,color,lineHeight:1,
+                letterSpacing:expired?1:4,
+                textShadow:`0 0 50px ${color}55`,
+                transition:"color 0.4s",
+                textAlign:"center",
+              }}>
+                {expired?"TIME'S UP":`${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}`}
+              </div>
+              {!expired&&totalSecs>0&&(
+                <div style={{color:"#94a3b8",fontSize:"clamp(10px,2.2vw,14px)",fontFamily:"monospace",marginTop:8}}>
+                  {Math.round(pct*100)}% remaining
+                </div>
+              )}
+            </div>
+          </div>
+          {isAdmin&&(
+            <div className="flex gap-3 flex-wrap justify-center">
+              <button onClick={onToggle}
+                style={{padding:"14px 32px",borderRadius:16,fontWeight:800,fontSize:15,cursor:"pointer",
+                  background:timerRunning?"rgba(220,38,38,0.12)":"rgba(15,76,117,0.12)",
+                  color:timerRunning?"#dc2626":"#0f4c75",border:`2px solid ${timerRunning?"rgba(220,38,38,0.3)":"rgba(15,76,117,0.3)"}`}}>
+                {timerRunning?"⏸ Pause":"▶ Resume"}
+              </button>
+              <button onClick={onRestart} style={{padding:"14px 24px",borderRadius:16,fontWeight:800,fontSize:15,cursor:"pointer",background:"rgba(0,0,0,0.06)",color:"#64748b",border:"2px solid rgba(0,0,0,0.1)"}}>↺ Reset</button>
+              <button onClick={onOpenSettings} style={{padding:"14px 24px",borderRadius:16,fontWeight:800,fontSize:15,cursor:"pointer",background:"rgba(0,0,0,0.06)",color:"#64748b",border:"2px solid rgba(0,0,0,0.1)"}}>⚙</button>
+            </div>
+          )}
+          {timerDuration===0&&<div className="text-slate-500 text-sm text-center">No timer configured.<br/>Enable it in setup or ⚙ settings.</div>}
         </div>
       );
-      return (
-        <div className="rounded-2xl p-5 flex flex-col gap-3"
-          style={{ background: "linear-gradient(135deg,#1e293b 0%,#0f172a 100%)",
-            border: "1px solid rgba(99,102,241,0.3)", boxShadow: "0 4px 24px rgba(0,0,0,0.4)" }}>
+    }
+
+    // ─── CourtCard ───────────────────────────────────────────────────────────
+    function CourtCard({courtLabel,teams,onResult,done}){
+      const[s0,setS0]=useState(""), [s1,setS1]=useState("");
+      const valid=s0!==""&&s1!==""&&Number(s0)!==Number(s1);
+      const wIdx=valid?(Number(s0)>Number(s1)?0:1):null;
+      const confirm=()=>{ if(!valid)return; const w=teams[wIdx],l=teams[1-wIdx];
+        onResult({winnerId:w.id,loserId:l.id,winnerScore:wIdx===0?Number(s0):Number(s1),loserScore:wIdx===0?Number(s1):Number(s0)}); };
+      if(done)return(<div className="rounded-2xl p-4 flex items-center gap-3" style={{background:"rgba(255,255,255,0.6)",border:"1px solid rgba(34,197,94,0.4)"}}><span className="text-green-600 text-lg">✓</span><span className="text-sm text-slate-600">{courtLabel} result logged</span></div>);
+      return(
+        <div className="rounded-2xl p-5 flex flex-col gap-3" style={{background:"rgba(255,255,255,0.7)",border:"1px solid rgba(0,0,0,0.1)",boxShadow:"0 2px 16px rgba(0,0,0,0.08)"}}>
           <div className="flex items-center gap-2">
-            <span className="text-indigo-400 font-mono text-xs uppercase tracking-widest">{courtLabel}</span>
-            <div className="flex-1 h-px" style={{ background: "rgba(99,102,241,0.2)" }} />
+            <span className="text-blue-800 font-mono text-xs uppercase tracking-widest font-bold">{courtLabel}</span>
+            <div className="flex-1 h-px" style={{background:"rgba(0,0,0,0.08)"}}/>
           </div>
-          {teams.map((team, i) => {
-            const isWinner = wIdx === i;
-            return (
-              <div key={team.id}>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 flex items-center gap-3 rounded-xl px-3 py-2"
-                    style={{ background: isWinner ? `${team.color}28` : "rgba(255,255,255,0.04)",
-                      border: `1.5px solid ${isWinner ? team.color : "rgba(255,255,255,0.08)"}` }}>
-                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: team.color }} />
-                    <span className="font-bold text-sm flex-1">{team.name}</span>
-                    {isWinner && <span className="text-xs text-green-400 font-bold">WIN</span>}
-                  </div>
-                  <NumInput value={i === 0 ? s0 : s1} onChange={i === 0 ? setS0 : setS1} />
+          {teams.map((team,i)=>{ const iw=wIdx===i; return(
+            <div key={team.id}>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 flex items-center gap-3 rounded-xl px-3 py-2"
+                  style={{background:iw?team.color:"rgba(0,0,0,0.04)",border:`1.5px solid ${iw?team.color:"rgba(0,0,0,0.1)"}`}}>
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{background:team.color,boxShadow:iw?"none":`0 0 0 2px ${team.color}44`}}/>
+                  <span className="font-bold text-sm flex-1" style={{color:iw?team.text:"#1e293b"}}>{team.name}</span>
+                  {iw&&<span className="text-xs font-bold" style={{color:team.text}}>WIN</span>}
                 </div>
-                {i === 0 && <div className="text-center text-slate-600 text-xs my-1 font-bold">VS</div>}
+                <NumInput value={i===0?s0:s1} onChange={i===0?setS0:setS1}/>
               </div>
-            );
-          })}
-          {s0 !== "" && s1 !== "" && !valid &&
-            <p className="text-xs text-amber-400 text-center">Scores cannot be equal — there must be a winner.</p>}
+              {i===0&&<div className="text-center text-slate-400 text-xs my-1 font-bold">VS</div>}
+            </div>
+          );})}
+          {s0!==""&&s1!==""&&!valid&&<p className="text-xs text-amber-600 text-center">Scores cannot be equal.</p>}
           <button onClick={confirm} disabled={!valid} className="w-full py-2 rounded-xl text-sm font-bold"
-            style={{ background: valid ? "linear-gradient(90deg,#6366f1,#8b5cf6)" : "rgba(255,255,255,0.05)",
-              color: valid ? "#fff" : "#475569", cursor: valid ? "pointer" : "not-allowed",
-              border: valid ? "none" : "1px solid rgba(255,255,255,0.06)" }}>
-            {valid ? `✓ Confirm — ${teams[wIdx].name} wins` : "Enter scores to confirm"}
+            style={{background:valid?"linear-gradient(90deg,#0f4c75,#1a6fa8)":"rgba(0,0,0,0.06)",color:valid?"#fff":"#94a3b8",cursor:valid?"pointer":"not-allowed",border:valid?"none":"1px solid rgba(0,0,0,0.08)"}}>
+            {valid?`✓ Confirm — ${teams[wIdx].name} wins`:"Enter scores to confirm"}
           </button>
         </div>
       );
     }
 
-    // ─── EditModal ────────────────────────────────────────────────────────────────
-    function EditModal({ game, label, onSave, onClose }) {
-      const t0 = teamById(game.winnerId), t1 = teamById(game.loserId);
-      const [sa, setSa] = useState(game.winnerScore), [sb, setSb] = useState(game.loserScore);
-      const valid = sa !== "" && sb !== "" && Number(sa) !== Number(sb);
-      const newWId = valid ? (Number(sa) > Number(sb) ? t0.id : t1.id) : null;
-      const save = () => {
-        if (!valid) return;
-        onSave({ winnerId: newWId, loserId: newWId === t0.id ? t1.id : t0.id,
-          winnerScore: newWId === t0.id ? Number(sa) : Number(sb),
-          loserScore:  newWId === t0.id ? Number(sb) : Number(sa) });
+    // ─── EditGameModal — change teams AND scores for a historical game ─────────
+    // When teams change, byes for that round are recomputed so history stays consistent.
+    function EditGameModal({game,roundEntry,allTeamIds,label,onSave,onClose}){
+      const[teamAId,setTeamAId]=useState(game.winnerId);
+      const[teamBId,setTeamBId]=useState(game.loserId);
+      const[scoreA,setScoreA]=useState(game.winnerScore);
+      const[scoreB,setScoreB]=useState(game.loserScore);
+
+      const teamA=teamById(teamAId), teamB=teamById(teamBId);
+      const scoresValid=scoreA!==""&&scoreB!==""&&Number(scoreA)!==Number(scoreB);
+      const teamsValid=teamAId&&teamBId&&teamAId!==teamBId;
+      const valid=scoresValid&&teamsValid;
+      const aWins=valid&&Number(scoreA)>Number(scoreB);
+      const newWinnerId=valid?(aWins?teamAId:teamBId):null;
+      const newLoserId =valid?(aWins?teamBId:teamAId):null;
+      const newWinnerScore=valid?Math.max(Number(scoreA),Number(scoreB)):null;
+      const newLoserScore =valid?Math.min(Number(scoreA),Number(scoreB)):null;
+      const teamsChanged=teamAId!==game.winnerId||teamBId!==game.loserId;
+
+      // Teams playing in OTHER games of this round — used only to recompute byes, not to restrict selection.
+      // Admin can pick ANY team (including paused / bye teams) to correct a mistake.
+      const lockedIds=new Set(roundEntry.games.flatMap(g=>[g.winnerId,g.loserId]).filter(id=>id!==game.winnerId&&id!==game.loserId));
+      // All teams are eligible — no restrictions
+      const eligible=allTeamIds;
+
+      const save=()=>{
+        if(!valid)return;
+        // Recompute byes: everyone not playing any game after the edit
+        const playingAfter=new Set([...lockedIds,teamAId,teamBId]);
+        const newBye=allTeamIds.filter(id=>!playingAfter.has(id));
+        onSave({game:{winnerId:newWinnerId,loserId:newLoserId,winnerScore:newWinnerScore,loserScore:newLoserScore,courtNumber:game.courtNumber},newBye});
       };
-      return (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
-          style={{ background: "rgba(0,0,0,0.75)" }} onClick={onClose}>
-          <div className="rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4"
-            style={{ background: "#1e293b", border: "1px solid rgba(99,102,241,0.4)" }}
-            onClick={(e) => e.stopPropagation()}>
-            <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">{label} — Edit Score</div>
-            {[{ team: t0, val: sa, set: setSa }, { team: t1, val: sb, set: setSb }].map(({ team, val, set }, i) => (
-              <div key={team.id}>
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full" style={{ background: team.color }} />
-                  <span className="flex-1 font-semibold text-sm">{team.name}</span>
-                  <NumInput value={val} onChange={set} />
-                </div>
-                {i === 0 && <div className="text-center text-slate-600 text-xs my-2">VS</div>}
+
+      const chipBtn=(id,active,onClick)=>{
+        const t=teamById(id); if(!t)return null;
+        return(
+          <button key={id} onClick={onClick}
+            style={{padding:"5px 10px",borderRadius:999,fontSize:12,fontWeight:700,cursor:"pointer",
+              background:active?t.color+"bb":"rgba(255,255,255,0.05)",
+              color:active?t.text:"#64748b",
+              border:`2px solid ${active?t.color:"rgba(255,255,255,0.1)"}`}}>
+            {t.name}
+          </button>
+        );
+      };
+
+      return(
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{background:"rgba(0,0,0,0.88)",overflowY:"auto"}} onClick={onClose}>
+          <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4" style={{background:"#1e293b",border:"1px solid rgba(99,102,241,0.4)"}} onClick={e=>e.stopPropagation()}>
+            <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">{label} — Edit</div>
+
+            {/* Team A */}
+            <div>
+              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Team A</p>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
+                {eligible.map(id=>chipBtn(id,teamAId===id,()=>{ setTeamAId(id); if(teamBId===id)setTeamBId(teamAId); }))}
               </div>
-            ))}
-            {valid && newWId && <p className="text-xs text-green-400 text-center">
-              → {teamById(newWId)?.name} wins {Math.max(Number(sa),Number(sb))}–{Math.min(Number(sa),Number(sb))}</p>}
-            {!valid && sa !== "" && sb !== "" && <p className="text-xs text-amber-400 text-center">Scores can't be equal.</p>}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2.5"
+                style={{background:teamA?`${teamA.color}22`:"rgba(255,255,255,0.04)",border:`1.5px solid ${teamA?teamA.color:"rgba(255,255,255,0.1)"}`}}>
+                {teamA&&<div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background:teamA.color}}/>}
+                <span className="font-bold text-sm flex-1">{teamA?.name||"—"}</span>
+              </div>
+              <NumInput value={scoreA} onChange={setScoreA}/>
+            </div>
+
+            <div className="text-center text-slate-600 text-xs font-bold my-0.5">VS</div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2.5"
+                style={{background:teamB?`${teamB.color}22`:"rgba(255,255,255,0.04)",border:`1.5px solid ${teamB?teamB.color:"rgba(255,255,255,0.1)"}`}}>
+                {teamB&&<div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background:teamB.color}}/>}
+                <span className="font-bold text-sm flex-1">{teamB?.name||"—"}</span>
+              </div>
+              <NumInput value={scoreB} onChange={setScoreB}/>
+            </div>
+
+            {/* Team B */}
+            <div>
+              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Team B</p>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
+                {eligible.map(id=>chipBtn(id,teamBId===id,()=>{ setTeamBId(id); if(teamAId===id)setTeamAId(teamBId); }))}
+              </div>
+            </div>
+
+            {teamsChanged&&<div className="rounded-lg px-3 py-2 text-xs text-amber-400" style={{background:"rgba(251,191,36,0.07)",border:"1px solid rgba(251,191,36,0.2)"}}>⚠️ Teams changed — byes for this round will be recalculated.</div>}
+            {valid&&newWinnerId&&<p className="text-xs text-green-400 text-center">→ {teamById(newWinnerId)?.name} wins {newWinnerScore}–{newLoserScore}</p>}
+            {!scoresValid&&scoreA!==""&&scoreB!==""&&<p className="text-xs text-amber-400 text-center">Scores can't be equal.</p>}
+            {!teamsValid&&teamAId===teamBId&&<p className="text-xs text-amber-400 text-center">Teams must be different.</p>}
+
             <div className="flex gap-2">
-              <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold"
-                style={{ background: "rgba(255,255,255,0.06)", color: "#94a3b8", cursor: "pointer" }}>Cancel</button>
+              <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"rgba(255,255,255,0.06)",color:"#94a3b8",cursor:"pointer"}}>Cancel</button>
               <button onClick={save} disabled={!valid} className="flex-1 py-2 rounded-xl text-sm font-bold"
-                style={{ background: valid ? "linear-gradient(90deg,#6366f1,#8b5cf6)" : "rgba(255,255,255,0.04)",
-                  color: valid ? "#fff" : "#475569", cursor: valid ? "pointer" : "not-allowed" }}>Save</button>
+                style={{background:valid?"linear-gradient(90deg,#6366f1,#8b5cf6)":"rgba(255,255,255,0.04)",color:valid?"#fff":"#475569",cursor:valid?"pointer":"not-allowed"}}>Save</button>
             </div>
           </div>
         </div>
       );
     }
 
-    // ─── Setup Screen ──────────────────────────────────────────────────────────
-    function SetupScreen({ onStart }) {
-      const [selectedColors, setSelectedColors] = useState(["red","blue","yellow","green","orange","pink"]);
-      const [namedTeamsInput, setNamedTeamsInput] = useState("");
-      const [namedTeams, setNamedTeams] = useState([]);
-      const [courts, setCourts] = useState(["1", "2"]);
-      const [courtInput, setCourtInput] = useState("");
-      const [timerMins, setTimerMins] = useState(12);
-      const [timerEnabled, setTimerEnabled] = useState(true);
+    // ─── Setup Screen ────────────────────────────────────────────────────────
+    // Named Teams textarea removed. Rename via ✏️ chip inline editor.
+    // FIX: customName is now stored in the team object that goes into teamRegistry,
+    //      so Firebase and CUSTOM_TEAMS always reflect the actual display name.
+    function SetupScreen({onStart}){
+      const[colorTeams,setColorTeams]=useState(
+        ALL_TEAMS.map(t=>({...t,selected:["red","blue","yellow","green","orange","pink"].includes(t.id),customName:t.name}))
+      );
+      const[editingId,setEditingId]=useState(null);
+      const[courts,setCourts]=useState(["1","2"]);
+      const[courtInput,setCourtInput]=useState("");
+      const[timerMins,setTimerMins]=useState(12);
+      const[timerEnabled,setTimerEnabled]=useState(true);
+      const[title,setTitle]=useState("This is NOT a Round Robin");
 
-      const toggleColor = (id) => setSelectedColors(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+      // Build full team objects with customName → name
+      // These go into teamRegistry so CUSTOM_TEAMS always has the right names.
+      const selectedTeams=colorTeams.filter(t=>t.selected).map(t=>({id:t.id,name:t.customName||t.name,color:t.color,text:t.text}));
+      const allTeamIds=selectedTeams.map(t=>t.id);
 
-      const parseNamedTeams = (input, usedColorIds) => {
-        const usedColors = new Set(usedColorIds);
-        const available = ALL_TEAMS.filter(t => !usedColors.has(t.id));
-        const names = input.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
-        return names.map((name, i) => {
-          const c = available[i % available.length] || ALL_TEAMS[i % ALL_TEAMS.length];
-          // Simple numeric ID — completely independent of the name content.
-          // This avoids any Firebase key safety issues with special characters.
-          const id = "t" + i;
-          return { id, name, color: c.color, text: c.text };
-        });
-      };
+      const PRESET=["1","2","3","4","5","6","7","8","9","10","11","12"];
+      const addCourt=()=>{ const v=courtInput.trim(); if(!v||courts.includes(v)){setCourtInput("");return;} setCourts(p=>[...p,v]); setCourtInput(""); };
+      const toggleCourt=v=>{ if(courts.includes(v)){if(courts.length>1)setCourts(p=>p.filter(x=>x!==v));}
+        else setCourts(p=>[...p,v].sort((a,b)=>{const na=Number(a),nb=Number(b);return(na&&nb)?na-nb:a.localeCompare(b);})); };
 
-      const handleNamedInput = (val) => {
-        setNamedTeamsInput(val);
-        setNamedTeams(parseNamedTeams(val, selectedColors));
-      };
+      const canStart=allTeamIds.length>=3;
+      const iS={padding:"6px 10px",borderRadius:8,fontSize:13,fontWeight:700,background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.15)",color:"#e2e8f0",outline:"none"};
 
-      const allSelectedTeams = [
-        ...selectedColors.map(id => ALL_TEAMS.find(t => t.id === id)).filter(Boolean),
-        ...namedTeams,
-      ];
-      const allTeamIds = allSelectedTeams.map(t => t.id);
-
-      const PRESET_COURTS = ["1","2","3","4","5","6","7","8","9","10","11","12"];
-      const addCourt = () => {
-        const val = courtInput.trim();
-        if (!val || courts.includes(val)) { setCourtInput(""); return; }
-        setCourts(p => [...p, val]);
-        setCourtInput("");
-      };
-      const toggleCourt = (val) => {
-        if (courts.includes(val)) { if (courts.length > 1) setCourts(p => p.filter(x => x !== val)); }
-        else setCourts(p => [...p, val].sort((a,b) => { const na=Number(a), nb=Number(b); return (na&&nb) ? na-nb : a.localeCompare(b); }));
-      };
-
-      const numPlaying = courts.length * 2;
-      const canStart = allTeamIds.length >= 3;
-      const iStyle = { padding: "6px 10px", borderRadius: 8, fontSize: 13, fontWeight: 700,
-        background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", color: "#e2e8f0", outline: "none" };
-
-      return (
-        <div className="rounded-2xl p-6 flex flex-col gap-6"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-
+      return(
+        <div className="rounded-2xl p-6 flex flex-col gap-6" style={{background:"rgba(255,255,255,0.5)",border:"1px solid rgba(255,255,255,0.7)",backdropFilter:"blur(8px)"}}>
           <div>
-            <p className="text-sm font-bold text-slate-300 mb-1">Team Colors</p>
-            <p className="text-slate-500 text-xs mb-3">Tap to select</p>
+            <p className="text-sm font-bold text-slate-700 mb-1">Tournament Name</p>
+            <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="This is NOT a Round Robin"
+              style={{...iS,width:"100%",fontSize:15,fontWeight:800,color:"#0f4c75",background:"rgba(255,255,255,0.7)",border:"1px solid rgba(15,76,117,0.2)"}}/>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-700 mb-1">Teams</p>
+            <p className="text-slate-500 text-xs mb-3">Tap to select · Tap ✏️ to rename</p>
             <div className="flex flex-wrap gap-2">
-              {ALL_TEAMS.map(t => {
-                const sel = selectedColors.includes(t.id);
-                return (
-                  <button key={t.id} onClick={() => toggleColor(t.id)} className="rounded-full px-3 py-1 text-xs font-bold"
-                    style={{ background: sel ? t.color : "rgba(255,255,255,0.05)", color: sel ? t.text : "#64748b",
-                      border: "2px solid " + (sel ? t.color : "rgba(255,255,255,0.1)"), cursor: "pointer" }}>
-                    {t.name}
-                  </button>
+              {colorTeams.map(t=>{
+                const sel=t.selected, editing=editingId===t.id;
+                return(
+                  <div key={t.id}>
+                    {editing?(
+                      <div className="flex items-center gap-1 rounded-full px-2 py-1" style={{background:t.color,border:`2px solid ${t.color}`}}>
+                        <input autoFocus value={t.customName}
+                          onChange={e=>setColorTeams(p=>p.map(x=>x.id===t.id?{...x,customName:e.target.value}:x))}
+                          onBlur={()=>setEditingId(null)} onKeyDown={e=>{if(e.key==="Enter"||e.key==="Escape")setEditingId(null);}}
+                          style={{width:Math.max(50,(t.customName||"").length*8+16),background:"rgba(255,255,255,0.2)",border:"none",borderRadius:99,padding:"2px 6px",color:t.text,fontWeight:700,fontSize:12,outline:"none"}}/>
+                      </div>
+                    ):(
+                      <button className="rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1"
+                        style={{background:sel?t.color:"rgba(255,255,255,0.05)",color:sel?t.text:"#64748b",border:"2px solid "+(sel?t.color:"rgba(255,255,255,0.1)"),cursor:"pointer"}}>
+                        <span onClick={()=>setColorTeams(p=>p.map(x=>x.id===t.id?{...x,selected:!x.selected}:x))}>{t.customName||t.name}</span>
+                        {sel&&<span onClick={e=>{e.stopPropagation();setEditingId(t.id);}} style={{cursor:"text",opacity:0.7,fontSize:10,marginLeft:2}} title="Rename">✏️</span>}
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
+            <p className="text-slate-600 text-xs mt-3 font-bold">{allTeamIds.length} team{allTeamIds.length!==1?"s":""} selected</p>
           </div>
 
           <div>
-            <p className="text-sm font-bold text-slate-300 mb-1">Named Teams</p>
-            <p className="text-slate-500 text-xs mb-2">Names separated by commas or new lines — colors auto-assigned</p>
-            <textarea value={namedTeamsInput} onChange={e => handleNamedInput(e.target.value)}
-              placeholder={"Smith & Jones\nThe Dinksters\nNet Ninjas"} rows={3}
-              style={{ ...iStyle, width: "100%", resize: "vertical", fontWeight: 400, fontSize: 12, lineHeight: 1.5 }} />
-            {namedTeams.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {namedTeams.map(t => (
-                  <span key={t.id} className="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold"
-                    style={{ background: t.color, color: t.text, border: "2px solid rgba(255,255,255,0.15)" }}>
-                    {t.name}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <p className="text-slate-400 text-xs -mt-3 font-bold">{allTeamIds.length} teams total</p>
-
-          <div>
-            <p className="text-sm font-bold text-slate-300 mb-3">Courts to Use</p>
+            <p className="text-sm font-bold text-slate-700 mb-3">Courts to Use</p>
             <div className="flex flex-wrap gap-2 mb-3">
-              {PRESET_COURTS.map(n => {
-                const sel = courts.includes(n);
-                return (
-                  <button key={n} onClick={() => toggleCourt(n)} className="rounded-full px-3 py-1 text-xs font-bold"
-                    style={{ background: sel ? "rgba(99,102,241,0.35)" : "rgba(255,255,255,0.05)",
-                      color: sel ? "#a5b4fc" : "#475569",
-                      border: "2px solid " + (sel ? "rgba(99,102,241,0.7)" : "rgba(255,255,255,0.1)"), cursor: "pointer" }}>
-                    {n}
-                  </button>
-                );
-              })}
+              {PRESET.map(n=>{ const s=courts.includes(n); return(
+                <button key={n} onClick={()=>toggleCourt(n)} className="rounded-full px-3 py-1 text-xs font-bold"
+                  style={{background:s?"rgba(99,102,241,0.35)":"rgba(255,255,255,0.05)",color:s?"#a5b4fc":"#475569",
+                    border:"2px solid "+(s?"rgba(99,102,241,0.7)":"rgba(255,255,255,0.1)"),cursor:"pointer"}}>{n}</button>
+              );})}
             </div>
-            {courts.filter(c => !PRESET_COURTS.includes(c)).length > 0 && (
+            {courts.filter(c=>!PRESET.includes(c)).length>0&&(
               <div className="flex flex-wrap gap-2 mb-3">
-                {courts.filter(c => !PRESET_COURTS.includes(c)).map(c => (
+                {courts.filter(c=>!PRESET.includes(c)).map(c=>(
                   <div key={c} className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold"
-                    style={{ background: "rgba(99,102,241,0.35)", color: "#a5b4fc", border: "2px solid rgba(99,102,241,0.7)" }}>
-                    {c}
-                    <button onClick={() => setCourts(p => p.filter(x => x !== c))}
-                      style={{ cursor: "pointer", marginLeft: 4, fontWeight: 900, background: "none", border: "none", color: "#a5b4fc" }}>×</button>
+                    style={{background:"rgba(99,102,241,0.35)",color:"#a5b4fc",border:"2px solid rgba(99,102,241,0.7)"}}>
+                    {c}<button onClick={()=>setCourts(p=>p.filter(x=>x!==c))} style={{cursor:"pointer",marginLeft:4,fontWeight:900,background:"none",border:"none",color:"#a5b4fc"}}>×</button>
                   </div>
                 ))}
               </div>
             )}
             <p className="text-slate-500 text-xs mb-2">Or enter any custom court name:</p>
             <div className="flex gap-2">
-              <input placeholder="Name or number" value={courtInput}
-                onChange={e => setCourtInput(e.target.value)} onKeyDown={e => e.key === "Enter" && addCourt()}
-                style={{ ...iStyle, flex: 1 }} />
-              <button onClick={addCourt} className="px-3 py-1 rounded-lg text-xs font-bold"
-                style={{ background: "rgba(99,102,241,0.25)", color: "#a5b4fc", cursor: "pointer", border: "1px solid rgba(99,102,241,0.4)" }}>+ Add</button>
+              <input placeholder="Name or number" value={courtInput} onChange={e=>setCourtInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCourt()} style={{...iS,flex:1,background:"rgba(255,255,255,0.7)",color:"#1e293b",border:"1px solid rgba(0,0,0,0.15)"}}/>
+              <button onClick={addCourt} className="px-3 py-1 rounded-lg text-xs font-bold" style={{background:"rgba(15,76,117,0.15)",color:"#0f4c75",cursor:"pointer",border:"1px solid rgba(15,76,117,0.3)"}}>+ Add</button>
             </div>
-            <p className="text-slate-500 text-xs mt-2">{courts.length} court{courts.length !== 1 ? "s" : ""}: {courts.join(", ")}</p>
+            <p className="text-slate-500 text-xs mt-2">{courts.length} court{courts.length!==1?"s":""}: {courts.join(", ")}</p>
           </div>
 
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <p className="text-sm font-bold text-slate-300">Round Timer</p>
-              <button onClick={() => setTimerEnabled(p => !p)} className="text-xs px-2 py-1 rounded-lg font-bold"
-                style={{ background: timerEnabled ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.05)",
-                  color: timerEnabled ? "#a5b4fc" : "#475569", cursor: "pointer",
-                  border: "1px solid " + (timerEnabled ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)") }}>
-                {timerEnabled ? "On" : "Off"}
+              <p className="text-sm font-bold text-slate-700">Round Timer</p>
+              <button onClick={()=>setTimerEnabled(p=>!p)} className="text-xs px-2 py-1 rounded-lg font-bold"
+                style={{background:timerEnabled?"rgba(99,102,241,0.2)":"rgba(255,255,255,0.05)",color:timerEnabled?"#a5b4fc":"#475569",cursor:"pointer",border:"1px solid "+(timerEnabled?"rgba(99,102,241,0.4)":"rgba(255,255,255,0.08)")}}>
+                {timerEnabled?"On":"Off"}
               </button>
             </div>
-            {timerEnabled && (
-              <div className="flex items-center gap-3">
-                <input type="number" min={1} max={99} value={timerMins}
-                  onChange={e => setTimerMins(Math.max(1, Number(e.target.value)))}
-                  style={{ ...iStyle, width: 64, textAlign: "center", fontSize: 14 }} />
-                <span className="text-slate-400 text-sm">minutes per round</span>
-              </div>
-            )}
-            {timerEnabled && <p className="text-slate-500 text-xs mt-2">A loud alarm sounds when time runs out.</p>}
+            {timerEnabled&&<div className="flex items-center gap-3">
+              <input type="number" min={1} max={99} value={timerMins} onChange={e=>setTimerMins(Math.max(1,Number(e.target.value)))} style={{...iS,width:64,textAlign:"center",fontSize:14,background:"rgba(255,255,255,0.7)",color:"#1e293b",border:"1px solid rgba(0,0,0,0.15)"}}/>
+              <span className="text-slate-600 text-sm">minutes per round</span>
+            </div>}
+            {timerEnabled&&<p className="text-slate-500 text-xs mt-2">A loud alarm sounds when time runs out.</p>}
           </div>
 
-          <div className="rounded-xl p-3 text-xs leading-relaxed"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", color: "#94a3b8" }}>
-            {courts.length} court{courts.length !== 1 ? "s" : ""} → {numPlaying} play,{" "}
-            {Math.max(0, allTeamIds.length - numPlaying)} bye per round{timerEnabled ? " · " + timerMins + " min rounds" : ""}.<br/>
+          <div className="rounded-xl p-3 text-xs leading-relaxed" style={{background:"rgba(0,0,0,0.06)",border:"1px solid rgba(0,0,0,0.08)",color:"#475569"}}>
+            {courts.length} court{courts.length!==1?"s":""} → {courts.length*2} play, {Math.max(0,allTeamIds.length-courts.length*2)} bye per round{timerEnabled?" · "+timerMins+" min rounds":""}.<br/>
             No back-to-back byes. Bye partnerships rotate.
           </div>
-          {!canStart && <p className="text-amber-400 text-xs text-center">Need at least 3 teams.</p>}
-          <button onClick={() => canStart && onStart(allSelectedTeams, allTeamIds, courts, timerEnabled ? timerMins * 60 : 0)}
-            disabled={!canStart} className="w-full py-3 rounded-xl font-bold text-base"
-            style={{ background: canStart ? "linear-gradient(90deg,#6366f1,#8b5cf6)" : "rgba(255,255,255,0.05)",
-              color: canStart ? "#fff" : "#475569", cursor: canStart ? "pointer" : "not-allowed" }}>
-            Start Tournament &#x1F680;
+          {!canStart&&<p className="text-amber-600 text-xs text-center">Need at least 3 teams.</p>}
+          <button onClick={()=>canStart&&onStart(selectedTeams,allTeamIds,courts,timerEnabled?timerMins*60:0,title)} disabled={!canStart}
+            className="w-full py-3 rounded-xl font-bold text-base"
+            style={{background:canStart?"linear-gradient(90deg,#0f4c75,#1a6fa8)":"rgba(0,0,0,0.1)",color:canStart?"#fff":"#94a3b8",cursor:canStart?"pointer":"not-allowed"}}>
+            Start Tournament 🚀
           </button>
         </div>
       );
     }
 
-    // ─── Pause Panel ──────────────────────────────────────────────────────────────
-    function PausePanel({ activeTeamIds, pausedIds, onTogglePause }) {
-      return (
-        <div className="rounded-2xl p-4"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">&#x1FA79; Team Status</p>
+    // ─── Pause Panel ─────────────────────────────────────────────────────────
+    function PausePanel({activeTeamIds,pausedIds,onTogglePause}){
+      return(
+        <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.5)",border:"1px solid rgba(0,0,0,0.08)"}}>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">🩹 Team Status</p>
           <div className="flex flex-wrap gap-2">
-            {activeTeamIds.map((id) => {
-              const team = teamById(id), paused = pausedIds.includes(id);
-              return (
-                <button key={id} onClick={() => onTogglePause(id)}
-                  title={paused ? "Return to rotation" : "Pause (injury/break)"}
-                  className="rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1"
-                  style={{ background: paused ? "rgba(255,255,255,0.05)" : team.color,
-                    color: paused ? "#64748b" : team.text, border: `2px solid ${paused ? "rgba(255,255,255,0.1)" : team.color}`,
-                    cursor: "pointer", opacity: paused ? 0.6 : 1, textDecoration: paused ? "line-through" : "none" }}>
-                  {paused ? "⏸ " : ""}{team.name}
-                </button>
-              );
-            })}
+            {activeTeamIds.map(id=>{ const t=teamById(id),p=pausedIds.includes(id); return(
+              <button key={id} onClick={()=>onTogglePause(id)} title={p?"Return to rotation":"Pause (injury/break)"}
+                className="rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1"
+                style={{background:p?"rgba(0,0,0,0.06)":t.color,color:p?"#94a3b8":t.text,
+                  border:`2px solid ${p?"rgba(0,0,0,0.1)":t.color}`,cursor:"pointer",opacity:p?0.6:1,textDecoration:p?"line-through":"none"}}>
+                {p?"⏸ ":""}{t.name}
+              </button>
+            );})}
           </div>
-          {pausedIds.length > 0 && (
-            <p className="text-xs text-amber-400 mt-2">
-              {pausedIds.map((id) => teamById(id)?.name).join(", ")} paused — excluded from rotation.
-            </p>
-          )}
+          {pausedIds.length>0&&<p className="text-xs text-amber-600 mt-2">{pausedIds.map(id=>teamById(id)?.name).join(", ")} paused — excluded from rotation.</p>}
         </div>
       );
     }
 
-    // ─── Restore Banner ───────────────────────────────────────────────────────────
-    function RestoreBanner({ saved, onRestore, onDiscard }) {
-      const d = new Date(saved.savedAt);
-      const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      const dateStr = d.toLocaleDateString([], { month: "short", day: "numeric" });
-      return (
-        <div className="rounded-2xl p-4 mb-4 flex flex-col gap-3"
-          style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.4)" }}>
-        <div>
-          <p className="text-sm font-bold text-indigo-300">&#x1F4BE; Saved tournament found</p>
-          <p className="text-xs text-slate-400 mt-1">
-            Round {saved.roundNum} · {saved.activeTeamIds?.length} teams · Courts {saved.courtNumbers?.join(", ")}
-            <br/>Saved at {timeStr} on {dateStr}
-          </p>
+    // ─── Restore Banner ──────────────────────────────────────────────────────
+    function RestoreBanner({saved,onRestore,onDiscard}){
+      const d=new Date(saved.savedAt);
+      return(
+        <div className="rounded-2xl p-4 mb-4 flex flex-col gap-3" style={{background:"rgba(15,76,117,0.08)",border:"1px solid rgba(15,76,117,0.25)"}}>
+          <div>
+            <p className="text-sm font-bold text-blue-800">💾 Saved tournament found</p>
+            <p className="text-xs text-slate-500 mt-1">Round {saved.roundNum} · {saved.activeTeamIds?.length} teams · Courts {saved.courtNumbers?.join(", ")}<br/>
+              Saved at {d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})} on {d.toLocaleDateString([],{month:"short",day:"numeric"})}</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onDiscard} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"rgba(0,0,0,0.06)",color:"#64748b",cursor:"pointer",border:"1px solid rgba(0,0,0,0.1)"}}>Discard</button>
+            <button onClick={onRestore} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"linear-gradient(90deg,#0f4c75,#1a6fa8)",color:"#fff",cursor:"pointer"}}>Restore →</button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={onDiscard} className="flex-1 py-2 rounded-xl text-sm font-bold"
-            style={{ background: "rgba(255,255,255,0.05)", color: "#64748b", cursor: "pointer", border: "1px solid rgba(255,255,255,0.08)" }}>
-            Discard
-          </button>
-          <button onClick={onRestore} className="flex-1 py-2 rounded-xl text-sm font-bold"
-            style={{ background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff", cursor: "pointer" }}>
-            Restore &#x2192;
-          </button>
-        </div>
-      </div>
       );
     }
 
-    // ─── Main App ─────────────────────────────────────────────────────────────────
-    function App() {
-      const [phase, setPhase] = useState("loading"); // start loading from Firebase
-      const [activeTeamIds, setActiveTeamIds] = useState([]);
-      // Full team objects for this tournament (color + custom named teams)
-      // Kept in state so it's always available for Firebase pushes
-      const [tournamentTeams, setTournamentTeams] = useState([]);
-      const [courtNumbers, setCourtNumbers] = useState([]);
-      const [timerDuration, setTimerDuration] = useState(0);
-      const [timerDefaultMins, setTimerDefaultMins] = useState(12);
-      const [history, setHistory] = useState([]);
-      const [standings, setStandings] = useState([]);
-      const [round, setRound] = useState(null);
-      const [roundNum, setRoundNum] = useState(1);
-      const [pending, setPending] = useState({});
-      const [roundComplete, setRoundComplete] = useState(false); // all scores in, awaiting generation
-      const [roundKey, setRoundKey] = useState(0);
-      const [activeTab, setActiveTab] = useState("play");
-      const [editTarget, setEditTarget] = useState(null);
-      const [pausedIds, setPausedIds] = useState([]);
-      const [isAdmin, setIsAdmin] = useState(false);
-      const isAdminRef = useRef(false);
-      useEffect(() => { isAdminRef.current = isAdmin; }, [isAdmin]);
-      const [pinPurpose, setPinPurpose] = useState(null);
-      const [presence, setPresence] = useState({ viewers: 0, admins: 0 });
-      const [showTimerSettings, setShowTimerSettings] = useState(false);
-      const [savedState, setSavedState] = useState(null);
+    // ─── Main App ─────────────────────────────────────────────────────────────
+    function App(){
+      const[phase,setPhase]=useState("loading");
+      const[tournamentTitle,setTournamentTitle]=useState("This is NOT a Round Robin");
+      const[activeTeamIds,setActiveTeamIds]=useState([]);
+      const[tournamentTeams,setTournamentTeams]=useState([]);
+      const[courtNumbers,setCourtNumbers]=useState([]);
+      const[timerDuration,setTimerDuration]=useState(0);
+      const[timerDefaultMins,setTimerDefaultMins]=useState(12);
+      const[history,setHistory]=useState([]);
+      const[standings,setStandings]=useState([]);
+      const[round,setRound]=useState(null);
+      const[roundNum,setRoundNum]=useState(1);
+      const[pending,setPending]=useState({});
+      const[roundComplete,setRoundComplete]=useState(false);
+      const[roundKey,setRoundKey]=useState(0);
+      const[activeTab,setActiveTab]=useState("play");
+      const[editTarget,setEditTarget]=useState(null);
+      const[pausedIds,setPausedIds]=useState([]);
+      const[isAdmin,setIsAdmin]=useState(false);
+      const isAdminRef=useRef(false);
+      useEffect(()=>{isAdminRef.current=isAdmin;},[isAdmin]);
+      const[pinPurpose,setPinPurpose]=useState(null);
+      const[presence,setPresence]=useState({viewers:0,admins:0});
+      const[showTimerSettings,setShowTimerSettings]=useState(false);
+      const[savedState,setSavedState]=useState(null);
+      const[finalRound,setFinalRound]=useState(false);
+      const[adminPin,setAdminPin]=useState(null); // loaded from Firebase config/adminPin
 
-      // ── Timer model ───────────────────────────────────────────────────────
-      // Firebase stores: timerRunning (bool), timerStartedAt (ms epoch when
-      // last started/resumed), timerPausedSecsLeft (secs left when last paused).
-      // Every client computes current secsLeft from wall-clock time — no per-second writes.
-      //
-      // We keep timer config in REFS so updates are immediately visible to the
-      // tick interval without waiting for React's async state batching.
-      // Only timerSecsLeft (the display value) is React state.
+      // Fetch admin PIN from Firebase once on mount
+      useEffect(()=>{
+        db.ref('config/adminPin').once('value').then(snap=>{
+          const val=snap.val();
+          if(val)setAdminPin(String(val));
+        }).catch(()=>{}); // silently fail — PIN will just never match
+      },[]);
 
-      const timerRunningRef    = useRef(false);
-      const timerStartedAtRef  = useRef(null);   // ms epoch
-      const timerPausedSecsRef = useRef(0);       // secs left at last pause/reset
-      const timerDurationRef   = useRef(0);
-      const alarmFiredRef      = useRef(false);
-      const timerTickRef       = useRef(null);
+      // Timer refs + state
+      const timerRunningRef=useRef(false),timerStartedAtRef=useRef(null),timerPausedSecsRef=useRef(0);
+      const timerDurationRef=useRef(0),alarmFiredRef=useRef(false),timerTickRef=useRef(null);
+      const[timerRunning,setTimerRunning]=useState(false);
+      const[timerPausedSecsLeft,setTimerPausedSecsLeft]=useState(0);
+      const[timerAlarmed,setTimerAlarmed]=useState(false);
+      const[timerSecsLeft,setTimerSecsLeft]=useState(0);
+      useEffect(()=>{timerDurationRef.current=timerDuration;},[timerDuration]);
 
-      // React state only for rendering
-      const [timerRunning, setTimerRunning]       = useState(false);
-      const [timerPausedSecsLeft, setTimerPausedSecsLeft] = useState(0);
-      const [timerAlarmed, setTimerAlarmed]       = useState(false);
-      const [timerSecsLeft, setTimerSecsLeft]     = useState(0);
-
-      // Sync refs when timerDuration state changes
-      useEffect(() => { timerDurationRef.current = timerDuration; }, [timerDuration]);
-
-      // Core compute — reads from refs, always up-to-date
-      const computeSecsLeft = () => {
-        if (!timerRunningRef.current || !timerStartedAtRef.current) {
-          return timerPausedSecsRef.current;
-        }
-        const elapsed = Math.floor((Date.now() - timerStartedAtRef.current) / 1000);
-        return Math.max(0, timerPausedSecsRef.current - elapsed);
+      const computeSecsLeft=()=>{
+        if(!timerRunningRef.current||!timerStartedAtRef.current)return timerPausedSecsRef.current;
+        return Math.max(0,timerPausedSecsRef.current-Math.floor((Date.now()-timerStartedAtRef.current)/1000));
       };
-
-      // applyTimerState: update refs AND state in one go, then restart tick
-      const applyTimerState = (running, startedAt, pausedSecs) => {
-        timerRunningRef.current    = running;
-        timerStartedAtRef.current  = startedAt;
-        timerPausedSecsRef.current = pausedSecs;
-        // Compute display value immediately — no async lag
-        const secs = running && startedAt
-          ? Math.max(0, pausedSecs - Math.floor((Date.now() - startedAt) / 1000))
-          : pausedSecs;
-        setTimerSecsLeft(secs);
-        setTimerRunning(running);
-        setTimerPausedSecsLeft(pausedSecs);
-        // Restart tick interval
+      const applyTimerState=(running,startedAt,pausedSecs)=>{
+        timerRunningRef.current=running;timerStartedAtRef.current=startedAt;timerPausedSecsRef.current=pausedSecs;
+        const secs=running&&startedAt?Math.max(0,pausedSecs-Math.floor((Date.now()-startedAt)/1000)):pausedSecs;
+        setTimerSecsLeft(secs);setTimerRunning(running);setTimerPausedSecsLeft(pausedSecs);
         clearInterval(timerTickRef.current);
-        if (running && startedAt) {
-          timerTickRef.current = setInterval(() => {
-            const s = computeSecsLeft();
-            setTimerSecsLeft(s);
-            if (s <= 0) {
-              clearInterval(timerTickRef.current);
-              if (!alarmFiredRef.current && timerDurationRef.current > 0) {
-                alarmFiredRef.current = true;
-                playAlarm();
-                // Mark expired — don't push to Firebase; let admin see it
-                timerRunningRef.current = false;
-                setTimerRunning(false);
-                setTimerAlarmed(true);
-              }
-            }
-          }, 500);
+        if(running&&startedAt){
+          timerTickRef.current=setInterval(()=>{
+            const s=computeSecsLeft();setTimerSecsLeft(s);
+            if(s<=0){clearInterval(timerTickRef.current);
+              if(!alarmFiredRef.current&&timerDurationRef.current>0){alarmFiredRef.current=true;playAlarm();timerRunningRef.current=false;setTimerRunning(false);setTimerAlarmed(true);}}
+          },500);
         }
       };
 
-      // ── 3. CLOUD SYNC LISTENERS ───────────────────────────────────────────
-      // Everyone (including admins) listens to Firebase.
-      // We track the last write token we pushed so we can skip our own echo.
-      const lastWriteToken = useRef(null);
+      // Firebase write token — prevents echo
+      const lastWriteToken=useRef(null);
+      const pushSnapshot=useCallback((snapshot)=>{
+        const tok=Math.random().toString(36).slice(2); lastWriteToken.current=tok;
+        if(!snapshot){db.ref('current_tournament').set({phase:"ended",_writeToken:tok});return;}
+        db.ref('current_tournament').set({...snapshot,_writeToken:tok});
+      },[]);
+      const pushAtomicUpdate=useCallback((fields)=>{
+        const tok=Math.random().toString(36).slice(2); lastWriteToken.current=tok;
+        db.ref('current_tournament').update({...fields,_writeToken:tok});
+      },[]);
 
-      useEffect(() => {
-        const tournamentRef = db.ref('current_tournament');
-        tournamentRef.on('value', (snapshot) => {
-          const data = snapshot.val();
+      // Listener
+      const lastSeenRoundNum=useRef(-1),initialLoadDone=useRef(false);
+      const updateAllStates=useCallback((s)=>{
+        if(s.teamRegistry&&s.teamRegistry.length>0)setTournamentTeams(s.teamRegistry);
+        if(s.tournamentTitle)setTournamentTitle(s.tournamentTitle);
+        const ns=rebuildStandings(s.activeTeamIds,s.history);
+        let nr;
+        if(s.roundData&&s.roundData.courtTeamIds){
+          const safe=id=>teamById(id)||{id,name:String(id),color:"#475569",text:"#fff"};
+          nr={courts:s.roundData.courtTeamIds.map(p=>p.map(safe)),bye:(s.roundData.byeIds||[]).map(safe),paused:(s.roundData.pausedTeamIds||[]).map(safe)};
+        } else nr=generateRound(ns,s.courtNumbers.length,s.history.length,s.history,s.pausedIds||[]);
+        setActiveTeamIds(s.activeTeamIds);setCourtNumbers(s.courtNumbers);
+        setTimerDuration(s.timerDuration||0);setTimerDefaultMins(s.timerDefaultMins||12);
+        setHistory(s.history);setStandings(ns);setRound(nr);setRoundNum(s.roundNum);
+        setPausedIds(s.pausedIds||[]);setRoundComplete(s.roundComplete||false);
+        const isNew=s.roundNum!==lastSeenRoundNum.current;
+        if(isNew){lastSeenRoundNum.current=s.roundNum;setPending({});setRoundKey(k=>k+1);}
+        alarmFiredRef.current=false;
+        applyTimerState(s.timerRunning||false,s.timerStartedAt||null,s.timerPausedSecsLeft??s.timerDuration??0);
+        setPhase("play");
+      },[]);
 
-          // Always mark initial load done
-          if (!initialLoadDone.current) {
-            initialLoadDone.current = true;
-          }
-
-          // No data at all — no active tournament
-          if (!data) { setPhase(p => p === "play" ? "waiting" : p); return; }
-
-          // Skip our own writes (echo prevention)
-          if (data._writeToken && data._writeToken === lastWriteToken.current) return;
-
-          // Tournament ended / reset
-          if (data.phase !== "play") { setPhase("waiting"); return; }
-
-          // Active tournament — update everyone (viewers AND admins)
+      useEffect(()=>{
+        const ref=db.ref('current_tournament');
+        ref.on('value',snap=>{
+          const data=snap.val();
+          if(!initialLoadDone.current)initialLoadDone.current=true;
+          if(!data){setPhase(p=>p==="play"?"waiting":p);return;}
+          if(data._writeToken&&data._writeToken===lastWriteToken.current)return;
+          if(data.phase!=="play"){setPhase("waiting");return;}
           updateAllStates(normaliseSnapshot(data));
         });
-        return () => tournamentRef.off();
-      }, []); // registered once — fires immediately with current DB state
+        return()=>ref.off();
+      },[updateAllStates]);
 
-      // Also listen for individual pending game results from other admins
-      useEffect(() => {
-        const pendingRef = db.ref('current_tournament/pendingResults');
-        pendingRef.on('value', (snapshot) => {
-          const data = snapshot.val();
-          if (!data) return;
-          // Convert Firebase object back to our pending map format
-          setPending(prev => {
-            const merged = { ...prev };
-            Object.keys(data).forEach(k => {
-              if (!merged[k]) merged[k] = data[k];
-            });
-            return merged;
-          });
-        });
-        return () => pendingRef.off();
-      }, []);
+      useEffect(()=>{
+        const ref=db.ref('current_tournament/pendingResults');
+        ref.on('value',snap=>{const d=snap.val();if(!d)return;setPending(prev=>{const m={...prev};Object.keys(d).forEach(k=>{if(!m[k])m[k]=d[k];});return m;});});
+        return()=>ref.off();
+      },[]);
 
-      // Track last-seen roundNum so we only bump roundKey when the round genuinely changes
-      const lastSeenRoundNum = useRef(-1);
+      useEffect(()=>{
+        const saved=loadState();if(saved&&saved.phase==="play")setSavedState(saved);
+        const t=setTimeout(()=>{if(!initialLoadDone.current){initialLoadDone.current=true;setPhase("waiting");}},4000);
+        return()=>clearTimeout(t);
+      },[]);
 
-      // ── pushSnapshot: write full tournament state to Firebase ──────────────
-      const pushSnapshot = (snapshot) => {
-        const token = Math.random().toString(36).slice(2);
-        lastWriteToken.current = token;
-        db.ref('current_tournament').set({ ...snapshot, _writeToken: token });
+      const myPresRef=useRef(null);
+      useEffect(()=>{
+        const ref=db.ref('presence').push();myPresRef.current=ref;
+        ref.set({role:'viewer',joinedAt:Date.now()});ref.onDisconnect().remove();
+        const h=snap=>{const d=snap.val()||{},e=Object.values(d);setPresence({viewers:e.filter(x=>x&&x.role==='viewer').length,admins:e.filter(x=>x&&x.role==='admin').length});};
+        db.ref('presence').on('value',h);return()=>{ref.remove();db.ref('presence').off('value',h);};
+      },[]);
+      useEffect(()=>{if(myPresRef.current)myPresRef.current.update({role:isAdmin?'admin':'viewer'});},[isAdmin]);
+
+      // Local auto-save only
+      useEffect(()=>{
+        if(phase!=="play")return;
+        const rd=(round&&round.courts&&round.courts.length>0)?{courtTeamIds:round.courts.map(p=>p.map(t=>t&&t.id).filter(Boolean)),byeIds:(round.bye||[]).map(t=>t&&t.id).filter(Boolean),pausedTeamIds:(round.paused||[]).map(t=>t&&t.id).filter(Boolean)}:null;
+        saveState({phase,activeTeamIds,courtNumbers,timerDuration,timerDefaultMins,history,roundNum,pausedIds,roundData:rd,teamRegistry:tournamentTeams,timerRunning:timerRunningRef.current,timerStartedAt:timerStartedAtRef.current,timerPausedSecsLeft:timerPausedSecsRef.current,savedAt:Date.now()});
+      },[phase,history,roundNum,pausedIds,activeTeamIds,courtNumbers,timerDuration]);
+
+      const handleRestore=()=>{ const s=savedState;setSavedState(null);updateAllStates(normaliseSnapshot(s));setActiveTab("play"); };
+
+      const pushTimerState=(r,sa,ps)=>pushAtomicUpdate({timerRunning:r,timerStartedAt:sa,timerPausedSecsLeft:ps});
+      const resetTimer=(ns)=>{ alarmFiredRef.current=false;const s=ns??timerDuration;setTimerAlarmed(false);applyTimerState(false,null,s);if(isAdmin)pushTimerState(false,null,s); };
+      const timerToggle=()=>{
+        if(!timerRunning){const sa=Date.now();applyTimerState(true,sa,timerPausedSecsRef.current);if(isAdmin)pushTimerState(true,sa,timerPausedSecsRef.current);}
+        else{const s=computeSecsLeft();applyTimerState(false,null,s);if(isAdmin)pushTimerState(false,null,s);}
       };
 
-      // ── pushPatch: write a partial update atomically (path + token together)
-      const pushPatch = (path, value) => {
-        const token = Math.random().toString(36).slice(2);
-        lastWriteToken.current = token;
-        // Use update() so both writes land in a single Firebase event,
-        // preventing the listener from firing with a stale token.
-        const update = { _writeToken: token };
-        update[path] = value;
-        db.ref('current_tournament').update(update);
+      const numCourts=courtNumbers.length, courtKey=idx=>`court_${idx}`;
+
+      const handleStart=(allTeams,teamIds,courts,durSecs,title)=>{
+        registerTeams(allTeams);setTournamentTeams(allTeams);
+        setTournamentTitle(title||"This is NOT a Round Robin");
+        const s=mkStandings(teamIds),r=generateRound(s,courts.length,0,[],[]);
+        const rd={courtTeamIds:r.courts.map(p=>p.map(t=>t.id)),byeIds:r.bye.map(t=>t.id),pausedTeamIds:[]};
+        const sa=durSecs>0?Date.now():null;
+        const snap={phase:"play",activeTeamIds:teamIds,courtNumbers:courts,teamRegistry:allTeams,tournamentTitle:title||"This is NOT a Round Robin",timerDuration:durSecs,timerDefaultMins:12,history:[],roundNum:1,pausedIds:[],timerRunning:durSecs>0,timerStartedAt:sa,timerPausedSecsLeft:durSecs,roundData:rd,savedAt:Date.now()};
+        saveState(snap);pushSnapshot(snap);setIsAdmin(true);
+        setActiveTeamIds(teamIds);setCourtNumbers(courts);setTimerDuration(durSecs);
+        setStandings(s);setRound(r);setRoundNum(1);setHistory([]);
+        lastSeenRoundNum.current=1;setPending({});setPausedIds([]);setRoundKey(0);setRoundComplete(false);
+        alarmFiredRef.current=false;setTimerAlarmed(false);applyTimerState(durSecs>0,sa,durSecs);
+        setPhase("play");setActiveTab("play");
       };
 
-      // Helper function to update all internal React state from a single data object
-      const updateAllStates = (s) => {
-        // teamRegistry already registered by normaliseSnapshot before we get here.
-        // Also store it in React state so it's available for all future pushes.
-        if (s.teamRegistry && s.teamRegistry.length > 0) {
-          setTournamentTeams(s.teamRegistry);
-        }
-        const ns = rebuildStandings(s.activeTeamIds, s.history);
-
-        // Prefer the stored round (so viewers see exactly what admin sees).
-        // Fall back to generating it if roundData is missing (e.g. old saves).
-        let nr;
-        if (s.roundData && s.roundData.courtTeamIds) {
-          // safeTeam: always returns a valid team object; never returns undefined
-          const safeTeam = (id) => teamById(id) || { id, name: String(id), color: "#475569", text: "#fff" };
-          nr = {
-            courts: s.roundData.courtTeamIds.map(pair => pair.map(safeTeam)),
-            bye: (s.roundData.byeIds || []).map(safeTeam),
-            paused: (s.roundData.pausedTeamIds || []).map(safeTeam),
-          };
-        } else {
-          nr = generateRound(ns, s.courtNumbers.length, s.history.length, s.history, s.pausedIds || []);
-        }
-
-        setActiveTeamIds(s.activeTeamIds);
-        setCourtNumbers(s.courtNumbers);
-        setTimerDuration(s.timerDuration || 0);
-        setTimerDefaultMins(s.timerDefaultMins || 12);
-        setHistory(s.history);
-        setStandings(ns);
-        setRound(nr);
-        setRoundNum(s.roundNum);
-        setPausedIds(s.pausedIds || []);
-        setRoundComplete(s.roundComplete || false);
-
-        // Capture whether this is a new round BEFORE updating the ref
-        const isNewRound = s.roundNum !== lastSeenRoundNum.current;
-        if (isNewRound) {
-          lastSeenRoundNum.current = s.roundNum;
-          setPending({});
-          setRoundKey((k) => k + 1);
-        }
-
-        // Restore timer state — applyTimerState updates refs+state synchronously
-        alarmFiredRef.current = false; // re-arm alarm for new session
-        const running  = s.timerRunning || false;
-        const startedAt = s.timerStartedAt || null;
-        const pausedSecs = s.timerPausedSecsLeft ?? s.timerDuration ?? 0;
-        applyTimerState(running, startedAt, pausedSecs);
-
-        setPhase("play");
-      };
-
-      // ── On mount: continuous listener handles initial load ─────────────────
-      // The on('value') listener always fires immediately with current DB state.
-      // initialLoadDone tracks whether we've received the first snapshot yet.
-      const initialLoadDone = useRef(false);
-      useEffect(() => {
-        const saved = loadState();
-        if (saved && saved.phase === "play") setSavedState(saved);
-        // Fallback: if Firebase hasn't responded in 4s, show waiting screen
-        const timeout = setTimeout(() => {
-          if (!initialLoadDone.current) { initialLoadDone.current = true; setPhase("waiting"); }
-        }, 4000);
-        return () => clearTimeout(timeout);
-      }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-      // ── Presence tracking ─────────────────────────────────────────────────
-      // One stable presence node per session (stored in ref).
-      // Only the role field is updated when isAdmin changes.
-      const myPresenceRef = useRef(null);
-
-      useEffect(() => {
-        // Create the presence node once on mount
-        const ref = db.ref('presence').push();
-        myPresenceRef.current = ref;
-        ref.set({ role: 'viewer', joinedAt: Date.now() });
-        ref.onDisconnect().remove();
-
-        // Listen for all presence entries with a named callback
-        const handlePresence = (snap) => {
-          const data = snap.val() || {};
-          const entries = Object.values(data);
-          setPresence({
-            viewers: entries.filter(e => e && e.role === 'viewer').length,
-            admins:  entries.filter(e => e && e.role === 'admin').length,
-          });
-        };
-        db.ref('presence').on('value', handlePresence);
-
-        return () => {
-          ref.remove();
-          db.ref('presence').off('value', handlePresence);
-        };
-      }, []); // only once on mount
-
-      // Update role in Firebase when admin status changes (no new node)
-      useEffect(() => {
-        if (myPresenceRef.current) {
-          myPresenceRef.current.update({ role: isAdmin ? 'admin' : 'viewer' });
-        }
-      }, [isAdmin]);
-
-      // ── Auto-save (LOCAL & CLOUD) ───────────────────────────────────────────
-      useEffect(() => {
-        if (phase !== "play") return;
-
-        // Serialise current round as plain IDs so Firebase can store it
-        const roundData = (round && round.courts && round.courts.length > 0) ? {
-          courtTeamIds: round.courts.map(pair => pair.map(t => t && t.id).filter(Boolean)),
-          byeIds: (round.bye || []).map(t => t && t.id).filter(Boolean),
-          pausedTeamIds: (round.paused || []).map(t => t && t.id).filter(Boolean),
-        } : null;
-
-        const snapshot = {
-          phase, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins,
-          history, roundNum, pausedIds, roundData,
-          teamRegistry: tournamentTeams,
-          timerRunning,
-          timerStartedAt: timerStartedAtRef.current,
-          timerPausedSecsLeft: timerPausedSecsRef.current,
-          savedAt: Date.now(),
-        };
-        
-        // Always save locally (Backup)
-        saveState(snapshot);
-
-        // ONLY push to cloud if we are the Admin making the changes
-        if (isAdminRef.current) {
-          pushSnapshot(snapshot);
-        }
-      }, [phase, history, roundNum, pausedIds, timerRunning, timerPausedSecsLeft, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins]);
-
-      const handleRestore = () => {
-        const s = savedState;
-        setSavedState(null);
-        updateAllStates(normaliseSnapshot(s)); // normalise + handle timer fields
-        setActiveTab("play");
-      };
-
-      // ── pushTimerState: write timer fields to Firebase (admin only) ────────
-      const pushTimerState = (running, startedAt, pausedSecsLeft) => {
-        pushPatch('timerRunning', running);
-        pushPatch('timerStartedAt', startedAt);
-        pushPatch('timerPausedSecsLeft', pausedSecsLeft);
-      };
-
-      // ── resetTimer: reset clock locally + push to Firebase ────────────────
-      const resetTimer = (newSecs) => {
-        alarmFiredRef.current = false;
-        const secs = newSecs ?? timerDuration;
-        setTimerAlarmed(false);
-        applyTimerState(false, null, secs);
-        if (isAdmin) pushTimerState(false, null, secs);
-      };
-
-      const numCourts = courtNumbers.length;
-      const courtKey = (idx) => `court_${idx}`;
-
-      const handleStart = (allTeams, teamIds, courts, durSecs) => {
-        registerTeams(allTeams);
-        setTournamentTeams(allTeams);
-        const s = mkStandings(teamIds);
-        const r = generateRound(s, courts.length, 0, [], []);
-
-        const roundData = {
-          courtTeamIds: r.courts.map(pair => pair.map(t => t.id)),
-          byeIds: r.bye.map(t => t.id),
-          pausedTeamIds: [],
-        };
-        const startedAt = durSecs > 0 ? Date.now() : null;
-        const snapshot = {
-          phase: "play", activeTeamIds: teamIds, courtNumbers: courts,
-          teamRegistry: allTeams,
-          timerDuration: durSecs, timerDefaultMins: 12,
-          history: [], roundNum: 1, pausedIds: [],
-          timerRunning: durSecs > 0, timerStartedAt: startedAt,
-          timerPausedSecsLeft: durSecs,
-          roundData, savedAt: Date.now(),
-        };
-        saveState(snapshot);
-        pushSnapshot(snapshot);
-
-        // Become Admin on start
-        setIsAdmin(true);
-
-        setActiveTeamIds(teamIds); setCourtNumbers(courts); setTimerDuration(durSecs);
-        setStandings(s); setRound(r); setRoundNum(1); setHistory([]);
-        lastSeenRoundNum.current = 1; // prevent echo from triggering isNewRound
-        setPending({}); setPausedIds([]); setRoundKey(0); setRoundComplete(false);
-        alarmFiredRef.current = false;
-        setTimerAlarmed(false);
-        applyTimerState(durSecs > 0, startedAt, durSecs);
-        setPhase("play"); setActiveTab("play");
-      };
-
-      const handleResetClick = () => setPinPurpose("reset");
-
-      const handlePinSuccess = () => {
-        if (pinPurpose === "admin") { setIsAdmin(true); }
-        else if (pinPurpose === "reset") {
-          clearSave();
-          // Clear Cloud too
-          pushSnapshot(null);
-          lastSeenRoundNum.current = -1;
-          setPhase("setup"); // admin goes to setup to configure new tournament
-          setIsAdmin(false);
-          setHistory([]);
-          setStandings([]);
-          setRound(null);
-          setPausedIds([]);
-          setPending({});
-          resetTimer(0);
-        }
+      const handlePinSuccess=()=>{
+        if(pinPurpose==="admin")setIsAdmin(true);
+        else if(pinPurpose==="reset"){clearSave();pushSnapshot(null);lastSeenRoundNum.current=-1;setPhase("setup");setIsAdmin(false);setHistory([]);setStandings([]);setRound(null);setPausedIds([]);setPending({});resetTimer(0);}
         setPinPurpose(null);
       };
 
-      const handleTogglePause = (id) => {
-        setPausedIds((prev) => {
-          const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-          const nr = generateRound(standings, numCourts, history.length, history, next);
-
-          // Immediately push updated round to Firebase
-          if (isAdmin) {
-            const roundData = {
-              courtTeamIds: nr.courts.map(pair => pair.map(t => t.id)),
-              byeIds: nr.bye.map(t => t.id),
-              pausedTeamIds: (nr.paused || []).map(t => t.id),
-            };
-            pushPatch('roundData', roundData);
-            pushPatch('pausedIds', next);
-          }
-
-          setRound(nr); setPending({}); setRoundKey((k) => k + 1);
-          return next;
-        });
+      const handleTogglePause=id=>{
+        const np=pausedIds.includes(id)?pausedIds.filter(x=>x!==id):[...pausedIds,id];
+        const nr=generateRound(standings,numCourts,history.length,history,np);
+        if(isAdmin){const rd={courtTeamIds:nr.courts.map(p=>p.map(t=>t.id)),byeIds:nr.bye.map(t=>t.id),pausedTeamIds:(nr.paused||[]).map(t=>t.id)};pushAtomicUpdate({roundData:rd,pausedIds:np});}
+        setPausedIds(np);setRound(nr);setPending({});setRoundKey(k=>k+1);
       };
 
-      const handleResult = (courtIdx, result) => {
-        warmUpAudio();
-        const key = courtKey(courtIdx);
-        const np = { ...pending, [key]: result };
-        setPending(np);
-
-        // Push individual game result immediately so other admins see it
-        if (isAdmin) {
-          pushPatch(`pendingResults/${key}`, result);
-        }
-
-        if (round.courts.every((_, idx) => np[courtKey(idx)])) {
-          // All courts done — commit results to history but don't generate next round yet.
-          // Admin will click "Generate Next Round" after adjusting pauses if needed.
-          const games = round.courts.map((_, idx) => ({ ...np[courtKey(idx)], courtNumber: courtNumbers[idx] ?? idx + 1 }));
-          const entry = { roundNum, games, bye: round.bye.map((t) => t.id), paused: (round.paused || []).map((t) => t.id) };
-          const nh = [...history, entry];
-          const ns = rebuildStandings(activeTeamIds, nh);
-
-          if (isAdmin) {
-            // Push committed results to Firebase (no new round yet)
-            const snapshot = {
-              phase: "play", activeTeamIds, courtNumbers,
-              teamRegistry: tournamentTeams,
-              timerDuration, timerDefaultMins,
-              history: nh, roundNum, pausedIds,
-              roundComplete: true,
-              timerRunning: false,
-              timerStartedAt: null,
-              timerPausedSecsLeft: timerDuration,
-              roundData: null, // no next round yet
-              savedAt: Date.now(),
-            };
-            saveState(snapshot);
-            pushSnapshot(snapshot);
-            pushPatch('pendingResults', null);
-          }
-
-          setHistory(nh);
-          setStandings(ns);
-          setRoundComplete(true);
-          alarmFiredRef.current = false;
-          setTimerAlarmed(false);
-          applyTimerState(false, null, timerDuration);
+      const handleResult=(ci,result)=>{
+        warmUpAudio(); const key=courtKey(ci);const np={...pending,[key]:result};setPending(np);
+        if(isAdmin)pushAtomicUpdate({[`pendingResults/${key}`]:result});
+        if(round.courts.every((_,i)=>np[courtKey(i)])){
+          const games=round.courts.map((_,i)=>({...np[courtKey(i)],courtNumber:courtNumbers[i]??i+1}));
+          const entry={roundNum,games,bye:round.bye.map(t=>t.id),paused:(round.paused||[]).map(t=>t.id)};
+          const nh=[...history,entry], ns=rebuildStandings(activeTeamIds,nh);
+          if(isAdmin){const snap={phase:"play",activeTeamIds,courtNumbers,teamRegistry:tournamentTeams,timerDuration,timerDefaultMins,history:nh,roundNum,pausedIds,roundComplete:true,timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:timerDuration,roundData:null,savedAt:Date.now()};saveState(snap);pushSnapshot(snap);}
+          setHistory(nh);setStandings(ns);setRoundComplete(true);alarmFiredRef.current=false;setTimerAlarmed(false);applyTimerState(false,null,timerDuration);
         }
       };
 
-      // Admin manually triggers generation of the next round
-      const handleGenerateRound = () => {
-        const ns = rebuildStandings(activeTeamIds, history);
-        const nr = generateRound(ns, numCourts, history.length, history, pausedIds);
-        const newRoundNum = roundNum + 1;
+      // Regenerate current round (same roundNum, clear pending)
+      const handleRegenerateRound=()=>{
+        const ns=rebuildStandings(activeTeamIds,history);
+        const nr=generateRound(ns,numCourts,history.length,history,pausedIds,finalRound);
+        if(isAdmin){const rd={courtTeamIds:nr.courts.map(p=>p.map(t=>t.id)),byeIds:nr.bye.map(t=>t.id),pausedTeamIds:(nr.paused||[]).map(t=>t.id)};pushAtomicUpdate({roundData:rd,pendingResults:null});}
+        setRound(nr);setPending({});setRoundKey(k=>k+1);
+      };
 
-        if (isAdmin) {
-          const roundData = {
-            courtTeamIds: nr.courts.map(pair => pair.map(t => t.id)),
-            byeIds: nr.bye.map(t => t.id),
-            pausedTeamIds: (nr.paused || []).map(t => t.id),
-          };
-          const newStartedAt = timerDuration > 0 ? Date.now() : null;
-          const snapshot = {
-            phase: "play", activeTeamIds, courtNumbers,
-            teamRegistry: tournamentTeams,
-            timerDuration, timerDefaultMins,
-            history, roundNum: newRoundNum, pausedIds,
-            roundComplete: false,
-            timerRunning: timerDuration > 0,
-            timerStartedAt: newStartedAt,
-            timerPausedSecsLeft: timerDuration,
-            roundData, savedAt: Date.now(),
-          };
-          lastSeenRoundNum.current = newRoundNum;
-          saveState(snapshot);
-          pushSnapshot(snapshot);
+      // Advance to next round
+      const handleGenerateRound=()=>{
+        const ns=rebuildStandings(activeTeamIds,history);
+        const nr=generateRound(ns,numCourts,history.length,history,pausedIds,finalRound);
+        const newRN=roundNum+1;
+        if(isAdmin){
+          const rd={courtTeamIds:nr.courts.map(p=>p.map(t=>t.id)),byeIds:nr.bye.map(t=>t.id),pausedTeamIds:(nr.paused||[]).map(t=>t.id)};
+          const sa=timerDuration>0?Date.now():null;
+          const snap={phase:"play",activeTeamIds,courtNumbers,teamRegistry:tournamentTeams,timerDuration,timerDefaultMins,history,roundNum:newRN,pausedIds,roundComplete:false,timerRunning:timerDuration>0,timerStartedAt:sa,timerPausedSecsLeft:timerDuration,roundData:rd,savedAt:Date.now()};
+          lastSeenRoundNum.current=newRN;saveState(snap);pushSnapshot(snap);
         }
-
-        setRound(nr);
-        setRoundNum(newRoundNum);
-        setPending({});
-        setRoundKey((k) => k + 1);
-        setRoundComplete(false);
-        const newStartedAtLocal = timerDuration > 0 ? Date.now() : null;
-        applyTimerState(timerDuration > 0, newStartedAtLocal, timerDuration);
+        setRound(nr);setRoundNum(newRN);setPending({});setRoundKey(k=>k+1);setRoundComplete(false);setFinalRound(false);
+        const sa=timerDuration>0?Date.now():null;applyTimerState(timerDuration>0,sa,timerDuration);
       };
 
-      const handleEditSave = (ri, gameIdx, newGame) => {
-        const nh = history.map((h, i) =>
-          i !== ri ? h : { ...h, games: h.games.map((g, gi) => gi !== gameIdx ? g : { ...g, ...newGame }) }
-        );
-        const ns = rebuildStandings(activeTeamIds, nh);
-        const nr = generateRound(ns, numCourts, nh.length, nh, pausedIds);
-        if (isAdmin) pushPatch('history', nh);
-        setHistory(nh); setStandings(ns);
-        setRound(nr);
-        setEditTarget(null);
+      // Edit historical game (teams + scores) + recompute byes for that round
+      const handleEditSave=(ri,gameIdx,{game:ng,newBye})=>{
+        const nh=history.map((h,i)=>i!==ri?h:{...h,games:h.games.map((g,gi)=>gi!==gameIdx?g:{...ng}),bye:newBye});
+        const ns=rebuildStandings(activeTeamIds,nh);
+        const nr=generateRound(ns,numCourts,nh.length,nh,pausedIds);
+        if(isAdmin)pushAtomicUpdate({history:nh});
+        setHistory(nh);setStandings(ns);setRound(nr);setEditTarget(null);
       };
 
-      const handleSaveTimerSettings = (newMins) => {
-        setTimerDefaultMins(newMins);
-        setTimerDuration(newMins * 60);
-      };
+      const ranked=rerank(standings);
 
-      const ranked = rerank(standings);
-      const activeCourts = round ? round.courts.length : numCourts;
-      const waitingFor = Array.from({ length: activeCourts }, (_, idx) => courtNumbers[idx] ?? idx + 1)
-        .filter((_, idx) => !pending[courtKey(idx)]);
-      const doneCount = activeCourts - waitingFor.length;
-
-      return (
+      return(
         <div className="min-h-screen p-4" onClick={warmUpAudio}
-          style={{ background: "radial-gradient(ellipse at top,#1e1b4b 0%,#0a0a0f 60%)", fontFamily: "'Trebuchet MS',sans-serif", color: "#e2e8f0" }}>
+          style={{background:"radial-gradient(ellipse at center, #ffffff 0%, #b2f0eb 35%, #40E0D0 100%)",fontFamily:"'Trebuchet MS',sans-serif",color:"#1e293b"}}>
 
-          {pinPurpose && (
-            <PinModal
-              title={pinPurpose === "reset" ? "PIN required to reset" : "Admin PIN"}
-              onSuccess={handlePinSuccess}
-              onClose={() => setPinPurpose(null)}
-            />
-          )}
-          {showTimerSettings && (
-            <TimerSettingsModal currentMins={timerDefaultMins} onSave={handleSaveTimerSettings} onClose={() => setShowTimerSettings(false)} />
-          )}
-          {editTarget && (
-            <EditModal
+          {pinPurpose&&<PinModal title={pinPurpose==="reset"?"PIN required to reset":"Admin PIN"} correctPin={adminPin} onSuccess={handlePinSuccess} onClose={()=>setPinPurpose(null)}/>}
+          {showTimerSettings&&<TimerSettingsModal currentMins={timerDefaultMins} onSave={m=>{setTimerDefaultMins(m);setTimerDuration(m*60);}} onClose={()=>setShowTimerSettings(false)}/>}
+          {editTarget&&history[editTarget.ri]&&(
+            <EditGameModal
               game={history[editTarget.ri].games[editTarget.gameIdx]}
+              roundEntry={history[editTarget.ri]}
+              allTeamIds={activeTeamIds}
               label={`Round ${history[editTarget.ri].roundNum} · Court ${history[editTarget.ri].games[editTarget.gameIdx].courtNumber}`}
-              onSave={(g) => handleEditSave(editTarget.ri, editTarget.gameIdx, g)}
-              onClose={() => setEditTarget(null)} />
+              onSave={d=>handleEditSave(editTarget.ri,editTarget.gameIdx,d)}
+              onClose={()=>setEditTarget(null)}/>
           )}
 
           <div className="max-w-2xl mx-auto">
+            {/* Header */}
             <div className="text-center mb-5">
-              <h1 className="text-3xl font-black tracking-tight mb-1"
-                style={{ background: "linear-gradient(90deg,#a5b4fc,#f0abfc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                This is NOT a Round Robin
+              <h1 className="text-3xl font-black tracking-tight mb-1" style={{color:"#0f4c75",textShadow:"0 1px 3px rgba(255,255,255,0.5)"}}>
+                {tournamentTitle}
               </h1>
               <div className="flex flex-col items-center gap-1">
                 <div className="flex items-center justify-center gap-3 flex-wrap">
-                  {phase === "play" && (
-                    <p className="text-slate-400 text-sm">
-                      {activeTeamIds.length} teams · {isAdmin ? '🟢 Admin Mode' : '🔵 Live Viewer'}
-                    </p>
-                  )}
-                  {phase === "setup" && <p className="text-slate-400 text-sm">Tournament Setup</p>}
-                  {(phase === "waiting" || phase === "loading") && !isAdmin && (
-                    <p className="text-slate-400 text-sm">🔵 Live Viewer</p>
-                  )}
-                  <button
-                    onClick={() => { if (isAdmin) setIsAdmin(false); else setPinPurpose("admin"); }}
+                  {phase==="play"&&<p className="text-slate-600 text-sm">{activeTeamIds.length} teams · {isAdmin?'🟢 Admin Mode':'🔵 Live Viewer'}</p>}
+                  {phase==="setup"&&<p className="text-slate-600 text-sm">Tournament Setup</p>}
+                  {(phase==="waiting"||phase==="loading")&&!isAdmin&&<p className="text-slate-600 text-sm">🔵 Live Viewer</p>}
+                  <button onClick={()=>{if(isAdmin)setIsAdmin(false);else setPinPurpose("admin");}}
                     className="text-xs px-2 py-1 rounded-lg font-bold"
-                    style={{ background: isAdmin ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.05)",
-                      color: isAdmin ? "#fbbf24" : "#475569", cursor: "pointer",
-                      border: `1px solid ${isAdmin ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)"}` }}>
-                    {isAdmin ? "🔓 Admin" : "🔒"}
+                    style={{background:isAdmin?"rgba(251,191,36,0.25)":"rgba(0,0,0,0.08)",color:isAdmin?"#92400e":"#64748b",cursor:"pointer",border:`1px solid ${isAdmin?"rgba(251,191,36,0.6)":"rgba(0,0,0,0.15)"}`}}>
+                    {isAdmin?"🔓 Admin":"🔒"}
                   </button>
                 </div>
-                {(presence.admins > 0 || presence.viewers > 0) && (
-                  <div className="flex items-center gap-3 text-xs text-slate-600">
-                    {presence.admins > 0 && <span>🟢 {presence.admins} admin{presence.admins !== 1 ? 's' : ''}</span>}
-                    {presence.viewers > 0 && <span>🔵 {presence.viewers} viewer{presence.viewers !== 1 ? 's' : ''}</span>}
+                {(presence.admins>0||presence.viewers>0)&&(
+                  <div className="flex items-center gap-3 text-xs text-slate-500">
+                    {presence.admins>0&&<span>🟢 {presence.admins} admin{presence.admins!==1?"s":""}</span>}
+                    {presence.viewers>0&&<span>🔵 {presence.viewers} viewer{presence.viewers!==1?"s":""}</span>}
                   </div>
                 )}
               </div>
             </div>
 
-            {(phase === "loading" || phase === "waiting") && !isAdmin && (
-              <div className="rounded-2xl p-10 text-center flex flex-col items-center gap-4"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                {phase === "loading" ? (
-                  <>
-                    <div className="text-3xl">🔄</div>
-                    <p className="text-slate-400 text-sm">Connecting to tournament…</p>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-3xl">🏓</div>
-                    <p className="text-slate-300 font-bold">No active tournament</p>
-                    <p className="text-slate-500 text-sm">Waiting for the admin to start a game.</p>
-                    {savedState && (
-                      <RestoreBanner saved={savedState} onRestore={handleRestore} onDiscard={() => { setSavedState(null); clearSave(); }} />
-                    )}
-                  </>
-                )}
+            {(phase==="loading"||phase==="waiting")&&!isAdmin&&(
+              <div className="rounded-2xl p-10 text-center flex flex-col items-center gap-4" style={{background:"rgba(255,255,255,0.6)",border:"1px solid rgba(0,0,0,0.08)"}}>
+                {phase==="loading"?(<><div className="text-3xl">🔄</div><p className="text-slate-500 text-sm">Connecting to tournament…</p></>)
+                  :(<><div className="text-3xl">🏓</div><p className="text-slate-700 font-bold">No active tournament</p><p className="text-slate-500 text-sm">Waiting for the admin to start a game.</p>{savedState&&<RestoreBanner saved={savedState} onRestore={handleRestore} onDiscard={()=>{setSavedState(null);clearSave();}}/>}</>)}
               </div>
             )}
-
-            {/* Admin sees setup screen when no tournament is running */}
-            {(phase === "loading" || phase === "waiting" || phase === "setup") && isAdmin && (
-              <>
-                {savedState && (
-                  <RestoreBanner saved={savedState} onRestore={handleRestore} onDiscard={() => { setSavedState(null); clearSave(); }} />
-                )}
-                <SetupScreen onStart={handleStart} />
-              </>
+            {(phase==="loading"||phase==="waiting"||phase==="setup")&&isAdmin&&(
+              <>{savedState&&<RestoreBanner saved={savedState} onRestore={handleRestore} onDiscard={()=>{setSavedState(null);clearSave();}}/>}<SetupScreen onStart={handleStart}/></>
             )}
 
-            {phase === "play" && (
+            {phase==="play"&&(
               <>
-                {timerDuration > 0 && (
-                  <RoundTimer
-                    secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum}
+                {timerDuration>0&&activeTab!=="timer"&&(
+                  <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum}
                     timerRunning={timerRunning} isAdmin={isAdmin}
-                    onToggle={() => {
-                      if (!timerRunning) {
-                        // Resume
-                        const startedAt = Date.now();
-                        applyTimerState(true, startedAt, timerPausedSecsRef.current);
-                        pushTimerState(true, startedAt, timerPausedSecsRef.current);
-                      } else {
-                        // Pause — snapshot current computed secs
-                        const secs = computeSecsLeft();
-                        applyTimerState(false, null, secs);
-                        pushTimerState(false, null, secs);
-                      }
-                    }}
-                    onRestart={() => resetTimer(timerDuration)}
-                    onOpenSettings={() => setShowTimerSettings(true)}
-                  />
+                    onToggle={timerToggle} onRestart={()=>resetTimer(timerDuration)} onOpenSettings={()=>setShowTimerSettings(true)}/>
                 )}
-
                 <div className="flex gap-2 mb-4 mt-2">
-                  {[["play","🎾 Play"],["standings","🏆 Standings"],["history","📋 History"]].map(([id, label]) => (
-                    <button key={id} onClick={() => setActiveTab(id)} className="flex-1 py-2 rounded-xl text-sm font-bold"
-                      style={{ background: activeTab === id ? "linear-gradient(90deg,#6366f1,#8b5cf6)" : "rgba(255,255,255,0.05)",
-                        color: activeTab === id ? "#fff" : "#94a3b8", cursor: "pointer",
-                        border: activeTab === id ? "none" : "1px solid rgba(255,255,255,0.08)" }}>
+                  {[["play","🎾 Play"],["standings","🏆 Standings"],["history","📋 History"],["timer","⏱ Timer"]].map(([id,label])=>(
+                    <button key={id} onClick={()=>setActiveTab(id)} className="flex-1 py-2 rounded-xl text-sm font-bold"
+                      style={{background:activeTab===id?"linear-gradient(90deg,#0f4c75,#1a6fa8)":"rgba(255,255,255,0.5)",color:activeTab===id?"#fff":"#475569",cursor:"pointer",border:activeTab===id?"none":"1px solid rgba(0,0,0,0.1)"}}>
                       {label}
                     </button>
                   ))}
                 </div>
 
-                {activeTab === "play" && round && (
+                {/* ── Timer tab ── */}
+                {activeTab==="timer"&&<FullScreenTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum}
+                  timerRunning={timerRunning} isAdmin={isAdmin} timerDuration={timerDuration}
+                  onToggle={timerToggle} onRestart={()=>resetTimer(timerDuration)} onOpenSettings={()=>setShowTimerSettings(true)}/>}
+
+                {/* ── Play tab ── */}
+                {activeTab==="play"&&round&&(
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      <span className="text-indigo-300 font-bold text-sm">Round {roundNum}</span>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {round.paused?.length > 0 && (
-                          <div className="flex items-center gap-1 flex-wrap">
-                            <span className="text-slate-500 text-xs">⏸</span>
-                            {round.paused.map((t) => <TeamChip key={t.id} teamId={t.id} />)}
-                          </div>
-                        )}
-                        {round.bye.length > 0 && (
-                          <div className="flex items-center gap-1 flex-wrap">
-                            <span className="text-slate-500 text-xs">Bye:</span>
-                            {round.bye.map((t) => <TeamChip key={t.id} teamId={t.id} />)}
-                          </div>
-                        )}
-                      </div>
+                      <span className="text-blue-900 font-bold text-sm">Round {roundNum}</span>
+                      {!roundComplete&&(
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {round.paused?.length>0&&<div className="flex items-center gap-1 flex-wrap"><span className="text-slate-500 text-xs">⏸</span>{round.paused.map(t=><TeamChip key={t.id} teamId={t.id}/>)}</div>}
+                          {round.bye.length>0&&<div className="flex items-center gap-1 flex-wrap"><span className="text-slate-500 text-xs">Bye:</span>{round.bye.map(t=><TeamChip key={t.id} teamId={t.id}/>)}</div>}
+                        </div>
+                      )}
                     </div>
-                    
-                    {roundComplete ? (
-                      // All scores entered — show summary and generation controls
-                      <div className="rounded-2xl p-5 text-center flex flex-col gap-3"
-                        style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.25)" }}>
-                        <p className="text-green-400 font-bold text-sm">✓ Round {roundNum} complete</p>
-                        <p className="text-slate-400 text-xs">All results logged. Adjust team pauses below, then generate the next round.</p>
-                        {isAdmin && (
-                          <button onClick={handleGenerateRound}
-                            className="w-full py-3 rounded-xl font-bold text-base mt-1"
-                            style={{ background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff", cursor: "pointer" }}>
-                            Generate Round {roundNum + 1} →
-                          </button>
+
+                    {roundComplete?(
+                      /* Round complete */
+                      <div className="rounded-2xl p-5 flex flex-col gap-3" style={{background:"rgba(255,255,255,0.6)",border:"1px solid rgba(34,197,94,0.4)"}}>
+                        <p className="font-bold text-sm text-center" style={{color:"#16a34a"}}>✓ Round {roundNum} complete</p>
+                        {isAdmin
+                          ? <p className="text-slate-500 text-xs text-center">All results logged. Adjust team pauses below, then generate the next round.</p>
+                          : <p className="text-slate-500 text-xs text-center">Waiting for the organizer to generate the next round…</p>
+                        }
+                        {isAdmin&&(
+                          <div className="flex flex-col gap-2 mt-1">
+                            <div className="flex items-center justify-between gap-3 rounded-xl px-4 py-3"
+                              style={{background:finalRound?"rgba(251,191,36,0.15)":"rgba(0,0,0,0.04)",border:`1px solid ${finalRound?"rgba(251,191,36,0.5)":"rgba(0,0,0,0.08)"}`}}>
+                              <div>
+                                <div className="text-sm font-bold" style={{color:finalRound?"#92400e":"#475569"}}>🏁 Final Round Mode</div>
+                                <div className="text-xs text-slate-500 mt-0.5">Schedules fewer games to equalize games played</div>
+                              </div>
+                              <button onClick={()=>setFinalRound(f=>!f)} className="text-xs px-3 py-1.5 rounded-lg font-bold flex-shrink-0"
+                                style={{background:finalRound?"rgba(251,191,36,0.3)":"rgba(0,0,0,0.07)",color:finalRound?"#92400e":"#64748b",cursor:"pointer",border:`1px solid ${finalRound?"rgba(251,191,36,0.6)":"rgba(0,0,0,0.1)"}`}}>
+                                {finalRound?"✓ On":"Off"}
+                              </button>
+                            </div>
+                            <button onClick={handleGenerateRound} className="w-full py-3 rounded-xl font-bold text-base"
+                              style={{background:finalRound?"linear-gradient(90deg,#d97706,#f59e0b)":"linear-gradient(90deg,#0f4c75,#1a6fa8)",color:"#fff",cursor:"pointer"}}>
+                              {finalRound?"🏁 Generate Final Round →":`Generate Round ${roundNum+1} →`}
+                            </button>
+                          </div>
                         )}
                       </div>
-                    ) : isAdmin ? (
-                      round.courts.map((teams, idx) => (
-                        <CourtCard key={`${roundKey}-court-${idx}`} courtLabel={`Court ${courtNumbers[idx] ?? idx + 1}`}
-                          teams={teams} onResult={(r) => handleResult(idx, r)} done={!!pending[courtKey(idx)]} />
-                      ))
-                    ) : (
+                    ):isAdmin?(
+                      /* Active round — admin view */
+                      <>
+                        {round.courts.map((teams,idx)=>(
+                          <CourtCard key={`${roundKey}-court-${idx}`} courtLabel={`Court ${courtNumbers[idx]??idx+1}`}
+                            teams={teams} onResult={r=>handleResult(idx,r)} done={!!pending[courtKey(idx)]}/>
+                        ))}
+                        {/* Round options panel — regenerate + final round toggle */}
+                        <div className="rounded-2xl p-4 flex flex-col gap-3" style={{background:"rgba(255,255,255,0.5)",border:"1px solid rgba(0,0,0,0.08)"}}>
+                          <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">Round Options</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button onClick={()=>setFinalRound(f=>!f)} className="text-xs px-3 py-2 rounded-lg font-bold"
+                              style={{background:finalRound?"rgba(251,191,36,0.25)":"rgba(0,0,0,0.06)",color:finalRound?"#92400e":"#64748b",cursor:"pointer",border:`1px solid ${finalRound?"rgba(251,191,36,0.5)":"rgba(0,0,0,0.1)"}`}}>
+                              🏁 Final Round: {finalRound?"On":"Off"}
+                            </button>
+                            <button onClick={handleRegenerateRound} className="text-xs px-3 py-2 rounded-lg font-bold"
+                              style={{background:"rgba(15,76,117,0.12)",color:"#0f4c75",cursor:"pointer",border:"1px solid rgba(15,76,117,0.3)"}}>
+                              🔀 Regenerate Round
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-500">Regenerate if matchups need adjusting. Pending scores will be cleared.</p>
+                        </div>
+                      </>
+                    ):(
+                      /* Active round — viewer: large display for easy reading from a distance */
                       <div className="flex flex-col gap-4">
-                        {round.courts.map((teams, idx) => (
-                          <div key={idx} className="rounded-2xl p-5 border border-slate-700 bg-slate-900/50">
-                            <p className="text-xs text-indigo-400 font-mono mb-2 uppercase">Court {courtNumbers[idx] ?? idx+1}</p>
-                            <div className="flex justify-between items-center">
-                              <TeamChip teamId={teams[0].id} />
-                              <span className="text-slate-600 text-xs px-2">VS</span>
-                              <TeamChip teamId={teams[1].id} />
+                        {round.courts.map((teams,idx)=>(
+                          <div key={idx} className="rounded-2xl p-5" style={{background:"rgba(255,255,255,0.6)",border:"1px solid rgba(0,0,0,0.1)",boxShadow:"0 2px 12px rgba(0,0,0,0.08)"}}>
+                            <p className="text-xs text-blue-800 font-mono mb-3 uppercase tracking-widest font-bold">Court {courtNumbers[idx]??idx+1}</p>
+                            <div className="flex items-stretch gap-3">
+                              {/* Team A */}
+                              <div className="flex-1 flex items-center justify-center rounded-2xl px-4 py-5"
+                                style={{background:teams[0].color,border:`2px solid ${teams[0].color}`}}>
+                                <span className="font-black text-center leading-tight" style={{fontSize:"clamp(20px,5vw,32px)",color:teams[0].text}}>
+                                  {teams[0].name}
+                                </span>
+                              </div>
+                              {/* VS divider */}
+                              <div className="flex items-center justify-center flex-shrink-0">
+                                <span className="text-slate-400 font-black text-lg">VS</span>
+                              </div>
+                              {/* Team B */}
+                              <div className="flex-1 flex items-center justify-center rounded-2xl px-4 py-5"
+                                style={{background:teams[1].color,border:`2px solid ${teams[1].color}`}}>
+                                <span className="font-black text-center leading-tight" style={{fontSize:"clamp(20px,5vw,32px)",color:teams[1].text}}>
+                                  {teams[1].name}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
 
-                    {isAdmin && <PausePanel activeTeamIds={activeTeamIds} pausedIds={pausedIds} onTogglePause={handleTogglePause} />}
-                    {isAdmin && (
-                      <button onClick={handleResetClick}
-                        style={{ cursor: "pointer", background: "none", border: "none", color: "#475569", fontSize: 12, textDecoration: "underline" }}>
-                        ↩ Back to setup (resets tournament)
-                      </button>
-                    )}
+                    {isAdmin&&<PausePanel activeTeamIds={activeTeamIds} pausedIds={pausedIds} onTogglePause={handleTogglePause}/>}
+                    {isAdmin&&<button onClick={()=>setPinPurpose("reset")} style={{cursor:"pointer",background:"none",border:"none",color:"#94a3b8",fontSize:12,textDecoration:"underline"}}>↩ Back to setup (resets tournament)</button>}
                   </div>
                 )}
 
-                {activeTab === "standings" && (
-                  <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <div className="flex items-center px-4 py-2 gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest"
-                      style={{ background: "rgba(99,102,241,0.15)" }}>
-                      <span style={{ width: 36 }}></span><span style={{ width: 14 }}></span>
+                {/* ── Standings tab ── */}
+                {activeTab==="standings"&&(
+                  <div className="rounded-2xl overflow-hidden" style={{border:"1px solid rgba(0,0,0,0.1)",boxShadow:"0 2px 16px rgba(0,0,0,0.08)"}}>
+                    <div className="flex items-center px-5 py-3 gap-3 text-xs font-bold text-slate-500 uppercase tracking-widest" style={{background:"rgba(15,76,117,0.12)"}}>
+                      <span style={{width:48}}>Rank</span>
                       <span className="flex-1">Team</span>
-                      <span style={{ width: 34, textAlign: "center" }}>GP</span>
-                      <span style={{ width: 34, textAlign: "center", color: "#4ade80" }}>W</span>
-                      <span style={{ width: 34, textAlign: "center", color: "#f87171" }}>L</span>
-                      <span style={{ width: 44, textAlign: "center", color: "#a5b4fc" }}>+/−</span>
+                      <span style={{width:42,textAlign:"center"}}>GP</span>
+                      <span style={{width:42,textAlign:"center",color:"#16a34a"}}>W</span>
+                      <span style={{width:42,textAlign:"center",color:"#dc2626"}}>L</span>
+                      <span style={{width:52,textAlign:"center",color:"#0f4c75"}}>+/−</span>
                     </div>
-                    {ranked.map((team, i) => {
-                      const diff = team.scoreDiff, paused = pausedIds.includes(team.id);
-                      return (
-                        <div key={team.id} className="flex items-center px-4 py-3 gap-2"
-                          style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent",
-                            borderTop: "1px solid rgba(255,255,255,0.04)", opacity: paused ? 0.5 : 1 }}>
-                          <span className="text-xs font-bold text-slate-500" style={{ width: 36 }}>
-                            {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : ORDINAL(i + 1)}
-                          </span>
-                          <div className="w-3 h-3 rounded-full flex-shrink-0"
-                            style={{ background: team.color, boxShadow: `0 0 5px ${team.color}` }} />
-                          <span className="font-bold text-sm flex-1">{team.name}{paused ? " ⏸" : ""}</span>
-                          <span style={{ width: 34, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>{team.played}</span>
-                          <span style={{ width: 34, textAlign: "center", color: "#4ade80", fontWeight: 700, fontSize: 13 }}>{team.wins}</span>
-                          <span style={{ width: 34, textAlign: "center", color: "#f87171", fontWeight: 700, fontSize: 13 }}>{team.losses}</span>
-                          <span style={{ width: 44, textAlign: "center", fontWeight: 700, fontSize: 13,
-                            color: diff > 0 ? "#34d399" : diff < 0 ? "#f87171" : "#94a3b8" }}>
-                            {diff > 0 ? "+" : ""}{diff}
+                    {ranked.map((team,i)=>{ const diff=team.scoreDiff,paused=pausedIds.includes(team.id); return(
+                      <div key={team.id} className="flex items-center px-5 py-5 gap-3"
+                        style={{background:i%2===0?"rgba(255,255,255,0.6)":"rgba(255,255,255,0.35)",borderTop:"1px solid rgba(0,0,0,0.05)",opacity:paused?0.45:1}}>
+                        <span className="font-black text-slate-500" style={{width:48,fontSize:20}}>
+                          {i===0?"🥇":i===1?"🥈":i===2?"🥉":ORDINAL(i+1)}
+                        </span>
+                        {/* Team name in coloured chip */}
+                        <div className="flex-1">
+                          <span className="inline-flex items-center rounded-full px-4 py-2 font-black"
+                            style={{background:team.color,color:team.text,fontSize:18,border:"2px solid rgba(255,255,255,0.25)",boxShadow:`0 2px 8px ${team.color}55`}}>
+                            {team.name}{paused?" ⏸":""}
                           </span>
                         </div>
-                      );
-                    })}
+                        <span style={{width:42,textAlign:"center",color:"#475569",fontSize:20,fontWeight:700}}>{team.played}</span>
+                        <span style={{width:42,textAlign:"center",color:"#16a34a",fontWeight:900,fontSize:22}}>{team.wins}</span>
+                        <span style={{width:42,textAlign:"center",color:"#dc2626",fontWeight:900,fontSize:22}}>{team.losses}</span>
+                        <span style={{width:52,textAlign:"center",fontWeight:900,fontSize:20,
+                          color:diff>0?"#16a34a":diff<0?"#dc2626":"#94a3b8"}}>{diff>0?"+":""}{diff}</span>
+                      </div>
+                    );})}
                   </div>
                 )}
 
-                {activeTab === "history" && (
+                {/* ── History tab ── */}
+                {activeTab==="history"&&(
                   <div className="flex flex-col gap-3">
-                    {history.length === 0 && <div className="text-center text-slate-500 py-8 text-sm">No rounds completed yet.</div>}
-                    {[...history].reverse().map((h, revI) => {
-                      const ri = history.length - 1 - revI;
-
-                      // Compute rankings before and after this round
-                      const standingsBefore = rebuildStandings(activeTeamIds, history.slice(0, ri));
-                      const standingsAfter  = rebuildStandings(activeTeamIds, history.slice(0, ri + 1));
-                      const ranksBefore = rerank(standingsBefore); // index = rank-1
-                      const ranksAfter  = rerank(standingsAfter);
-                      const rankBefore = (id) => ranksBefore.findIndex(t => t.id === id) + 1;
-                      const rankAfter  = (id) => ranksAfter.findIndex(t => t.id === id)  + 1;
-
-                      // Collect all team IDs that played this round
-                      const playedIds = h.games.flatMap(g => [g.winnerId, g.loserId]);
-
-                      return (
-                        <div key={ri} className="rounded-2xl p-4"
-                          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                          <div className="text-xs text-indigo-400 font-bold mb-3 uppercase tracking-widest">Round {h.roundNum}</div>
-                          {h.games.map((game, gi) => {
-                            const w = teamById(game.winnerId), l = teamById(game.loserId);
-                            return (
-                              <div key={gi} className="mb-2" style={{
-                                display: "grid",
-                                gridTemplateColumns: "32px 1fr 28px 12px 28px 1fr auto",
-                                alignItems: "center",
-                                gap: "6px",
-                              }}>
-                                <span className="text-slate-500 text-xs font-bold text-center">{game.courtNumber}</span>
-                                <div className="flex justify-end"><TeamChip teamId={game.winnerId} /></div>
-                                <span className="font-bold text-sm text-right" style={{ color: w?.color }}>{game.winnerScore}</span>
-                                <span className="text-slate-600 text-xs text-center">–</span>
-                                <span className="font-bold text-sm text-left" style={{ color: l?.color }}>{game.loserScore}</span>
-                                <div className="flex justify-start"><TeamChip teamId={game.loserId} /></div>
-                                <div>
-                                  {isAdmin && (
-                                    <button onClick={() => setEditTarget({ ri, gameIdx: gi })}
-                                      className="text-xs px-2 py-1 rounded-lg"
-                                      style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc",
-                                        border: "1px solid rgba(99,102,241,0.3)", cursor: "pointer", whiteSpace: "nowrap" }}>
-                                      &#x270F;&#xFE0F; Edit
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                          {h.bye?.length > 0 && (
-                            <div className="flex items-center gap-2 mt-2 flex-wrap">
-                              <span className="text-slate-500 text-xs" style={{ minWidth: 58 }}>Bye</span>
-                              {h.bye.map((id) => <TeamChip key={id} teamId={id} />)}
+                    {history.length===0&&<div className="text-center text-slate-500 py-8 text-sm">No rounds completed yet.</div>}
+                    {[...history].reverse().map((h,revI)=>{
+                      const ri=history.length-1-revI;
+                      const sbf=rebuildStandings(activeTeamIds,history.slice(0,ri)),saf=rebuildStandings(activeTeamIds,history.slice(0,ri+1));
+                      const rbf=rerank(sbf),raf=rerank(saf);
+                      const rb=id=>rbf.findIndex(t=>t.id===id)+1, ra=id=>raf.findIndex(t=>t.id===id)+1;
+                      const played=h.games.flatMap(g=>[g.winnerId,g.loserId]);
+                      return(
+                        <div key={ri} className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.6)",border:"1px solid rgba(0,0,0,0.08)"}}>
+                          <div className="text-xs text-blue-800 font-bold mb-3 uppercase tracking-widest">Round {h.roundNum}</div>
+                          {h.games.map((game,gi)=>{ const w=teamById(game.winnerId),l=teamById(game.loserId); return(
+                            <div key={gi} className="mb-2" style={{display:"grid",gridTemplateColumns:"32px 1fr 28px 12px 28px 1fr auto",alignItems:"center",gap:"6px"}}>
+                              <span className="text-slate-400 text-xs font-bold text-center">{game.courtNumber}</span>
+                              <div className="flex justify-end"><TeamChip teamId={game.winnerId}/></div>
+                              <span className="font-bold text-sm text-right" style={{color:w?.color}}>{game.winnerScore}</span>
+                              <span className="text-slate-400 text-xs text-center">–</span>
+                              <span className="font-bold text-sm text-left" style={{color:l?.color}}>{game.loserScore}</span>
+                              <div className="flex justify-start"><TeamChip teamId={game.loserId}/></div>
+                              <div>{isAdmin&&<button onClick={()=>setEditTarget({ri,gameIdx:gi})} className="text-xs px-2 py-1 rounded-lg"
+                                style={{background:"rgba(15,76,117,0.1)",color:"#0f4c75",border:"1px solid rgba(15,76,117,0.25)",cursor:"pointer",whiteSpace:"nowrap"}}>✏️ Edit</button>}</div>
                             </div>
-                          )}
-                          {/* Ranking changes */}
-                          <div className="mt-3 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                            <p className="text-xs text-slate-600 mb-1 uppercase tracking-wide">Rankings</p>
+                          );})}
+                          {h.bye?.length>0&&<div className="flex items-center gap-2 mt-2 flex-wrap"><span className="text-slate-400 text-xs" style={{minWidth:58}}>Bye</span>{h.bye.map(id=><TeamChip key={id} teamId={id}/>)}</div>}
+                          <div className="mt-3 pt-2" style={{borderTop:"1px solid rgba(0,0,0,0.07)"}}>
+                            <p className="text-xs text-slate-400 mb-1 uppercase tracking-wide">Rankings</p>
                             <div className="flex flex-wrap gap-x-4 gap-y-1">
-                              {playedIds.map(id => {
-                                const before = rankBefore(id), after = rankAfter(id);
-                                const delta = before - after; // positive = moved up
-                                const t = teamById(id);
-                                if (!t) return null;
-                                return (
-                                  <div key={id} className="flex items-center gap-1 text-xs">
-                                    <span style={{ color: t.color, fontWeight: 700 }}>{t.name}</span>
-                                    <span className="text-slate-600">#{before}</span>
-                                    <span className="text-slate-600">→</span>
-                                    <span style={{ fontWeight: 700, color: delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#94a3b8" }}>
-                                      #{after}
-                                    </span>
-                                    {delta > 0 && <span style={{ color: "#4ade80", fontSize: 10 }}>▲{delta}</span>}
-                                    {delta < 0 && <span style={{ color: "#f87171", fontSize: 10 }}>▼{Math.abs(delta)}</span>}
-                                  </div>
-                                );
-                              })}
+                              {played.map(id=>{ const b=rb(id),a=ra(id),d=b-a,t=teamById(id); if(!t)return null; return(
+                                <div key={id} className="flex items-center gap-1 text-xs">
+                                  <span style={{color:t.color,fontWeight:700}}>{t.name}</span>
+                                  <span className="text-slate-400">#{b}</span><span className="text-slate-400">→</span>
+                                  <span style={{fontWeight:700,color:d>0?"#16a34a":d<0?"#dc2626":"#94a3b8"}}>#{a}</span>
+                                  {d>0&&<span style={{color:"#16a34a",fontSize:10}}>▲{d}</span>}
+                                  {d<0&&<span style={{color:"#dc2626",fontSize:10}}>▼{Math.abs(d)}</span>}
+                                </div>
+                              );})}
                             </div>
                           </div>
                         </div>
@@ -1566,8 +1159,8 @@
       );
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    const root=ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App/>);
   </script>
 </body>
 </html>
