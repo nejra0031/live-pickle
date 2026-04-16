@@ -109,19 +109,54 @@
     // ─── Alarm ──────────────────────────────────────────────────────────────
     let _audioCtx=null;
     function getAudioCtx(){ if(!_audioCtx||_audioCtx.state==="closed") _audioCtx=new(window.AudioContext||window.webkitAudioContext)(); return _audioCtx; }
+
+    // Short double-beep warning (played at 3 min and 1 min remaining)
+    function playWarningBeep(){
+      try{
+        const ctx=getAudioCtx();
+        const fire=()=>{
+          for(let i=0;i<2;i++){
+            const osc=ctx.createOscillator(),gain=ctx.createGain();
+            osc.connect(gain);gain.connect(ctx.destination);
+            osc.type="sine";osc.frequency.value=880;
+            const t=ctx.currentTime+i*0.28;
+            gain.gain.setValueAtTime(0,t);
+            gain.gain.linearRampToValueAtTime(0.6,t+0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+            osc.start(t);osc.stop(t+0.22);
+          }
+        };
+        ctx.state==="suspended"?ctx.resume().then(fire):fire();
+      }catch(e){}
+    }
+
+    // Long, very loud round-end siren
     function playAlarm(){
       try{
         const ctx=getAudioCtx();
         const fire=()=>{
-          for(let i=0;i<8;i++){
+          // Three long descending blasts — loud and unmistakable
+          const blasts=[
+            {freq:1200,dur:0.55,gap:0.15},
+            {freq:900, dur:0.55,gap:0.15},
+            {freq:600, dur:0.9, gap:0},
+          ];
+          let t=ctx.currentTime+0.05;
+          blasts.forEach(({freq,dur,gap})=>{
             const osc=ctx.createOscillator(),gain=ctx.createGain();
-            osc.connect(gain);gain.connect(ctx.destination);
-            osc.type="square";osc.frequency.value=i%2===0?960:1280;
-            const t=ctx.currentTime+i*0.32;
-            gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(0.7,t+0.01);
-            gain.gain.exponentialRampToValueAtTime(0.001,t+0.22);
-            osc.start(t);osc.stop(t+0.24);
-          }
+            // Add a second osc for richness
+            const osc2=ctx.createOscillator();
+            osc.connect(gain);osc2.connect(gain);gain.connect(ctx.destination);
+            osc.type="sawtooth";osc.frequency.value=freq;
+            osc2.type="square";osc2.frequency.value=freq*1.5;
+            gain.gain.setValueAtTime(0,t);
+            gain.gain.linearRampToValueAtTime(1.0,t+0.02);
+            gain.gain.setValueAtTime(1.0,t+dur-0.08);
+            gain.gain.exponentialRampToValueAtTime(0.001,t+dur);
+            osc.start(t);osc.stop(t+dur);
+            osc2.start(t);osc2.stop(t+dur);
+            t+=dur+gap;
+          });
         };
         ctx.state==="suspended"?ctx.resume().then(fire):fire();
       }catch(e){}
@@ -144,7 +179,18 @@
       return Object.values(map);
     }
 
-    // ─── Matchmaking ────────────────────────────────────────────────────────
+    // ─── Emoji / group helpers ───────────────────────────────────────────────
+    // Extract the leading emoji from a string (if any). Returns null if the name
+    // starts with a regular character. Uses Unicode regex to correctly distinguish
+    // emoji codepoints from Latin/CJK text, even if Babel transpiles them away.
+    function getLeadingEmoji(str){
+      if(!str)return null;
+      // Match an emoji sequence at the very start: emoji + optional variation/ZWJ
+      const m=str.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})[\uFE0E\uFE0F\u200D\p{Emoji}]*/u);
+      return m?m[0]:null;
+    }
+    // Return the group label for a team (its leading emoji, or null = no group)
+    function teamGroup(team){ return getLeadingEmoji(team.name||""); }
     function combinations(arr,k){
       if(k===0)return[[]]; if(arr.length<k)return [];
       const[f,...r]=arr; return [...combinations(r,k-1).map(c=>[f,...c]),...combinations(r,k)];
@@ -171,55 +217,195 @@
       for(let i=0;i<ids.length;i++){ ss+=solo[ids[i]]||0; for(let j=i+1;j<ids.length;j++){ const k=[ids[i],ids[j]].sort().join("|"); ps+=pairs[k]||0; } }
       return ps*1000+ss+Math.random()*0.001;
     }
-    function scoreCourtPairings(courts,mc,lrm){
-      let s=0; courts.forEach(([a,b])=>{ const k=[a.id,b.id].sort().join("|"); if(lrm.has(k))s+=100000; s+=(mc[k]||0)*1000; }); return s+Math.random()*0.1;
+    // ── Cross-group perfect matching ─────────────────────────────────────────
+    function scoreCourtPairings(courts,mc,lrm,groupPenalty){
+      let s=0;
+      courts.forEach(([a,b])=>{
+        const k=[a.id,b.id].sort().join("|");
+        if(lrm.has(k))s+=100000;
+        s+=(mc[k]||0)*1000;
+        if(groupPenalty){
+          const ga=teamGroup(a),gb=teamGroup(b);
+          if(ga&&gb&&ga===gb)s+=500000;
+        }
+      });
+      return s+Math.random()*0.1;
     }
-    function bestCourtPairings(playing,numCourts,allStandings,mc,lrm){
-      const ranked=rerank(allStandings), rankOf=id=>ranked.findIndex(t=>t.id===id);
-      const byRank=[...playing].sort((a,b)=>rankOf(a.id)-rankOf(b.id));
-      const def=[]; for(let c=0;c<numCourts;c++) if(byRank[c*2]&&byRank[c*2+1]) def.push([byRank[c*2],byRank[c*2+1]]);
-      if(!def.some(([a,b])=>lrm.has([a.id,b.id].sort().join("|")))) return def;
-      let best=def, bs=scoreCourtPairings(def,mc,lrm);
+    // Given a pool of players, return true if a perfect cross-group pairing exists.
+    // Uses bipartite matching: split into two groups A and B, check if |A| == |B|
+    // and a perfect matching exists. Falls back gracefully when groups are uneven.
+    function canPairAllCrossGroup(pool){
+      const groups={};
+      pool.forEach(t=>{ const g=teamGroup(t)||"__none"; (groups[g]=groups[g]||[]).push(t); });
+      const keys=Object.keys(groups);
+      if(keys.length<2) return false; // only one group, can't be cross-group
+      if(keys.length===2){
+        // Classic bipartite: need equal halves
+        return groups[keys[0]].length===groups[keys[1]].length;
+      }
+      // 3+ groups: possible if no single group has more than half the players
+      const max=Math.max(...keys.map(k=>groups[k].length));
+      return max<=Math.floor(pool.length/2);
+    }
+
+    // Build all cross-group pairings of `pool` that maintain bottom-up rank order
+    // as closely as possible. Returns the best pairing found.
+    // Strategy: for each "slot" (worst pair first), pick the two worst-ranked
+    // players from *different* groups. Greedy with backtracking for small N.
+    function pairCrossGroupBottomUp(pool, allStandings, mc, lrm){
+      const ranked=rerank(allStandings);
+      const rankOf=id=>{ const i=ranked.findIndex(t=>t.id===id); return i===-1?9999:i; };
+      // Sort worst-first
+      const byRank=[...pool].sort((a,b)=>rankOf(b.id)-rankOf(a.id));
+      const n=byRank.length;
+      const numPairs=Math.floor(n/2);
+
+      // Greedy: for each pair slot, take the worst unpaired team, find the worst
+      // unpaired team from a *different* group to match with it.
+      const paired=[];
+      const used=new Set();
+
+      for(let i=0;i<n;i++){
+        if(used.has(byRank[i].id)) continue;
+        const a=byRank[i];
+        const ga=teamGroup(a)||"__none";
+        // Find the worst unpaired partner from a different group
+        let partner=null;
+        for(let j=i+1;j<n;j++){
+          if(used.has(byRank[j].id)) continue;
+          const gb=teamGroup(byRank[j])||"__none";
+          if(gb!==ga){ partner=byRank[j]; break; }
+        }
+        if(partner){
+          paired.push([a,partner]);
+          used.add(a.id); used.add(partner.id);
+        }
+        if(paired.length===numPairs) break;
+      }
+
+      // If greedy didn't pair everyone (pool was uneven), remaining go unmatched (bye)
+      // but that's handled by generateRound before calling this function.
+      return paired;
+    }
+
+    // Standard bottom-up pairing (no group constraint) — worst vs second-worst, etc.
+    function pairBottomUp(playing, allStandings, mc, lrm, groupConstraint){
+      const ranked=rerank(allStandings);
+      const rankOf=id=>{ const i=ranked.findIndex(t=>t.id===id); return i===-1?9999:i; };
+      const byRankWorstFirst=[...playing].sort((a,b)=>rankOf(b.id)-rankOf(a.id));
+
+      // If group constraint is active and a full cross-group pairing is possible, use it
+      if(groupConstraint && canPairAllCrossGroup(playing)){
+        return pairCrossGroupBottomUp(playing, allStandings, mc, lrm);
+      }
+
+      // Otherwise: simple bottom-up pairing, then try swaps to fix same-group pairs
+      const def=[];
+      for(let c=0;c<Math.floor(byRankWorstFirst.length/2);c++){
+        def.push([byRankWorstFirst[c*2],byRankWorstFirst[c*2+1]]);
+      }
+      let best=def, bs=scoreCourtPairings(def,mc,lrm,groupConstraint);
       for(let c=0;c<def.length-1;c++){
-        const s1=def.map(p=>[...p]); [s1[c][1],s1[c+1][0]]=[s1[c+1][0],s1[c][1]]; const sc1=scoreCourtPairings(s1,mc,lrm); if(sc1<bs){bs=sc1;best=s1;}
-        const s2=def.map(p=>[...p]); [s2[c][1],s2[c+1][1]]=[s2[c+1][1],s2[c][1]]; const sc2=scoreCourtPairings(s2,mc,lrm); if(sc2<bs){bs=sc2;best=s2;}
+        const s1=def.map(p=>[...p]); [s1[c][1],s1[c+1][0]]=[s1[c+1][0],s1[c][1]];
+        const sc1=scoreCourtPairings(s1,mc,lrm,groupConstraint); if(sc1<bs){bs=sc1;best=s1;}
+        const s2=def.map(p=>[...p]); [s2[c][1],s2[c+1][1]]=[s2[c+1][1],s2[c][1]];
+        const sc2=scoreCourtPairings(s2,mc,lrm,groupConstraint); if(sc2<bs){bs=sc2;best=s2;}
       }
       return best;
     }
+
     function generateRound(allSt,numCourts,roundIdx,history=[],pausedIds=[],finalRound=false){
-      const pSet=new Set(pausedIds), active=allSt.filter(t=>!pSet.has(t.id));
+      const pSet=new Set(pausedIds);
+      // Always use fresh standings (allSt should already reflect current history)
+      const active=allSt.filter(t=>!pSet.has(t.id));
       const mc=buildMatchupCounts(history), lrm=getLastRoundMatchups(history);
       const lastByeSet=history.length>0?new Set(history[history.length-1].bye||[]):new Set();
+
+      const isFirstRound=history.length===0;
+      const hasGroups=active.some(t=>teamGroup(t)!==null);
+      const groupConstraint=isFirstRound&&hasGroups;
+
+      // Determine effective court count (final round mode reduces courts)
       let ec=numCourts;
       if(finalRound&&active.length>0){
         const minP=Math.min(...active.map(t=>t.played));
         const need=active.filter(t=>t.played===minP);
         if(need.length<active.length){ ec=Math.min(numCourts,Math.floor(need.length/2)); if(ec===0)ec=1; }
       }
+
+      // ── STEP 1: Decide who gets a bye ────────────────────────────────────────
+      // Priority: no back-to-back byes. Among eligible bye candidates, choose the
+      // group that leaves the playing pool with the best cross-group pairing potential.
       const numBye=active.length-ec*2;
+
       if(numBye<=0){
-        return{courts:bestCourtPairings(active,Math.floor(active.length/2),allSt,mc,lrm),bye:[],paused:allSt.filter(t=>pSet.has(t.id))};
+        // Everyone plays — no byes needed
+        return{
+          courts:pairBottomUp(active,allSt,mc,lrm,groupConstraint),
+          bye:[],
+          paused:allSt.filter(t=>pSet.has(t.id))
+        };
       }
+
       const byeCounts=buildByeCounts(history);
-      const hadBye=active.filter(t=>lastByeSet.has(t.id)), didnt=active.filter(t=>!lastByeSet.has(t.id));
+      const hadBye=active.filter(t=>lastByeSet.has(t.id));
+      const didnt=active.filter(t=>!lastByeSet.has(t.id));
+
+      // Helper: score a proposed bye group (lower = better).
+      // In round 1 with groups: strongly prefer bye choices that leave a playing pool
+      // where every court can be cross-group (canPairAllCrossGroup).
+      function scoreByeSelection(proposed){
+        const base=scoreByeGroup(proposed.map(t=>t.id),byeCounts);
+        if(!groupConstraint) return base;
+        const byeSet2=new Set(proposed.map(t=>t.id));
+        const remaining=active.filter(t=>!byeSet2.has(t.id));
+        // If the remaining pool can be fully paired cross-group, great (score 0 penalty).
+        // Otherwise penalise proportionally to how many groups are over-represented.
+        if(canPairAllCrossGroup(remaining)) return base;
+        // Penalty: count excess teams in the dominant group
+        const groups2={};
+        remaining.forEach(t=>{ const g=teamGroup(t)||"__none"; (groups2[g]=groups2[g]||[]).push(t); });
+        const maxG=Math.max(...Object.values(groups2).map(v=>v.length));
+        const excess=maxG-Math.floor(remaining.length/2);
+        return base + excess*10000000;
+      }
+
       let byeGroup=[];
       if(didnt.length>=numBye){
-        const sorted=[...didnt].sort((a,b)=>b.played-a.played); let idx=0;
-        while(byeGroup.length<numBye&&idx<sorted.length){
-          const cur=sorted[idx].played, tier=[];
-          while(idx<sorted.length&&sorted[idx].played===cur)tier.push(sorted[idx++]);
+        // Ideal: pick bye from teams that did NOT sit last round
+        const byMostPlayed=[...didnt].sort((a,b)=>b.played-a.played);
+        let idx=0;
+        while(byeGroup.length<numBye&&idx<byMostPlayed.length){
+          const cur=byMostPlayed[idx].played, tier=[];
+          while(idx<byMostPlayed.length&&byMostPlayed[idx].played===cur) tier.push(byMostPlayed[idx++]);
           const sl=numBye-byeGroup.length;
-          if(tier.length<=sl){byeGroup.push(...tier);}
-          else{ const cs=combinations(tier,sl); let bc=cs[0],bs2=Infinity;
-            for(const c of cs){ const sc=scoreByeGroup(c.map(t=>t.id),byeCounts); if(sc<bs2){bs2=sc;bc=c;} } byeGroup.push(...bc); }
+          if(tier.length<=sl){
+            byeGroup.push(...tier);
+          } else {
+            const cs=combinations(tier,sl);
+            let bc=cs[0], bestBs=Infinity;
+            for(const c of cs){
+              const sc=scoreByeSelection([...byeGroup,...c]);
+              if(sc<bestBs){bestBs=sc;bc=c;}
+            }
+            byeGroup.push(...bc);
+          }
         }
       } else {
+        // Forced back-to-back bye for some teams — minimise it
         byeGroup=[...didnt];
         byeGroup.push(...[...hadBye].sort((a,b)=>b.played-a.played).slice(0,numBye-byeGroup.length));
       }
+
+      // ── STEP 2: Pair the playing teams bottom-up ─────────────────────────────
       const byeSet=new Set(byeGroup.map(t=>t.id));
       const playing=active.filter(t=>!byeSet.has(t.id));
-      return{courts:bestCourtPairings(playing,ec,allSt,mc,lrm),bye:byeGroup,paused:allSt.filter(t=>pSet.has(t.id))};
+
+      return{
+        courts:pairBottomUp(playing,allSt,mc,lrm,groupConstraint),
+        bye:byeGroup,
+        paused:allSt.filter(t=>pSet.has(t.id))
+      };
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────────
@@ -352,16 +538,10 @@
                 fontSize:expired?"clamp(18px,6vw,38px)":"clamp(32px,10vw,72px)",
                 fontWeight:900,color,lineHeight:1,
                 letterSpacing:expired?1:3,
-                textShadow:`0 0 30px ${color}44`,
                 transition:"color 0.4s",textAlign:"center",
               }}>
                 {expired?"TIME'S UP":`${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}`}
               </div>
-              {!expired&&totalSecs>0&&(
-                <div style={{color:"#94a3b8",fontSize:"clamp(9px,2vw,12px)",fontFamily:"monospace",marginTop:4}}>
-                  {Math.round(pct*100)}%
-                </div>
-              )}
             </div>
           </div>
           {/* Admin controls */}
@@ -747,6 +927,8 @@
       // Timer refs + state
       const timerRunningRef=useRef(false),timerStartedAtRef=useRef(null),timerPausedSecsRef=useRef(0);
       const timerDurationRef=useRef(0),alarmFiredRef=useRef(false),timerTickRef=useRef(null);
+      // Track which warning beeps have already fired this round (set of seconds thresholds)
+      const warningsFiredRef=useRef(new Set());
       const[timerRunning,setTimerRunning]=useState(false);
       const[timerPausedSecsLeft,setTimerPausedSecsLeft]=useState(0);
       const[timerAlarmed,setTimerAlarmed]=useState(false);
@@ -765,6 +947,14 @@
         if(running&&startedAt){
           timerTickRef.current=setInterval(()=>{
             const s=computeSecsLeft();setTimerSecsLeft(s);
+            // Warning beeps at 3 min and 1 min remaining (only if timer was longer than those)
+            const WARNINGS=[180,60]; // seconds
+            WARNINGS.forEach(thresh=>{
+              if(s<=thresh&&!warningsFiredRef.current.has(thresh)&&timerDurationRef.current>thresh){
+                warningsFiredRef.current.add(thresh);
+                playWarningBeep();
+              }
+            });
             if(s<=0){clearInterval(timerTickRef.current);
               if(!alarmFiredRef.current&&timerDurationRef.current>0){alarmFiredRef.current=true;playAlarm();timerRunningRef.current=false;setTimerRunning(false);setTimerAlarmed(true);}}
           },500);
@@ -849,7 +1039,7 @@
       const handleRestore=()=>{ const s=savedState;setSavedState(null);updateAllStates(normaliseSnapshot(s));setActiveTab("play"); };
 
       const pushTimerState=(r,sa,ps)=>pushAtomicUpdate({timerRunning:r,timerStartedAt:sa,timerPausedSecsLeft:ps});
-      const resetTimer=(ns)=>{ alarmFiredRef.current=false;const s=ns??timerDuration;setTimerAlarmed(false);applyTimerState(false,null,s);if(isAdmin)pushTimerState(false,null,s); };
+      const resetTimer=(ns)=>{ alarmFiredRef.current=false; warningsFiredRef.current=new Set(); const s=ns??timerDuration;setTimerAlarmed(false);applyTimerState(false,null,s);if(isAdmin)pushTimerState(false,null,s); };
       const timerToggle=()=>{
         if(!timerRunning){const sa=Date.now();applyTimerState(true,sa,timerPausedSecsRef.current);if(isAdmin)pushTimerState(true,sa,timerPausedSecsRef.current);}
         else{const s=computeSecsLeft();applyTimerState(false,null,s);if(isAdmin)pushTimerState(false,null,s);}
@@ -868,7 +1058,7 @@
         setActiveTeamIds(teamIds);setCourtNumbers(courts);setTimerDuration(durSecs);
         setStandings(s);setRound(r);setRoundNum(1);setHistory([]);
         lastSeenRoundNum.current=1;setPending({});setPausedIds([]);setRoundKey(0);setRoundComplete(false);
-        alarmFiredRef.current=false;setTimerAlarmed(false);applyTimerState(durSecs>0,sa,durSecs);
+        alarmFiredRef.current=false; warningsFiredRef.current=new Set(); setTimerAlarmed(false);applyTimerState(durSecs>0,sa,durSecs);
         setPhase("play");setActiveTab("play");
       };
 
@@ -880,9 +1070,10 @@
 
       const handleTogglePause=id=>{
         const np=pausedIds.includes(id)?pausedIds.filter(x=>x!==id):[...pausedIds,id];
-        const nr=generateRound(standings,numCourts,history.length,history,np);
+        const ns=rebuildStandings(activeTeamIds,history); // always fresh
+        const nr=generateRound(ns,numCourts,history.length,history,np);
         if(isAdmin){const rd={courtTeamIds:nr.courts.map(p=>p.map(t=>t.id)),byeIds:nr.bye.map(t=>t.id),pausedTeamIds:(nr.paused||[]).map(t=>t.id)};pushAtomicUpdate({roundData:rd,pausedIds:np});}
-        setPausedIds(np);setRound(nr);setPending({});setRoundKey(k=>k+1);
+        setPausedIds(np);setStandings(ns);setRound(nr);setPending({});setRoundKey(k=>k+1);
       };
 
       const handleResult=(ci,result)=>{
@@ -917,6 +1108,7 @@
           lastSeenRoundNum.current=newRN;saveState(snap);pushSnapshot(snap);
         }
         setRound(nr);setRoundNum(newRN);setPending({});setRoundKey(k=>k+1);setRoundComplete(false);setFinalRound(false);
+        alarmFiredRef.current=false; warningsFiredRef.current=new Set();
         const sa=timerDuration>0?Date.now():null;applyTimerState(timerDuration>0,sa,timerDuration);
       };
 
