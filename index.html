@@ -217,51 +217,33 @@
       for(let i=0;i<ids.length;i++){ ss+=solo[ids[i]]||0; for(let j=i+1;j<ids.length;j++){ const k=[ids[i],ids[j]].sort().join("|"); ps+=pairs[k]||0; } }
       return ps*1000+ss+Math.random()*0.001;
     }
-    // ── Cross-group perfect matching ─────────────────────────────────────────
-    function scoreCourtPairings(courts,mc,lrm,groupPenalty){
+    // ── Cross-group matching helpers ─────────────────────────────────────────
+    function scoreCourtPairings(courts, mc, lrm, firstTimerIds){
+      // firstTimerIds: Set of team ids playing their first game this round.
+      // Group penalty only applies when BOTH players in a pair are first-timers
+      // from the same emoji group.
       let s=0;
       courts.forEach(([a,b])=>{
         const k=[a.id,b.id].sort().join("|");
         if(lrm.has(k))s+=100000;
         s+=(mc[k]||0)*1000;
-        if(groupPenalty){
-          const ga=teamGroup(a),gb=teamGroup(b);
-          if(ga&&gb&&ga===gb)s+=500000;
+        if(firstTimerIds&&firstTimerIds.has(a.id)&&firstTimerIds.has(b.id)){
+          const ga=teamGroup(a), gb=teamGroup(b);
+          if(ga&&gb&&ga===gb) s+=500000;
         }
       });
       return s+Math.random()*0.1;
     }
-    // Given a pool of players, return true if a perfect cross-group pairing exists.
-    // Uses bipartite matching: split into two groups A and B, check if |A| == |B|
-    // and a perfect matching exists. Falls back gracefully when groups are uneven.
-    function canPairAllCrossGroup(pool){
-      const groups={};
-      pool.forEach(t=>{ const g=teamGroup(t)||"__none"; (groups[g]=groups[g]||[]).push(t); });
-      const keys=Object.keys(groups);
-      if(keys.length<2) return false; // only one group, can't be cross-group
-      if(keys.length===2){
-        // Classic bipartite: need equal halves
-        return groups[keys[0]].length===groups[keys[1]].length;
-      }
-      // 3+ groups: possible if no single group has more than half the players
-      const max=Math.max(...keys.map(k=>groups[k].length));
-      return max<=Math.floor(pool.length/2);
-    }
 
-    // Build all cross-group pairings of `pool` that maintain bottom-up rank order
-    // as closely as possible. Returns the best pairing found.
-    // Strategy: for each "slot" (worst pair first), pick the two worst-ranked
-    // players from *different* groups. Greedy with backtracking for small N.
-    function pairCrossGroupBottomUp(pool, allStandings, mc, lrm){
+    // Can we pair all teams in `pool` such that each pair is cross-group?
+    // Greedy cross-group pairing, worst-first. Only applies the group constraint
+    // when both candidates are first-timers (in constrainedIds).
+    function pairCrossGroupBottomUp(pool, allStandings, constrainedIds){
       const ranked=rerank(allStandings);
       const rankOf=id=>{ const i=ranked.findIndex(t=>t.id===id); return i===-1?9999:i; };
-      // Sort worst-first
       const byRank=[...pool].sort((a,b)=>rankOf(b.id)-rankOf(a.id));
       const n=byRank.length;
       const numPairs=Math.floor(n/2);
-
-      // Greedy: for each pair slot, take the worst unpaired team, find the worst
-      // unpaired team from a *different* group to match with it.
       const paired=[];
       const used=new Set();
 
@@ -269,12 +251,26 @@
         if(used.has(byRank[i].id)) continue;
         const a=byRank[i];
         const ga=teamGroup(a)||"__none";
-        // Find the worst unpaired partner from a different group
+        const aIsConstrained=constrainedIds.has(a.id);
+
         let partner=null;
         for(let j=i+1;j<n;j++){
           if(used.has(byRank[j].id)) continue;
-          const gb=teamGroup(byRank[j])||"__none";
-          if(gb!==ga){ partner=byRank[j]; break; }
+          const b=byRank[j];
+          const bIsConstrained=constrainedIds.has(b.id);
+          // Group constraint only fires when BOTH are first-timers
+          if(aIsConstrained&&bIsConstrained){
+            const gb=teamGroup(b)||"__none";
+            if(ga===gb) continue; // skip same-group first-timer pairs, look further
+          }
+          partner=b; break;
+        }
+        // If no cross-group partner found (e.g. all remaining first-timers share a group),
+        // fall back: just take the next available
+        if(!partner){
+          for(let j=i+1;j<n;j++){
+            if(!used.has(byRank[j].id)){ partner=byRank[j]; break; }
+          }
         }
         if(partner){
           paired.push([a,partner]);
@@ -282,50 +278,54 @@
         }
         if(paired.length===numPairs) break;
       }
-
-      // If greedy didn't pair everyone (pool was uneven), remaining go unmatched (bye)
-      // but that's handled by generateRound before calling this function.
       return paired;
     }
 
-    // Standard bottom-up pairing (no group constraint) — worst vs second-worst, etc.
-    function pairBottomUp(playing, allStandings, mc, lrm, groupConstraint){
+    // Main pairing function. `constrainedIds` = set of team ids playing their first game.
+    function pairBottomUp(playing, allStandings, mc, lrm, constrainedIds){
       const ranked=rerank(allStandings);
       const rankOf=id=>{ const i=ranked.findIndex(t=>t.id===id); return i===-1?9999:i; };
-      const byRankWorstFirst=[...playing].sort((a,b)=>rankOf(b.id)-rankOf(a.id));
 
-      // If group constraint is active and a full cross-group pairing is possible, use it
-      if(groupConstraint && canPairAllCrossGroup(playing)){
-        return pairCrossGroupBottomUp(playing, allStandings, mc, lrm);
+      // Check if any constrained teams are in the playing pool
+      const constrainedInPool=playing.filter(t=>constrainedIds&&constrainedIds.has(t.id));
+      const hasConstraint=constrainedInPool.length>0;
+
+      if(hasConstraint){
+        // Use greedy cross-group pairing (respects first-timer constraint)
+        return pairCrossGroupBottomUp(playing, allStandings, constrainedIds);
       }
 
-      // Otherwise: simple bottom-up pairing, then try swaps to fix same-group pairs
+      // No constraint — simple bottom-up
+      const byRankWorstFirst=[...playing].sort((a,b)=>rankOf(b.id)-rankOf(a.id));
       const def=[];
       for(let c=0;c<Math.floor(byRankWorstFirst.length/2);c++){
         def.push([byRankWorstFirst[c*2],byRankWorstFirst[c*2+1]]);
       }
-      let best=def, bs=scoreCourtPairings(def,mc,lrm,groupConstraint);
+      // Swap pass: fix last-round repeat matchups
+      let best=def, bs=scoreCourtPairings(def,mc,lrm,null);
       for(let c=0;c<def.length-1;c++){
         const s1=def.map(p=>[...p]); [s1[c][1],s1[c+1][0]]=[s1[c+1][0],s1[c][1]];
-        const sc1=scoreCourtPairings(s1,mc,lrm,groupConstraint); if(sc1<bs){bs=sc1;best=s1;}
+        const sc1=scoreCourtPairings(s1,mc,lrm,null); if(sc1<bs){bs=sc1;best=s1;}
         const s2=def.map(p=>[...p]); [s2[c][1],s2[c+1][1]]=[s2[c+1][1],s2[c][1]];
-        const sc2=scoreCourtPairings(s2,mc,lrm,groupConstraint); if(sc2<bs){bs=sc2;best=s2;}
+        const sc2=scoreCourtPairings(s2,mc,lrm,null); if(sc2<bs){bs=sc2;best=s2;}
       }
       return best;
     }
 
     function generateRound(allSt,numCourts,roundIdx,history=[],pausedIds=[],finalRound=false){
       const pSet=new Set(pausedIds);
-      // Always use fresh standings (allSt should already reflect current history)
       const active=allSt.filter(t=>!pSet.has(t.id));
       const mc=buildMatchupCounts(history), lrm=getLastRoundMatchups(history);
       const lastByeSet=history.length>0?new Set(history[history.length-1].bye||[]):new Set();
 
-      const isFirstRound=history.length===0;
-      const hasGroups=active.some(t=>teamGroup(t)!==null);
-      const groupConstraint=isFirstRound&&hasGroups;
+      // First-timers: active teams that have played 0 games so far AND have a leading emoji.
+      // The group constraint only applies to these teams for their debut game.
+      const firstTimerIds=new Set(
+        active.filter(t=>t.played===0&&teamGroup(t)!==null).map(t=>t.id)
+      );
+      const hasGroups=firstTimerIds.size>0;
 
-      // Determine effective court count (final round mode reduces courts)
+      // Determine effective court count (final round mode)
       let ec=numCourts;
       if(finalRound&&active.length>0){
         const minP=Math.min(...active.map(t=>t.played));
@@ -333,15 +333,12 @@
         if(need.length<active.length){ ec=Math.min(numCourts,Math.floor(need.length/2)); if(ec===0)ec=1; }
       }
 
-      // ── STEP 1: Decide who gets a bye ────────────────────────────────────────
-      // Priority: no back-to-back byes. Among eligible bye candidates, choose the
-      // group that leaves the playing pool with the best cross-group pairing potential.
+      // ── STEP 1: Byes ─────────────────────────────────────────────────────────
       const numBye=active.length-ec*2;
 
       if(numBye<=0){
-        // Everyone plays — no byes needed
         return{
-          courts:pairBottomUp(active,allSt,mc,lrm,groupConstraint),
+          courts:pairBottomUp(active,allSt,mc,lrm,firstTimerIds),
           bye:[],
           paused:allSt.filter(t=>pSet.has(t.id))
         };
@@ -351,28 +348,30 @@
       const hadBye=active.filter(t=>lastByeSet.has(t.id));
       const didnt=active.filter(t=>!lastByeSet.has(t.id));
 
-      // Helper: score a proposed bye group (lower = better).
-      // In round 1 with groups: strongly prefer bye choices that leave a playing pool
-      // where every court can be cross-group (canPairAllCrossGroup).
+      // Score a proposed bye group. When groups exist, prefer bye selections that
+      // leave the first-timer pool balanced (no single emoji group dominates).
       function scoreByeSelection(proposed){
         const base=scoreByeGroup(proposed.map(t=>t.id),byeCounts);
-        if(!groupConstraint) return base;
+        if(!hasGroups) return base;
         const byeSet2=new Set(proposed.map(t=>t.id));
-        const remaining=active.filter(t=>!byeSet2.has(t.id));
-        // If the remaining pool can be fully paired cross-group, great (score 0 penalty).
-        // Otherwise penalise proportionally to how many groups are over-represented.
-        if(canPairAllCrossGroup(remaining)) return base;
-        // Penalty: count excess teams in the dominant group
+        // First-timers remaining after this bye
+        const remainingFirstTimers=active.filter(t=>!byeSet2.has(t.id)&&firstTimerIds.has(t.id));
+        if(remainingFirstTimers.length===0) return base;
+        // Check: can remaining first-timers be cross-group paired?
+        // (Veterans can absorb unmatched first-timers, so we just need no emoji group
+        //  to have more first-timers than there are first-timers from other groups + veterans)
         const groups2={};
-        remaining.forEach(t=>{ const g=teamGroup(t)||"__none"; (groups2[g]=groups2[g]||[]).push(t); });
+        remainingFirstTimers.forEach(t=>{ const g=teamGroup(t)||"__none"; (groups2[g]=groups2[g]||[]).push(t); });
         const maxG=Math.max(...Object.values(groups2).map(v=>v.length));
-        const excess=maxG-Math.floor(remaining.length/2);
-        return base + excess*10000000;
+        const remainingVeterans=active.filter(t=>!byeSet2.has(t.id)&&!firstTimerIds.has(t.id));
+        const otherSlots=remainingFirstTimers.length-maxG+remainingVeterans.length;
+        if(maxG<=otherSlots) return base; // can absorb all — no penalty
+        const excess=maxG-otherSlots;
+        return base+excess*10000000;
       }
 
       let byeGroup=[];
       if(didnt.length>=numBye){
-        // Ideal: pick bye from teams that did NOT sit last round
         const byMostPlayed=[...didnt].sort((a,b)=>b.played-a.played);
         let idx=0;
         while(byeGroup.length<numBye&&idx<byMostPlayed.length){
@@ -392,17 +391,16 @@
           }
         }
       } else {
-        // Forced back-to-back bye for some teams — minimise it
         byeGroup=[...didnt];
         byeGroup.push(...[...hadBye].sort((a,b)=>b.played-a.played).slice(0,numBye-byeGroup.length));
       }
 
-      // ── STEP 2: Pair the playing teams bottom-up ─────────────────────────────
+      // ── STEP 2: Pair playing teams ────────────────────────────────────────────
       const byeSet=new Set(byeGroup.map(t=>t.id));
       const playing=active.filter(t=>!byeSet.has(t.id));
 
       return{
-        courts:pairBottomUp(playing,allSt,mc,lrm,groupConstraint),
+        courts:pairBottomUp(playing,allSt,mc,lrm,firstTimerIds),
         bye:byeGroup,
         paused:allSt.filter(t=>pSet.has(t.id))
       };
