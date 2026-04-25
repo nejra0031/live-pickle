@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Live Scores</title>
+  <link rel="icon" type="image/png" href="data:image/png;base64,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"/>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { margin: 0; padding: 0; background: #fff; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    const BALL_ICO = "data:image/png;base64,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";
+
+    // ─── Firebase ─────────────────────────────────────────────────────────────
+    const firebaseConfig = {
+      apiKey: "AIzaSyBWcUvEUzlvUb0CwM_GsjLY0AmiYHa8GhA",
+      authDomain: "live-pickle.firebaseapp.com",
+      databaseURL: "https://live-pickle-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "live-pickle",
+      storageBucket: "live-pickle.firebasestorage.app",
+      messagingSenderId: "419584191740",
+      appId: "1:419584191740:web:430fdc01037a21838bfb79"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ─── Team registry ────────────────────────────────────────────────────────
+    const ALL_TEAMS = [
+      { id:"red",    name:"Red",    color:"#ef4444", text:"#fff" },
+      { id:"blue",   name:"Blue",   color:"#3b82f6", text:"#fff" },
+      { id:"yellow", name:"Yellow", color:"#eab308", text:"#000" },
+      { id:"green",  name:"Green",  color:"#22c55e", text:"#fff" },
+      { id:"orange", name:"Orange", color:"#f97316", text:"#fff" },
+      { id:"purple", name:"Purple", color:"#a855f7", text:"#fff" },
+      { id:"pink",   name:"Pink",   color:"#ec4899", text:"#fff" },
+      { id:"grey",   name:"Grey",   color:"#6b7280", text:"#fff" },
+      { id:"brown",  name:"Brown",  color:"#92400e", text:"#fff" },
+      { id:"teal",   name:"Teal",   color:"#14b8a6", text:"#fff" },
+      { id:"lime",   name:"Lime",   color:"#84cc16", text:"#000" },
+      { id:"cyan",   name:"Cyan",   color:"#06b6d4", text:"#000" },
+      { id:"indigo", name:"Indigo", color:"#6366f1", text:"#fff" },
+      { id:"rose",   name:"Rose",   color:"#f43f5e", text:"#fff" },
+      { id:"amber",  name:"Amber",  color:"#f59e0b", text:"#000" },
+      { id:"navy",   name:"Navy",   color:"#1e40af", text:"#fff" },
+      { id:"mint",   name:"Mint",   color:"#6ee7b7", text:"#000" },
+      { id:"coral",  name:"Coral",  color:"#fb7185", text:"#fff" },
+      { id:"sky",    name:"Sky",    color:"#38bdf8", text:"#000" },
+      { id:"gold",   name:"Gold",   color:"#d97706", text:"#fff" },
+    ];
+    let CUSTOM_TEAMS = [];
+    const teamById = id => { const c=CUSTOM_TEAMS.find(t=>t.id===id); return c||ALL_TEAMS.find(t=>t.id===id); };
+    const registerTeams = teams => { CUSTOM_TEAMS = teams||[]; };
+
+    // ─── Firebase normalisation ────────────────────────────────────────────────
+    function toArr(val) {
+      if (!val) return [];
+      if (Array.isArray(val)) return val;
+      if (typeof val === 'string' || typeof val === 'number') return [val];
+      return Object.keys(val).sort((a,b)=>Number(a)-Number(b)).map(k=>val[k]);
+    }
+    function normaliseSnapshot(s) {
+      if (!s) return s;
+      const rawReg = s.teamRegistry ? toArr(s.teamRegistry) : null;
+      const registry = rawReg
+        ? rawReg.filter(t=>t&&t.id&&t.name&&t.color).map(t=>({id:String(t.id),name:String(t.name),color:String(t.color),text:String(t.text||"#fff")}))
+        : null;
+      if (registry && registry.length > 0) registerTeams(registry);
+      const h = toArr(s.history).map(r=>({...r,games:toArr(r.games),bye:toArr(r.bye),paused:toArr(r.paused)}));
+      const rd = s.roundData ? {
+        courtTeamIds: toArr(s.roundData.courtTeamIds).map(p=>toArr(p)),
+        byeIds: toArr(s.roundData.byeIds),
+        pausedTeamIds: toArr(s.roundData.pausedTeamIds),
+      } : null;
+      return { ...s, history:h, roundData:rd,
+        activeTeamIds:toArr(s.activeTeamIds), courtNumbers:toArr(s.courtNumbers),
+        pausedIds:toArr(s.pausedIds), teamRegistry:registry };
+    }
+
+    // ─── Standings helpers ─────────────────────────────────────────────────────
+    function mkStandings(ids) {
+      return ids.map(id=>({...teamById(id),id,wins:0,losses:0,scoreDiff:0,played:0}));
+    }
+    function rerank(st) {
+      return [...st].sort((a,b)=>{
+        if(b.wins!==a.wins)return b.wins-a.wins;
+        if(b.scoreDiff!==a.scoreDiff)return b.scoreDiff-a.scoreDiff;
+        return a.played-b.played;
+      });
+    }
+    function rebuildStandings(ids, history) {
+      const map=Object.fromEntries(mkStandings(ids).map(t=>[t.id,{...t}]));
+      history.forEach(rd=>{
+        rd.games.forEach(g=>{
+          const w=map[g.winnerId],l=map[g.loserId]; if(!w||!l)return;
+          w.wins++;w.scoreDiff+=g.winnerScore-g.loserScore;w.played++;
+          l.losses++;l.scoreDiff+=g.loserScore-g.winnerScore;l.played++;
+        });
+      });
+      return Object.values(map);
+    }
+
+    const ORDINAL=n=>{const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
+
+    // ─── Audio ─────────────────────────────────────────────────────────────────
+    let _audioCtx=null;
+    function getAudioCtx(){ if(!_audioCtx||_audioCtx.state==="closed") _audioCtx=new(window.AudioContext||window.webkitAudioContext)(); return _audioCtx; }
+    function playWarningBeep(){
+      try{
+        const ctx=getAudioCtx();
+        const fire=()=>{
+          for(let i=0;i<2;i++){
+            const osc=ctx.createOscillator(),gain=ctx.createGain();
+            osc.connect(gain);gain.connect(ctx.destination);
+            osc.type="sine";osc.frequency.value=880;
+            const t=ctx.currentTime+i*0.28;
+            gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(0.6,t+0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001,t+0.2);osc.start(t);osc.stop(t+0.22);
+          }
+        };
+        ctx.state==="suspended"?ctx.resume().then(fire):fire();
+      }catch(e){}
+    }
+    function playAlarm(){
+      try{
+        const ctx=getAudioCtx();
+        const fire=()=>{
+          const blasts=[{freq:1200,dur:0.55,gap:0.15},{freq:900,dur:0.55,gap:0.15},{freq:600,dur:0.9,gap:0}];
+          let t=ctx.currentTime+0.05;
+          blasts.forEach(({freq,dur,gap})=>{
+            const osc=ctx.createOscillator(),gain=ctx.createGain(),osc2=ctx.createOscillator();
+            osc.connect(gain);osc2.connect(gain);gain.connect(ctx.destination);
+            osc.type="sawtooth";osc.frequency.value=freq;osc2.type="square";osc2.frequency.value=freq*1.5;
+            gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(1.0,t+0.02);
+            gain.gain.setValueAtTime(1.0,t+dur-0.08);gain.gain.exponentialRampToValueAtTime(0.001,t+dur);
+            osc.start(t);osc.stop(t+dur);osc2.start(t);osc2.stop(t+dur);t+=dur+gap;
+          });
+        };
+        ctx.state==="suspended"?ctx.resume().then(fire):fire();
+      }catch(e){}
+    }
+
+    // ─── Compact timer bar (read-only) ─────────────────────────────────────────
+    function TimerBar({secsLeft,totalSecs,roundNum}){
+      const mins=Math.floor(secsLeft/60),secs=secsLeft%60;
+      const pct=totalSecs>0?secsLeft/totalSecs:1;
+      const expired=secsLeft===0,urgent=pct<0.2&&!expired;
+      const color=expired?"#dc2626":urgent?"#ea580c":"#0f4c75";
+      const circ=2*Math.PI*13;
+      return(
+        <div style={{display:"flex",alignItems:"center",gap:"clamp(8px,2vw,14px)",
+          padding:"clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)",
+          background:"rgba(0,0,0,0.03)",borderRadius:14,
+          border:`1px solid ${color}66`,marginBottom:"clamp(6px,1.5vw,10px)"}}>
+          <svg style={{width:"clamp(28px,7vw,38px)",height:"clamp(28px,7vw,38px)",flexShrink:0}} viewBox="0 0 34 34">
+            <circle cx={17} cy={17} r={13} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={3}/>
+            <circle cx={17} cy={17} r={13} fill="none" stroke={color} strokeWidth={3}
+              strokeDasharray={`${circ}`} strokeDashoffset={`${-circ*(1-pct)}`}
+              strokeLinecap="round" transform="rotate(-90 17 17)"
+              style={{transition:"stroke-dashoffset 1s linear,stroke 0.3s"}}/>
+            {expired&&<text x={17} y={21} textAnchor="middle" fontSize={9} fill="#dc2626" fontWeight="bold">!</text>}
+          </svg>
+          <div style={{flex:1}}>
+            <div style={{fontSize:"clamp(9px,2vw,12px)",color:"#94a3b8",lineHeight:1,marginBottom:2}}>Round {roundNum}</div>
+            <div style={{fontFamily:"monospace",fontWeight:800,fontSize:"clamp(13px,3.5vw,18px)",lineHeight:1,
+              color:expired?"#dc2626":urgent?"#ea580c":"#1e293b"}}>
+              {expired?"TIME'S UP":`${mins}:${String(secs).padStart(2,"0")}`}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Play-tab timer ring (viewer, no controls) ─────────────────────────────
+    function TimerRing({secsLeft,totalSecs,roundNum}){
+      const mins=Math.floor(secsLeft/60),secs=secsLeft%60;
+      const pct=totalSecs>0?secsLeft/totalSecs:1;
+      const expired=secsLeft===0,urgent=pct<0.2&&!expired;
+      const color=expired?"#dc2626":urgent?"#ea580c":"#0f4c75";
+      const SZ=500,SW=24,R=218,cx=250,cy=250;
+      const circ=2*Math.PI*R;
+      return(
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",paddingTop:"clamp(4px,1vw,8px)"}}>
+          <div style={{position:"relative",width:"min(55vw,280px)",aspectRatio:"1"}}>
+            <svg viewBox={`0 0 ${SZ} ${SZ}`} width="100%" height="100%" style={{display:"block"}}>
+              <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth={SW}/>
+              <circle cx={cx} cy={cy} r={R} fill="none" stroke={color} strokeWidth={SW}
+                strokeDasharray={circ} strokeDashoffset={-circ*(1-pct)} strokeLinecap="round"
+                transform={`rotate(-90 ${cx} ${cy})`}
+                style={{transition:"stroke-dashoffset 1s linear,stroke 0.4s"}}/>
+            </svg>
+            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",padding:`${SW+8}px`}}>
+              <div style={{fontFamily:"'Courier New',monospace",
+                fontSize:expired?"clamp(18px,6vw,38px)":"clamp(32px,10vw,72px)",
+                fontWeight:900,color,lineHeight:1,letterSpacing:expired?1:3,
+                transition:"color 0.4s",textAlign:"center"}}>
+                {expired?"TIME'S UP":`${String(mins).padStart(2,"0")}:${String(secs).padStart(2,"0")}`}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Main App ──────────────────────────────────────────────────────────────
+    function App(){
+      const[phase,setPhase]=useState("loading");
+      const[tournamentTitle,setTournamentTitle]=useState("Live Scores");
+      const[activeTeamIds,setActiveTeamIds]=useState([]);
+      const[courtNumbers,setCourtNumbers]=useState([]);
+      const[history,setHistory]=useState([]);
+      const[standings,setStandings]=useState([]);
+      const[round,setRound]=useState(null);
+      const[roundNum,setRoundNum]=useState(1);
+      const[roundComplete,setRoundComplete]=useState(false);
+      const[activeTab,setActiveTab]=useState("play");
+      const[pausedIds,setPausedIds]=useState([]);
+      const[timerSecsLeft,setTimerSecsLeft]=useState(0);
+      const[timerDuration,setTimerDuration]=useState(0);
+
+      const timerRunningRef=useRef(false),timerStartedRef=useRef(null),timerPausedRef=useRef(0);
+      const timerTickRef=useRef(null);
+      const timerDurationRef=useRef(0);
+      const alarmFiredRef=useRef(false);
+      const warningsFiredRef=useRef(new Set());
+      const lastSeenRoundNumRef=useRef(-1);
+
+      const computeSecsLeft=()=>{
+        if(!timerRunningRef.current||!timerStartedRef.current)return timerPausedRef.current;
+        return Math.max(0,timerPausedRef.current-Math.floor((Date.now()-timerStartedRef.current)/1000));
+      };
+      const applyTimer=(running,startedAt,pausedSecs)=>{
+        timerRunningRef.current=running;timerStartedRef.current=startedAt;timerPausedRef.current=pausedSecs;
+        const s=running&&startedAt?Math.max(0,pausedSecs-Math.floor((Date.now()-startedAt)/1000)):pausedSecs;
+        setTimerSecsLeft(s);
+        clearInterval(timerTickRef.current);
+        if(running&&startedAt){
+          timerTickRef.current=setInterval(()=>{
+            const secs=computeSecsLeft();setTimerSecsLeft(secs);
+            [180,60].forEach(thresh=>{
+              if(secs<=thresh&&!warningsFiredRef.current.has(thresh)&&timerDurationRef.current>thresh){
+                warningsFiredRef.current.add(thresh);playWarningBeep();
+              }
+            });
+            if(secs<=0){
+              clearInterval(timerTickRef.current);
+              if(!alarmFiredRef.current&&timerDurationRef.current>0){alarmFiredRef.current=true;playAlarm();timerRunningRef.current=false;}
+            }
+          },500);
+        }
+      };
+
+      useEffect(()=>{
+        const ref=db.ref('current_tournament');
+        const loaded={v:false};
+        ref.on('value',snap=>{
+          const data=snap.val();
+          loaded.v=true;
+          if(!data||data.phase!=="play"){setPhase("waiting");return;}
+          const s=normaliseSnapshot(data);
+          if(s.tournamentTitle){setTournamentTitle(s.tournamentTitle);document.title=s.tournamentTitle;}
+          const ns=rebuildStandings(s.activeTeamIds,s.history);
+          let nr=null;
+          if(s.roundData&&s.roundData.courtTeamIds){
+            const safe=id=>teamById(id)||{id,name:String(id),color:"#475569",text:"#fff"};
+            nr={courts:s.roundData.courtTeamIds.map(p=>p.map(safe)),bye:(s.roundData.byeIds||[]).map(safe),paused:(s.roundData.pausedTeamIds||[]).map(safe)};
+          }
+          setActiveTeamIds(s.activeTeamIds);setCourtNumbers(s.courtNumbers);
+          setHistory(s.history);setStandings(ns);setRound(nr);setRoundNum(s.roundNum);
+          setPausedIds(s.pausedIds||[]);setRoundComplete(s.roundComplete||false);
+          const dur=s.timerDuration||0;
+          setTimerDuration(dur);timerDurationRef.current=dur;
+          // Only reset alarm/warning state when the round number actually changes
+          if(s.roundNum!==lastSeenRoundNumRef.current){
+            lastSeenRoundNumRef.current=s.roundNum;
+            alarmFiredRef.current=false;warningsFiredRef.current=new Set();
+          }
+          // Pre-populate thresholds already passed so beeps don't misfire on page load
+          const _tRun=s.timerRunning||false,_tSA=s.timerStartedAt||null,_tPS=s.timerPausedSecsLeft??dur;
+          const _curSecs=_tRun&&_tSA?Math.max(0,_tPS-Math.floor((Date.now()-_tSA)/1000)):_tPS;
+          [180,60].forEach(thresh=>{if(dur>thresh&&_curSecs<thresh)warningsFiredRef.current.add(thresh);});
+          applyTimer(_tRun,_tSA,_tPS);
+          setPhase("play");
+        });
+        const t=setTimeout(()=>{if(!loaded.v)setPhase("waiting");},4000);
+        return()=>{ref.off();clearTimeout(t);clearInterval(timerTickRef.current);};
+      },[]);
+
+      useEffect(()=>{document.title=tournamentTitle;},[tournamentTitle]);
+
+      const ranked=rerank(standings);
+
+      return(
+        <div style={{minHeight:"100vh",background:"#fff",fontFamily:"'Trebuchet MS',sans-serif",color:"#1e293b"}} onClick={()=>{try{getAudioCtx();}catch(e){}}}>
+          {/* Fixed header */}
+          <div style={{position:"fixed",top:0,left:0,right:0,zIndex:40,background:"#fff",
+            borderBottom:"1px solid rgba(0,0,0,0.08)",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+            <div style={{maxWidth:720,margin:"0 auto",padding:"0 clamp(12px,3vw,20px)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"clamp(8px,2vw,14px)",padding:"clamp(8px,2vw,14px) 0"}}>
+                <img src={BALL_ICO} alt="" style={{width:"clamp(36px,7vw,52px)",height:"clamp(36px,7vw,52px)",borderRadius:"50%",objectFit:"cover",flexShrink:0}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <h1 style={{fontWeight:900,fontSize:"clamp(16px,4vw,26px)",color:"#0f4c75",margin:0,
+                    whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",lineHeight:1.1}}>
+                    {tournamentTitle}
+                  </h1>
+                  {phase==="play"&&<p style={{margin:0,fontSize:"clamp(10px,2.5vw,13px)",color:"#64748b"}}>{activeTeamIds.length} teams · 🔵 Viewer</p>}
+                </div>
+              </div>
+              {phase==="play"&&(
+                <div style={{display:"flex",gap:"clamp(6px,1.5vw,10px)",paddingBottom:"clamp(6px,1.5vw,10px)"}}>
+                  {[["play","🎾 Play"],["standings","🏆 Standings"],["history","📋 History"]].map(([id,label])=>(
+                    <button key={id} onClick={()=>setActiveTab(id)}
+                      style={{flex:1,borderRadius:12,fontWeight:700,cursor:"pointer",
+                        padding:"clamp(6px,1.5vw,10px) 4px",fontSize:"clamp(11px,2.5vw,14px)",
+                        background:activeTab===id?"linear-gradient(90deg,#0f4c75,#1a6fa8)":"rgba(0,0,0,0.05)",
+                        color:activeTab===id?"#fff":"#475569",
+                        border:activeTab===id?"none":"1px solid rgba(0,0,0,0.08)"}}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Scrollable content */}
+          <div style={{maxWidth:720,margin:"0 auto",
+            padding:`${phase==="play"?"clamp(130px,18vw,160px)":"clamp(90px,12vw,110px)"} clamp(12px,3vw,20px) clamp(16px,3vw,24px)`}}>
+
+            {phase==="loading"&&(
+              <div style={{textAlign:"center",padding:"60px 20px",color:"#94a3b8"}}>
+                <div style={{fontSize:32,marginBottom:12}}>🔄</div>
+                <p style={{margin:0}}>Connecting…</p>
+              </div>
+            )}
+
+            {phase==="waiting"&&(
+              <div style={{textAlign:"center",padding:"60px 20px"}}>
+                <div style={{fontSize:40,marginBottom:12}}>🏓</div>
+                <p style={{fontWeight:700,color:"#0f4c75",fontSize:"clamp(16px,4vw,22px)",margin:"0 0 8px"}}>No active tournament</p>
+                <p style={{color:"#94a3b8",fontSize:"clamp(12px,3vw,15px)",margin:0}}>Waiting for the organizer to start a game.</p>
+              </div>
+            )}
+
+            {phase==="play"&&(
+              <>
+                {/* Compact timer on non-play tabs */}
+                {timerDuration>0&&activeTab!=="play"&&(
+                  <TimerBar secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum}/>
+                )}
+
+                {/* ── Play tab — no active round ── */}
+                {activeTab==="play"&&!round&&(
+                  <div style={{padding:"clamp(24px,6vw,48px) clamp(12px,3vw,20px)",borderRadius:16,textAlign:"center",
+                    background:"rgba(0,0,0,0.03)",border:"1px solid rgba(0,0,0,0.08)"}}>
+                    <div style={{fontSize:"clamp(32px,8vw,52px)",marginBottom:"clamp(8px,2vw,14px)"}}>
+                      {roundNum===0?"🏓":"⏳"}
+                    </div>
+                    <p style={{fontWeight:700,color:"#0f4c75",fontSize:"clamp(15px,4vw,22px)",margin:"0 0 8px"}}>
+                      {roundNum===0?"Waiting for Round 1…":"Waiting for next round…"}
+                    </p>
+                    <p style={{color:"#94a3b8",fontSize:"clamp(12px,3vw,15px)",margin:0}}>
+                      {roundNum===0?"The organizer will start the tournament shortly.":"The organizer is setting up the next round."}
+                    </p>
+                  </div>
+                )}
+
+                {/* ── Play tab — active round ── */}
+                {activeTab==="play"&&round&&(
+                  <div style={{display:"flex",flexDirection:"column",gap:"clamp(10px,2.5vw,16px)"}}>
+                    {timerDuration>0&&(
+                      <TimerRing secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum}/>
+                    )}
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+                      <span style={{fontWeight:700,color:"#0f4c75",fontSize:"clamp(13px,3vw,17px)"}}>Round {roundNum}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                        {round.paused&&round.paused.length>0&&(
+                          <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+                            <span style={{color:"#94a3b8",fontSize:"clamp(10px,2.5vw,12px)",fontWeight:700}}>Paused:</span>
+                            {round.paused.map(t=>{const tm=teamById(t.id);if(!tm)return null;return(
+                              <span key={t.id} style={{display:"inline-flex",alignItems:"center",borderRadius:999,fontWeight:700,
+                                background:tm.color,color:tm.text,border:"2px solid rgba(255,255,255,0.2)",
+                                fontSize:"clamp(11px,3vw,15px)",padding:"clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)"}}>
+                                {tm.name}
+                              </span>
+                            );})}
+                          </div>
+                        )}
+                        {round.bye&&round.bye.length>0&&(
+                          <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+                            <span style={{color:"#94a3b8",fontSize:"clamp(10px,2.5vw,12px)",fontWeight:700}}>Bye:</span>
+                            {round.bye.map(t=>{const tm=teamById(t.id);if(!tm)return null;return(
+                              <span key={t.id} style={{display:"inline-flex",alignItems:"center",borderRadius:999,fontWeight:700,
+                                background:tm.color,color:tm.text,border:"2px solid rgba(255,255,255,0.2)",
+                                fontSize:"clamp(11px,3vw,15px)",padding:"clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)"}}>
+                                {tm.name}
+                              </span>
+                            );})}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:"clamp(10px,2.5vw,16px)"}}>
+                      {round.courts.map((teams,idx)=>(
+                        <div key={idx} style={{padding:"clamp(12px,3vw,20px)",borderRadius:16,background:"#fff",
+                          border:"1px solid rgba(0,0,0,0.1)",boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
+                          <p style={{margin:"0 0 clamp(8px,2vw,14px)",fontWeight:800,fontSize:"clamp(10px,2.5vw,13px)",
+                            color:"#0f4c75",textTransform:"uppercase",letterSpacing:"0.1em"}}>
+                            Court {courtNumbers[idx]??idx+1}
+                          </p>
+                          <div style={{display:"flex",alignItems:"stretch",gap:"clamp(8px,2vw,14px)"}}>
+                            <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:12,
+                              padding:"clamp(14px,3.5vw,24px) clamp(10px,2.5vw,16px)",
+                              background:teams[0].color,border:`2px solid ${teams[0].color}`}}>
+                              <span style={{fontWeight:900,textAlign:"center",lineHeight:1.1,color:teams[0].text,fontSize:"clamp(18px,5vw,36px)"}}>{teams[0].name}</span>
+                            </div>
+                            <div style={{display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                              <span style={{fontWeight:900,color:"#cbd5e1",fontSize:"clamp(14px,3.5vw,22px)"}}>VS</span>
+                            </div>
+                            <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:12,
+                              padding:"clamp(14px,3.5vw,24px) clamp(10px,2.5vw,16px)",
+                              background:teams[1].color,border:`2px solid ${teams[1].color}`}}>
+                              <span style={{fontWeight:900,textAlign:"center",lineHeight:1.1,color:teams[1].text,fontSize:"clamp(18px,5vw,36px)"}}>{teams[1].name}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Standings tab ── */}
+                {activeTab==="standings"&&(
+                  <div style={{borderRadius:16,overflow:"hidden",border:"1px solid rgba(0,0,0,0.1)",boxShadow:"0 2px 16px rgba(0,0,0,0.06)"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:"clamp(6px,1.5vw,12px)",
+                      padding:"clamp(8px,2vw,14px) clamp(10px,2.5vw,18px)",
+                      background:"#0f4c75",color:"#fff",fontWeight:700,
+                      textTransform:"uppercase",letterSpacing:"0.06em",fontSize:"clamp(9px,2vw,12px)"}}>
+                      <span style={{width:"clamp(28px,6vw,50px)"}}>Rank</span>
+                      <span style={{flex:1}}>Team</span>
+                      <span style={{width:"clamp(26px,5.5vw,42px)",textAlign:"center"}}>GP</span>
+                      <span style={{width:"clamp(26px,5.5vw,42px)",textAlign:"center",color:"#86efac"}}>W</span>
+                      <span style={{width:"clamp(26px,5.5vw,42px)",textAlign:"center",color:"#fca5a5"}}>L</span>
+                      <span style={{width:"clamp(30px,6.5vw,50px)",textAlign:"center",color:"#7dd3fc"}}>+/−</span>
+                    </div>
+                    {ranked.map((team,i)=>{const diff=team.scoreDiff,paused=pausedIds.includes(team.id);return(
+                      <div key={team.id} style={{display:"flex",alignItems:"center",gap:"clamp(6px,1.5vw,12px)",
+                        padding:"clamp(10px,2.5vw,18px) clamp(10px,2.5vw,18px)",
+                        background:i%2===0?"#fff":"#f8fafc",borderTop:"1px solid rgba(0,0,0,0.05)",opacity:paused?0.45:1}}>
+                        <span style={{width:"clamp(28px,6vw,50px)",fontWeight:900,color:"#64748b",fontSize:"clamp(14px,3.5vw,22px)"}}>
+                          {i===0?"🥇":i===1?"🥈":i===2?"🥉":ORDINAL(i+1)}
+                        </span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <span style={{display:"inline-flex",alignItems:"center",borderRadius:999,fontWeight:900,
+                            background:team.color,color:team.text,
+                            fontSize:"clamp(13px,3.5vw,20px)",
+                            padding:"clamp(4px,1vw,8px) clamp(10px,2.5vw,18px)",
+                            border:"2px solid rgba(255,255,255,0.25)",
+                            boxShadow:`0 2px 8px ${team.color}44`}}>
+                            {team.name}{paused?" ⏸":""}
+                          </span>
+                        </div>
+                        <span style={{width:"clamp(26px,5.5vw,42px)",textAlign:"center",color:"#475569",fontSize:"clamp(14px,3.5vw,22px)",fontWeight:700}}>{team.played}</span>
+                        <span style={{width:"clamp(26px,5.5vw,42px)",textAlign:"center",color:"#16a34a",fontWeight:900,fontSize:"clamp(16px,4vw,24px)"}}>{team.wins}</span>
+                        <span style={{width:"clamp(26px,5.5vw,42px)",textAlign:"center",color:"#dc2626",fontWeight:900,fontSize:"clamp(16px,4vw,24px)"}}>{team.losses}</span>
+                        <span style={{width:"clamp(30px,6.5vw,50px)",textAlign:"center",fontWeight:900,fontSize:"clamp(14px,3.5vw,22px)",
+                          color:diff>0?"#16a34a":diff<0?"#dc2626":"#94a3b8"}}>{diff>0?"+":""}{diff}</span>
+                      </div>
+                    );})}
+                  </div>
+                )}
+
+                {/* ── History tab ── */}
+                {activeTab==="history"&&(
+                  <div style={{display:"flex",flexDirection:"column",gap:"clamp(8px,2vw,14px)"}}>
+                    {history.length===0&&(
+                      <div style={{textAlign:"center",padding:"60px 20px",color:"#94a3b8",fontSize:"clamp(12px,3vw,15px)"}}>No rounds completed yet.</div>
+                    )}
+                    {[...history].reverse().map((h,revI)=>{
+                      const ri=history.length-1-revI;
+                      const sbf=rebuildStandings(activeTeamIds,history.slice(0,ri));
+                      const saf=rebuildStandings(activeTeamIds,history.slice(0,ri+1));
+                      const rbf=rerank(sbf),raf=rerank(saf);
+                      const rb=id=>rbf.findIndex(t=>t.id===id)+1;
+                      const ra=id=>raf.findIndex(t=>t.id===id)+1;
+                      const played=h.games.flatMap(g=>[g.winnerId,g.loserId]);
+                      const hasBye=h.bye&&h.bye.length>0;
+                      return(
+                        <div key={ri} style={{borderRadius:16,background:"#fff",border:"1px solid rgba(0,0,0,0.08)",overflow:"hidden"}}>
+                          <div style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)",background:"rgba(15,76,117,0.06)",borderBottom:"1px solid rgba(0,0,0,0.07)"}}>
+                            <span style={{fontSize:"clamp(10px,2.5vw,13px)",color:"#0f4c75",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.08em"}}>Round {h.roundNum}</span>
+                          </div>
+                          <div style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)"}}>
+                            {h.games.map((game,gi)=>{const w=teamById(game.winnerId),l=teamById(game.loserId);return(
+                              <div key={gi} style={{display:"grid",gridTemplateColumns:"clamp(22px,5vw,36px) 1fr clamp(22px,5vw,34px) clamp(10px,2vw,14px) clamp(22px,5vw,34px) 1fr",
+                                alignItems:"center",gap:"clamp(4px,1vw,8px)",marginBottom:gi<h.games.length-1?"clamp(6px,1.5vw,10px)":0}}>
+                                <span style={{color:"#94a3b8",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,textAlign:"center"}}>{game.courtNumber}</span>
+                                <div style={{display:"flex",justifyContent:"flex-end"}}>
+                                  <span style={{display:"inline-flex",alignItems:"center",borderRadius:999,fontWeight:700,whiteSpace:"nowrap",
+                                    background:w?.color,color:w?.text,fontSize:"clamp(11px,3vw,15px)",padding:"clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)"}}>{w?.name}</span>
+                                </div>
+                                <span style={{fontWeight:800,textAlign:"right",color:w?.color,fontSize:"clamp(13px,3vw,17px)"}}>{game.winnerScore}</span>
+                                <span style={{color:"#cbd5e1",fontSize:"clamp(10px,2.5vw,13px)",textAlign:"center"}}>–</span>
+                                <span style={{fontWeight:800,textAlign:"left",color:l?.color,fontSize:"clamp(13px,3vw,17px)"}}>{game.loserScore}</span>
+                                <div style={{display:"flex",justifyContent:"flex-start"}}>
+                                  <span style={{display:"inline-flex",alignItems:"center",borderRadius:999,fontWeight:700,whiteSpace:"nowrap",
+                                    background:l?.color,color:l?.text,fontSize:"clamp(11px,3vw,15px)",padding:"clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)"}}>{l?.name}</span>
+                                </div>
+                              </div>
+                            );})}
+                          </div>
+                          {h.paused&&h.paused.length>0&&(
+                            <div style={{borderTop:"1px solid rgba(0,0,0,0.07)",padding:"clamp(6px,1.5vw,10px) clamp(12px,3vw,18px)"}}>
+                              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                                <span style={{color:"#94a3b8",fontSize:"clamp(10px,2.5vw,12px)",fontWeight:700}}>Paused</span>
+                                {h.paused.map(id=>{const t=teamById(id);if(!t)return null;return(
+                                  <span key={id} style={{display:"inline-flex",alignItems:"center",borderRadius:999,fontWeight:700,
+                                    background:"rgba(0,0,0,0.05)",color:"#64748b",fontSize:"clamp(11px,3vw,15px)",
+                                    padding:"clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)",
+                                    border:"1px solid rgba(0,0,0,0.1)",textDecoration:"line-through"}}>{t.name}</span>
+                                );})}
+                              </div>
+                            </div>
+                          )}
+                          {hasBye&&(
+                            <div style={{borderTop:"1px solid rgba(0,0,0,0.07)",padding:"clamp(6px,1.5vw,10px) clamp(12px,3vw,18px)"}}>
+                              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                                <span style={{color:"#94a3b8",fontSize:"clamp(10px,2.5vw,12px)",fontWeight:700}}>Bye</span>
+                                {h.bye.map(id=>{const t=teamById(id);if(!t)return null;return(
+                                  <span key={id} style={{display:"inline-flex",alignItems:"center",borderRadius:999,fontWeight:700,
+                                    background:t.color,color:t.text,fontSize:"clamp(11px,3vw,15px)",padding:"clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)"}}>{t.name}</span>
+                                );})}
+                              </div>
+                            </div>
+                          )}
+                          <div style={{borderTop:"1px solid rgba(0,0,0,0.07)",padding:"clamp(6px,1.5vw,10px) clamp(12px,3vw,18px)"}}>
+                            <p style={{fontSize:"clamp(9px,2vw,11px)",color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",margin:"0 0 4px"}}>Rankings</p>
+                            <div style={{display:"flex",flexWrap:"wrap",gap:"clamp(8px,2vw,16px) clamp(12px,3vw,20px)"}}>
+                              {played.map(id=>{const b=rb(id),a=ra(id),d=b-a,t=teamById(id);if(!t)return null;return(
+                                <div key={id} style={{display:"flex",alignItems:"center",gap:4,fontSize:"clamp(11px,2.5vw,14px)"}}>
+                                  <span style={{color:t.color,fontWeight:700}}>{t.name}</span>
+                                  <span style={{color:"#94a3b8"}}>#{b}→</span>
+                                  <span style={{fontWeight:700,color:d>0?"#16a34a":d<0?"#dc2626":"#94a3b8"}}>#{a}</span>
+                                  {d>0&&<span style={{color:"#16a34a",fontSize:"clamp(9px,2vw,11px)"}}>▲{d}</span>}
+                                  {d<0&&<span style={{color:"#dc2626",fontSize:"clamp(9px,2vw,11px)"}}>▼{Math.abs(d)}</span>}
+                                </div>
+                              );})}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const root=ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App/>);
+  </script>
+</body>
+</html>
