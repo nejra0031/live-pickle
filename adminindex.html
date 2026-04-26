@@ -762,6 +762,38 @@
       );
     }
 
+    // ─── Manage Courts Modal (admin, mid-tournament) ──────────────────────────
+    function ManageCourtsModal({courtNumbers,onSave,onClose}){
+      const[local,setLocal]=useState(courtNumbers.map(c=>String(c)));
+      const rename=(i,v)=>setLocal(p=>p.map((c,j)=>j===i?v:c));
+      const valid=local.every(v=>v.trim()!=="")&&new Set(local.map(v=>v.trim())).size===local.length;
+      return(
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{background:"rgba(0,0,0,0.85)",overflowY:"auto"}} onClick={onClose}>
+          <div className="rounded-2xl p-5 w-full max-w-xs flex flex-col gap-4 my-4" style={{background:"#1e293b",border:"1px solid rgba(99,102,241,0.4)"}} onClick={e=>e.stopPropagation()}>
+            <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">🏟️ Manage Courts</div>
+            <p className="text-xs text-slate-500">Rename court labels. Changes take effect immediately for all viewers.</p>
+            <div className="flex flex-col gap-2">
+              {local.map((c,i)=>(
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-bold" style={{width:20,textAlign:"right"}}>{i+1}.</span>
+                  <input value={c} onChange={e=>rename(i,e.target.value)}
+                    style={{flex:1,padding:"6px 10px",borderRadius:8,fontSize:13,fontWeight:700,
+                      background:"rgba(255,255,255,0.08)",border:`1px solid ${c.trim()===""||local.filter((_,j)=>j!==i).map(v=>v.trim()).includes(c.trim())?"#ef4444":"rgba(255,255,255,0.15)"}`,
+                      color:"#e2e8f0",outline:"none"}}/>
+                </div>
+              ))}
+            </div>
+            {!valid&&<p className="text-xs text-amber-400">Court names must be unique and non-empty.</p>}
+            <div className="flex gap-2 pt-1">
+              <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"rgba(255,255,255,0.06)",color:"#94a3b8",cursor:"pointer"}}>Cancel</button>
+              <button onClick={()=>valid&&onSave(local.map(v=>v.trim()))} disabled={!valid} className="flex-1 py-2 rounded-xl text-sm font-bold"
+                style={{background:valid?"linear-gradient(90deg,#6366f1,#8b5cf6)":"rgba(255,255,255,0.04)",color:valid?"#fff":"#475569",cursor:valid?"pointer":"not-allowed"}}>Save</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ─── Manage Teams Modal (admin, mid-tournament) ───────────────────────────
     // Allows renaming existing teams and adding new teams from unused colour slots.
     function ManageTeamsModal({activeTeamIds,tournamentTeams,onSave,onClose}){
@@ -902,6 +934,7 @@
       const[round,setRound]=useState(null);
       const[roundNum,setRoundNum]=useState(1);
       const[pending,setPending]=useState({});
+      const pendingRef=useRef({});    // always in sync with pending; safe to read in async handlers
       const[roundComplete,setRoundComplete]=useState(false);
       const[roundKey,setRoundKey]=useState(0);
       const[activeTab,setActiveTab]=useState("play");
@@ -916,6 +949,7 @@
       const[presence,setPresence]=useState({viewers:0,admins:0});
       const[showTimerSettings,setShowTimerSettings]=useState(false);
       const[showManageTeams,setShowManageTeams]=useState(false);
+      const[showManageCourts,setShowManageCourts]=useState(false);
       const[savedState,setSavedState]=useState(null);
       const[finalRound,setFinalRound]=useState(false);
       const[adminPin,setAdminPin]=useState(null); // loaded from Firebase config/adminPin
@@ -967,15 +1001,15 @@
         }
       };
 
-      // Firebase write token — prevents echo
-      const lastWriteToken=useRef(null);
+      // Firebase write tokens — keep a Set so rapid successive writes don't break echo suppression
+      const recentWriteTokens=useRef(new Set());
       const pushSnapshot=useCallback((snapshot)=>{
-        const tok=Math.random().toString(36).slice(2); lastWriteToken.current=tok;
+        const tok=Math.random().toString(36).slice(2); recentWriteTokens.current.add(tok);
         if(!snapshot){db.ref('current_tournament').set({phase:"ended",_writeToken:tok});return;}
         db.ref('current_tournament').set({...snapshot,_writeToken:tok});
       },[]);
       const pushAtomicUpdate=useCallback((fields)=>{
-        const tok=Math.random().toString(36).slice(2); lastWriteToken.current=tok;
+        const tok=Math.random().toString(36).slice(2); recentWriteTokens.current.add(tok);
         db.ref('current_tournament').update({...fields,_writeToken:tok});
       },[]);
 
@@ -999,7 +1033,7 @@
         setHistory(s.history);setStandings(ns);setRound(nr);setRoundNum(s.roundNum);
         setPausedIds(s.pausedIds||[]);setRoundComplete(s.roundComplete||false);
         const isNew=s.roundNum!==lastSeenRoundNum.current;
-        if(isNew){lastSeenRoundNum.current=s.roundNum;setPending({});setRoundKey(k=>k+1);}
+        if(isNew){lastSeenRoundNum.current=s.roundNum;pendingRef.current={};setPending({});setRoundKey(k=>k+1);}
         alarmFiredRef.current=false;
         const _tRun=s.timerRunning||false,_tSA=s.timerStartedAt||null,_tPS=s.timerPausedSecsLeft??s.timerDuration??0,_tDur=s.timerDuration||0;
         const _curSecs=_tRun&&_tSA?Math.max(0,_tPS-Math.floor((Date.now()-_tSA)/1000)):_tPS;
@@ -1014,7 +1048,7 @@
           const data=snap.val();
           if(!initialLoadDone.current)initialLoadDone.current=true;
           if(!data){setPhase(p=>p==="play"?"waiting":p);return;}
-          if(data._writeToken&&data._writeToken===lastWriteToken.current)return;
+          if(data._writeToken&&recentWriteTokens.current.has(data._writeToken))return;
           if(data.phase!=="play"){setPhase("waiting");return;}
           updateAllStates(normaliseSnapshot(data));
         });
@@ -1023,7 +1057,7 @@
 
       useEffect(()=>{
         const ref=db.ref('current_tournament/pendingResults');
-        ref.on('value',snap=>{const d=snap.val();if(!d)return;setPending(prev=>{const m={...prev};Object.keys(d).forEach(k=>{if(!m[k])m[k]=d[k];});return m;});});
+        ref.on('value',snap=>{const d=snap.val();if(!d)return;setPending(prev=>{const m={...prev};Object.keys(d).forEach(k=>{if(!m[k])m[k]=d[k];});pendingRef.current=m;return m;});});
         return()=>ref.off();
       },[]);
 
@@ -1046,7 +1080,14 @@
       useEffect(()=>{
         if(phase!=="play")return;
         const rd=(round&&round.courts&&round.courts.length>0)?{courtTeamIds:round.courts.map(p=>p.map(t=>t&&t.id).filter(Boolean)),byeIds:(round.bye||[]).map(t=>t&&t.id).filter(Boolean),pausedTeamIds:(round.paused||[]).map(t=>t&&t.id).filter(Boolean)}:null;
-        saveState({phase,activeTeamIds,courtNumbers,timerDuration,timerDefaultMins,history,roundNum,pausedIds,roundData:rd,teamRegistry:tournamentTeams,tournamentTitle,timerRunning:timerRunningRef.current,timerStartedAt:timerStartedAtRef.current,timerPausedSecsLeft:timerPausedSecsRef.current,savedAt:Date.now()});
+        // Compute the true remaining seconds at save time so that restoring never
+        // tries to resume a timer whose epoch is in the past (which would instantly
+        // trigger the end-of-round alarm on restore).
+        const savedSecsLeft=timerRunningRef.current&&timerStartedAtRef.current
+          ?Math.max(0,timerPausedSecsRef.current-Math.floor((Date.now()-timerStartedAtRef.current)/1000))
+          :timerPausedSecsRef.current;
+        saveState({phase,activeTeamIds,courtNumbers,timerDuration,timerDefaultMins,history,roundNum,pausedIds,roundData:rd,teamRegistry:tournamentTeams,tournamentTitle,
+          timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:savedSecsLeft,savedAt:Date.now()});
       },[phase,history,roundNum,pausedIds,activeTeamIds,courtNumbers,timerDuration]);
 
       const handleRestore=()=>{ const s=savedState;setSavedState(null);updateAllStates(normaliseSnapshot(s));setActiveTab("play"); };
@@ -1069,14 +1110,14 @@
         saveState(snap);pushSnapshot(snap);setIsAdmin(true);
         setActiveTeamIds(teamIds);setCourtNumbers(courts);setTimerDuration(durSecs);
         setStandings(s);setRound(null);setRoundNum(0);setHistory([]);
-        lastSeenRoundNum.current=0;setPending({});setPausedIds([]);setRoundKey(0);setRoundComplete(false);
+        lastSeenRoundNum.current=0;pendingRef.current={};setPending({});setPausedIds([]);setRoundKey(0);setRoundComplete(false);
         alarmFiredRef.current=false; warningsFiredRef.current=new Set(); setTimerAlarmed(false);applyTimerState(false,null,durSecs);
         setPhase("play");setActiveTab("play");
       };
 
       const handlePinSuccess=()=>{
         if(pinPurpose==="admin")setIsAdmin(true);
-        else if(pinPurpose==="reset"){clearSave();pushSnapshot(null);lastSeenRoundNum.current=-1;setPhase("setup");setIsAdmin(false);setHistory([]);setStandings([]);setRound(null);setPausedIds([]);setPending({});resetTimer(0);}
+        else if(pinPurpose==="reset"){clearSave();pushSnapshot(null);lastSeenRoundNum.current=-1;setPhase("setup");setIsAdmin(false);setHistory([]);setStandings([]);setRound(null);setPausedIds([]);pendingRef.current={};setPending({});resetTimer(0);}
         else if(pinPurpose==="regenerate"){doRegenerateRound();}
         setPinPurpose(null);
       };
@@ -1091,14 +1132,23 @@
         if(isAdmin)pushAtomicUpdate({teamRegistry:newRegistry,activeTeamIds:newActiveIds});
       };
 
-            const handleTogglePause=id=>{
+            const handleManageCourtsSave=(newCourts)=>{
+        setCourtNumbers(newCourts);
+        setShowManageCourts(false);
+        if(isAdmin)pushAtomicUpdate({courtNumbers:newCourts});
+      };
+
+      const handleTogglePause=id=>{
         const np=pausedIds.includes(id)?pausedIds.filter(x=>x!==id):[...pausedIds,id];
         setPausedIds(np);
         if(isAdmin)pushAtomicUpdate({pausedIds:np});
       };
 
       const handleResult=(ci,result)=>{
-        warmUpAudio(); const key=courtKey(ci);const np={...pending,[key]:result};setPending(np);
+        warmUpAudio(); const key=courtKey(ci);
+        const np={...pendingRef.current,[key]:result};
+        pendingRef.current=np;
+        setPending(np);
         if(isAdmin)pushAtomicUpdate({[`pendingResults/${key}`]:result});
         if(round.courts.every((_,i)=>np[courtKey(i)])){
           const games=round.courts.map((_,i)=>({...np[courtKey(i)],courtNumber:courtNumbers[i]??i+1}));
@@ -1118,7 +1168,7 @@
         const ns=rebuildStandings(activeTeamIds,history);
         const nr=generateRound(ns,numCourts,history.length,history,pausedIds,finalRound);
         if(isAdmin){const rd={courtTeamIds:nr.courts.map(p=>p.map(t=>t.id)),byeIds:nr.bye.map(t=>t.id),pausedTeamIds:(nr.paused||[]).map(t=>t.id)};pushAtomicUpdate({roundData:rd,pendingResults:null});}
-        setRound(nr);setPending({});setRoundKey(k=>k+1);
+        setRound(nr);pendingRef.current={};setPending({});setRoundKey(k=>k+1);
       };
 
       // Advance to next round (or generate round 1 from roundNum=0)
@@ -1132,7 +1182,7 @@
           const snap={phase:"play",activeTeamIds,courtNumbers,teamRegistry:tournamentTeams,tournamentTitle,timerDuration,timerDefaultMins,history,roundNum:newRN,pausedIds,roundComplete:false,timerRunning:timerDuration>0,timerStartedAt:sa,timerPausedSecsLeft:timerDuration,roundData:rd,savedAt:Date.now()};
           lastSeenRoundNum.current=newRN;saveState(snap);pushSnapshot(snap);
         }
-        setRound(nr);setRoundNum(newRN);setPending({});setRoundKey(k=>k+1);setRoundComplete(false);setFinalRound(false);
+        setRound(nr);setRoundNum(newRN);pendingRef.current={};setPending({});setRoundKey(k=>k+1);setRoundComplete(false);setFinalRound(false);
         alarmFiredRef.current=false; warningsFiredRef.current=new Set();
         const sa=timerDuration>0?Date.now():null;applyTimerState(timerDuration>0,sa,timerDuration);
       };
@@ -1141,9 +1191,10 @@
       const handleEditSave=(ri,gameIdx,{game:ng,newBye})=>{
         const nh=history.map((h,i)=>i!==ri?h:{...h,games:h.games.map((g,gi)=>gi!==gameIdx?g:{...ng}),bye:newBye});
         const ns=rebuildStandings(activeTeamIds,nh);
-        const nr=generateRound(ns,numCourts,nh.length,nh,pausedIds);
         if(isAdmin)pushAtomicUpdate({history:nh});
-        setHistory(nh);setStandings(ns);setRound(nr);setEditTarget(null);
+        // Never touch round — active round stays intact; between rounds stays null
+        // and will be generated fresh when the admin advances.
+        setHistory(nh);setStandings(ns);setEditTarget(null);
       };
 
       const ranked=rerank(standings);
@@ -1155,6 +1206,7 @@
           {pinPurpose&&<PinModal title={pinPurpose==="reset"?"PIN required to reset":"Admin PIN"} correctPin={adminPin} pinLoaded={adminPinLoaded} onSuccess={handlePinSuccess} onClose={()=>setPinPurpose(null)}/>}
           {showTimerSettings&&<TimerSettingsModal currentMins={timerDefaultMins} onSave={m=>{setTimerDefaultMins(m);setTimerDuration(m*60);if(isAdmin)pushAtomicUpdate({timerDefaultMins:m,timerDuration:m*60});}} onClose={()=>setShowTimerSettings(false)}/>}
           {showManageTeams&&<ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} onSave={handleManageTeamsSave} onClose={()=>setShowManageTeams(false)}/>}
+          {showManageCourts&&<ManageCourtsModal courtNumbers={courtNumbers} onSave={handleManageCourtsSave} onClose={()=>setShowManageCourts(false)}/>}
           {editTarget&&history[editTarget.ri]&&(
             <EditGameModal
               game={history[editTarget.ri].games[editTarget.gameIdx]}
@@ -1284,6 +1336,7 @@
                     {isAdmin&&<PausePanel activeTeamIds={activeTeamIds} pausedIds={pausedIds} onTogglePause={handleTogglePause}/>}
                     {isAdmin&&<button onClick={()=>setPinPurpose("reset")} style={{cursor:"pointer",background:"none",border:"none",color:"#94a3b8",fontSize:12,textDecoration:"underline"}}>↩ Back to setup (resets tournament)</button>}
                     {isAdmin&&<button onClick={()=>setShowManageTeams(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>✏️ Manage teams (rename / add)</button>}
+                    {isAdmin&&<button onClick={()=>setShowManageCourts(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>🏟️ Manage courts (rename)</button>}
                   </div>
                 )}
 
@@ -1366,6 +1419,7 @@
                     {isAdmin&&<PausePanel activeTeamIds={activeTeamIds} pausedIds={pausedIds} onTogglePause={handleTogglePause}/>}
                     {isAdmin&&<button onClick={()=>setPinPurpose("reset")} style={{cursor:"pointer",background:"none",border:"none",color:"#94a3b8",fontSize:12,textDecoration:"underline"}}>↩ Back to setup (resets tournament)</button>}
                     {isAdmin&&<button onClick={()=>setShowManageTeams(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>✏️ Manage teams (rename / add)</button>}
+                    {isAdmin&&<button onClick={()=>setShowManageCourts(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>🏟️ Manage courts (rename)</button>}
                   </div>
                 )}
 
