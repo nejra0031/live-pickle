@@ -1106,7 +1106,7 @@
         const resolvedTitle=title||"Tournament";
         setTournamentTitle(resolvedTitle);
         const s=mkStandings(teamIds);
-        const snap={phase:"play",activeTeamIds:teamIds,courtNumbers:courts,teamRegistry:allTeams,tournamentTitle:resolvedTitle,timerDuration:durSecs,timerDefaultMins:12,history:[],roundNum:0,pausedIds:[],timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:durSecs,roundData:null,roundComplete:false,savedAt:Date.now()};
+        const snap={phase:"play",activeTeamIds:teamIds,courtNumbers:courts,teamRegistry:allTeams,tournamentTitle:resolvedTitle,timerDuration:durSecs,timerDefaultMins:durSecs>0?Math.round(durSecs/60):12,history:[],roundNum:0,pausedIds:[],timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:durSecs,roundData:null,roundComplete:false,savedAt:Date.now()};
         saveState(snap);pushSnapshot(snap);setIsAdmin(true);
         setActiveTeamIds(teamIds);setCourtNumbers(courts);setTimerDuration(durSecs);
         setStandings(s);setRound(null);setRoundNum(0);setHistory([]);
