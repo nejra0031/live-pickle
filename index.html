@@ -227,6 +227,7 @@
       const[pausedIds,setPausedIds]=useState([]);
       const[timerSecsLeft,setTimerSecsLeft]=useState(0);
       const[timerDuration,setTimerDuration]=useState(0);
+      const[presence,setPresence]=useState({viewers:0,admins:0});
 
       const timerRunningRef=useRef(false),timerStartedRef=useRef(null),timerPausedRef=useRef(0);
       const timerTickRef=useRef(null);
@@ -298,6 +299,15 @@
 
       useEffect(()=>{document.title=tournamentTitle;},[tournamentTitle]);
 
+      useEffect(()=>{
+        const ref=db.ref('presence').push();
+        ref.set({role:'viewer',joinedAt:Date.now()});
+        ref.onDisconnect().remove();
+        const h=snap=>{const d=snap.val()||{},e=Object.values(d);setPresence({viewers:e.filter(x=>x&&x.role==='viewer').length,admins:e.filter(x=>x&&x.role==='admin').length});};
+        db.ref('presence').on('value',h);
+        return()=>{ref.remove();db.ref('presence').off('value',h);};
+      },[]);
+
       const ranked=rerank(standings);
 
       return(
@@ -313,7 +323,14 @@
                     whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",lineHeight:1.1}}>
                     {tournamentTitle}
                   </h1>
-                  {phase==="play"&&<p style={{margin:0,fontSize:"clamp(10px,2.5vw,13px)",color:"#64748b"}}>{activeTeamIds.length} teams · 🔵 Viewer</p>}
+                  {phase==="play"&&<p style={{margin:0,fontSize:"clamp(10px,2.5vw,13px)",color:"#64748b"}}>
+                    {activeTeamIds.length} teams · 🔵 Viewer
+                    {(presence.admins>0||presence.viewers>1)&&(
+                      <span style={{marginLeft:8,color:"#94a3b8",fontSize:"clamp(9px,2vw,11px)"}}>
+                        {presence.admins>0&&`🟢${presence.admins} `}{presence.viewers>1&&`🔵${presence.viewers}`}
+                      </span>
+                    )}
+                  </p>}
                 </div>
               </div>
               {phase==="play"&&(
