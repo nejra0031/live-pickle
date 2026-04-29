@@ -110,6 +110,7 @@
       const extras = s.activeRoundExtras ? toArr(s.activeRoundExtras) : [];
       const presets = s.nextRoundPresets ? toArr(s.nextRoundPresets) : [];
       const liveAdds = s.liveAdditions ? toArr(s.liveAdditions) : [];
+      const cancelled = s.cancelledRoundNums ? toArr(s.cancelledRoundNums).map(Number) : [];
       return { ...s, history:h, roundData:rd,
         activeTeamIds:toArr(s.activeTeamIds), courtNumbers:toArr(s.courtNumbers),
         pausedIds:toArr(s.pausedIds), teamRegistry:registry,
@@ -122,6 +123,7 @@
         activeRoundExtras:extras,
         nextRoundPresets:presets,
         liveAdditions:liveAdds,
+        cancelledRoundNums:cancelled,
         tournamentFinished:!!s.tournamentFinished };
     }
 
@@ -1349,6 +1351,14 @@
       const[showBreakModal,setShowBreakModal]=useState(false);
       const[removeGameTarget,setRemoveGameTarget]=useState(null);
       const[headerHidden,setHeaderHidden]=useState(false);
+      const[cancelledRoundNums,setCancelledRoundNums]=useState([]);
+      const headerRef=useRef(null);
+      const[headerHeight,setHeaderHeight]=useState(140);
+      useEffect(()=>{
+        const el=headerRef.current;if(!el)return;
+        const ro=new ResizeObserver(([e])=>setHeaderHeight(e.contentRect.height+2));
+        ro.observe(el);return()=>ro.disconnect();
+      },[]);
       const[nextRoundPresets,setNextRoundPresets]=useState([]);
       const[showPresetMatch,setShowPresetMatch]=useState(false);
       const[tournamentFinished,setTournamentFinished]=useState(false);
@@ -1445,6 +1455,7 @@
         setNextRoundPresets(s.nextRoundPresets||[]);
         setTournamentFinished(!!s.tournamentFinished);
         setBreakMode(s.breakMode||null);
+        setCancelledRoundNums(s.cancelledRoundNums||[]);
         const isNew=s.roundNum!==lastSeenRoundNum.current;
         if(isNew){lastSeenRoundNum.current=s.roundNum;pendingRef.current={};setPending({});setRoundKey(k=>k+1);}
         alarmFiredRef.current=false;
@@ -1502,9 +1513,9 @@
           ?Math.max(0,timerPausedSecsRef.current-Math.floor((Date.now()-timerStartedAtRef.current)/1000))
           :timerPausedSecsRef.current;
         saveState({phase,activeTeamIds,courtNumbers,timerDuration,timerDefaultMins,history,roundNum,pausedIds,roundData:rd,teamRegistry:tournamentTeams,tournamentTitle,
-          tournamentMode,roundRobinSchedule,roundRobinCourts,roundRobinStartRoundNum,roundRobinStartSnapshot,roundRobinEndSnapshot,activeRoundExtras,liveAdditions,nextRoundPresets,tournamentFinished,breakMode,
+          tournamentMode,roundRobinSchedule,roundRobinCourts,roundRobinStartRoundNum,roundRobinStartSnapshot,roundRobinEndSnapshot,activeRoundExtras,liveAdditions,nextRoundPresets,tournamentFinished,breakMode,cancelledRoundNums,
           timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:savedSecsLeft,savedAt:Date.now()});
-      },[phase,history,roundNum,pausedIds,activeTeamIds,courtNumbers,timerDuration,tournamentMode,roundRobinSchedule,roundRobinCourts,roundRobinStartRoundNum,roundRobinStartSnapshot,roundRobinEndSnapshot,activeRoundExtras,liveAdditions,nextRoundPresets,tournamentFinished,breakMode]);
+      },[phase,history,roundNum,pausedIds,activeTeamIds,courtNumbers,timerDuration,tournamentMode,roundRobinSchedule,roundRobinCourts,roundRobinStartRoundNum,roundRobinStartSnapshot,roundRobinEndSnapshot,activeRoundExtras,liveAdditions,nextRoundPresets,tournamentFinished,breakMode,cancelledRoundNums]);
 
       const handleRestore=()=>{ const s=savedState;setSavedState(null);updateAllStates(normaliseSnapshot(s));setActiveTab("play"); };
 
@@ -1544,7 +1555,7 @@
 
       const handlePinSuccess=()=>{
         if(pinPurpose==="admin")setIsAdmin(true);
-        else if(pinPurpose==="reset"){clearSave();pushSnapshot(null);lastSeenRoundNum.current=-1;setPhase("setup");setIsAdmin(false);setHistory([]);setStandings([]);setRound(null);setPausedIds([]);pendingRef.current={};setPending({});setTournamentMode("swiss");setRoundRobinSchedule(null);setRoundRobinCourts(null);setRoundRobinStartRoundNum(null);setRoundRobinStartSnapshot(null);setRoundRobinEndSnapshot(null);setActiveRoundExtras([]);setLiveAdditions([]);setNextRoundPresets([]);setTournamentFinished(false);setBreakMode(null);resetTimer(0);}
+        else if(pinPurpose==="reset"){clearSave();pushSnapshot(null);lastSeenRoundNum.current=-1;setPhase("setup");setIsAdmin(false);setHistory([]);setStandings([]);setRound(null);setPausedIds([]);pendingRef.current={};setPending({});setTournamentMode("swiss");setRoundRobinSchedule(null);setRoundRobinCourts(null);setRoundRobinStartRoundNum(null);setRoundRobinStartSnapshot(null);setRoundRobinEndSnapshot(null);setActiveRoundExtras([]);setLiveAdditions([]);setNextRoundPresets([]);setTournamentFinished(false);setBreakMode(null);setCancelledRoundNums([]);resetTimer(0);}
         else if(pinPurpose==="regenerate"){doRegenerateRound();}
         else if(pinPurpose==="exitRR"){doExitRoundRobin();}
         else if(pinPurpose==="cancelRound"){doCancelRound();}
@@ -1633,12 +1644,14 @@
       const doCancelRound=()=>{
         const prevRN=Math.max(0,roundNum-1);
         const prevRC=history.length>0;
+        const newCancelled=[...cancelledRoundNums,roundNum];
         const snap={phase:"play",activeTeamIds,courtNumbers,teamRegistry:tournamentTeams,tournamentTitle,
           timerDuration,timerDefaultMins,history,roundNum:prevRN,pausedIds,roundComplete:prevRC,
           timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:timerDuration,
           roundData:null,tournamentMode,roundRobinSchedule,roundRobinCourts,roundRobinStartRoundNum,
-          roundRobinStartSnapshot,roundRobinEndSnapshot,activeRoundExtras:[],liveAdditions:[],nextRoundPresets,tournamentFinished,savedAt:Date.now()};
+          roundRobinStartSnapshot,roundRobinEndSnapshot,activeRoundExtras:[],liveAdditions:[],nextRoundPresets,tournamentFinished,cancelledRoundNums:newCancelled,savedAt:Date.now()};
         lastSeenRoundNum.current=prevRN;saveState(snap);pushSnapshot(snap);
+        setCancelledRoundNums(newCancelled);
         setRound(null);setRoundNum(prevRN);setRoundComplete(prevRC);
         pendingRef.current={};setPending({});setActiveRoundExtras([]);setRoundKey(k=>k+1);
         alarmFiredRef.current=false;warningsFiredRef.current=new Set();setTimerAlarmed(false);
@@ -1713,19 +1726,17 @@
       // PIN-gated to avoid accidental exits losing the schedule.
       const handleExitRoundRobin=()=>{ setPinPurpose("exitRR"); };
       const doExitRoundRobin=(reason="manual")=>{
-        // Write an end-snapshot if at least one RR round was committed.
+        // Always record an end-snapshot so the History tab can show the marker.
+        // endRoundNum is null when no RR rounds were committed (exited before playing).
         const srn=roundRobinStartRoundNum||0;
         const rrRoundsInHistory=history.filter(h=>h.roundNum>=srn);
-        let endSnap=null;
-        if(rrRoundsInHistory.length>0){
-          const lastRRNum=rrRoundsInHistory.reduce((m,h)=>Math.max(m,h.roundNum),0);
-          endSnap={endRoundNum:lastRRNum,endReason:reason};
-        }
+        const lastRRNum=rrRoundsInHistory.length>0?rrRoundsInHistory.reduce((m,h)=>Math.max(m,h.roundNum),0):null;
+        const endSnap={endRoundNum:lastRRNum,endReason:reason};
         setTournamentMode("swiss");
         setRoundRobinSchedule(null);
         setRoundRobinCourts(null);
         setRoundRobinStartRoundNum(null);
-        if(endSnap)setRoundRobinEndSnapshot(endSnap);
+        setRoundRobinEndSnapshot(endSnap);
         // Clear any uncommitted RR pending entries
         const cleared={};
         Object.keys(pendingRef.current).forEach(k=>{if(!k.startsWith("rr_"))cleared[k]=pendingRef.current[k];});
@@ -1736,7 +1747,7 @@
             roundRobinSchedule:null,
             roundRobinCourts:null,
             roundRobinStartRoundNum:null,
-            ...(endSnap?{roundRobinEndSnapshot:endSnap}:{}),
+            roundRobinEndSnapshot:endSnap,
             pendingResults:null,
           });
         }
@@ -1898,7 +1909,7 @@
           )}
 
           {/* ── Fixed header + nav ── */}
-          <div style={{position:"fixed",top:0,left:0,right:0,zIndex:40,background:"#fff",borderBottom:"1px solid rgba(0,0,0,0.08)",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",display:headerHidden?"none":undefined}}>
+          <div ref={headerRef} style={{position:"fixed",top:0,left:0,right:0,zIndex:40,background:"#fff",borderBottom:"1px solid rgba(0,0,0,0.08)",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",display:headerHidden?"none":undefined}}>
             <div style={{maxWidth:720,margin:"0 auto",padding:"0 clamp(12px,3vw,20px)"}}>
               {/* Title bar */}
               <div className="flex items-center gap-3 py-3">
@@ -1961,7 +1972,7 @@
           {/* ── Scrollable content, padded below fixed header ── */}
           {/* Header height: ~80px title + ~40px tabs (+ ~70px timer when enabled) when play; ~80px otherwise */}
           <div onTouchStart={phase==="play"?handleSwipeStart:undefined} onTouchEnd={phase==="play"?handleSwipeEnd:undefined}
-            style={{maxWidth:720,margin:"0 auto",padding:`${headerHidden?"clamp(44px,8vw,56px)":phase==="play"?((timerDuration>0||breakMode)?"clamp(200px,30vw,250px)":"clamp(130px,18vw,160px)"):"clamp(90px,12vw,110px)"} clamp(12px,3vw,20px) clamp(16px,3vw,24px)`}}>
+            style={{maxWidth:720,margin:"0 auto",padding:`${headerHidden?44:headerHeight+8}px clamp(12px,3vw,20px) clamp(16px,3vw,24px)`}}>
 
             {(phase==="loading"||phase==="waiting")&&!isAdmin&&(
               <div className="rounded-2xl p-10 text-center flex flex-col items-center gap-4" style={{background:"rgba(0,0,0,0.03)",border:"1px solid rgba(0,0,0,0.08)"}}>
@@ -2159,8 +2170,8 @@
                         )}
                     */}
 
-                    <div className="flex flex-col" style={{gap:"clamp(6px,1.5vw,10px)"}}>
-                      <span className="text-blue-900 font-bold" style={{fontSize:"clamp(13px,3vw,17px)"}}>Round {roundNum}</span>
+                    <div style={{textAlign:"center"}}>
+                      <span className="text-blue-900 font-black" style={{fontSize:"clamp(22px,6vw,32px)"}}>Round {roundNum}</span>
                     </div>
 
                     {isAdmin?(
@@ -2605,16 +2616,20 @@
                   const renderRREndSnapshot=()=>{
                     if(!roundRobinEndSnapshot)return null;
                     const {endRoundNum:ern,endReason}=roundRobinEndSnapshot;
+                    const completed=endReason==="completed";
+                    const accent=completed?"rgba(99,102,241,0.35)":"rgba(220,38,38,0.3)";
+                    const bg=completed?"linear-gradient(90deg,rgba(99,102,241,0.12),rgba(139,92,246,0.12))":"linear-gradient(90deg,rgba(220,38,38,0.08),rgba(239,68,68,0.08))";
+                    const textCol=completed?"#4338ca":"#b91c1c";
                     return(
-                      <div className="rounded-2xl" style={{background:"#fff",border:"1px solid rgba(99,102,241,0.35)",overflow:"hidden",boxShadow:"0 2px 12px rgba(99,102,241,0.08)"}}>
-                        <div style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)",background:"linear-gradient(90deg,rgba(99,102,241,0.12),rgba(139,92,246,0.12))",borderBottom:"1px solid rgba(99,102,241,0.2)"}}>
-                          <span style={{fontSize:"clamp(10px,2.5vw,13px)",color:"#4338ca",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.08em"}}>
-                            🔁 Round Robin Ended{endReason==="completed"?" — All Games Played":" — Manual Exit"}
+                      <div className="rounded-2xl" style={{background:"#fff",border:`1px solid ${accent}`,overflow:"hidden",boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
+                        <div style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)",background:bg,borderBottom:`1px solid ${accent}`}}>
+                          <span style={{fontSize:"clamp(10px,2.5vw,13px)",color:textCol,fontWeight:800,textTransform:"uppercase",letterSpacing:"0.08em"}}>
+                            {completed?"🏁 Round Robin Complete":"⛔ Round Robin Cancelled"}
                           </span>
                         </div>
                         <div style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)"}}>
                           <p style={{fontSize:"clamp(11px,2.5vw,14px)",color:"#475569",margin:0}}>
-                            Ended after Round {ern}. Standings carry over from this point on.
+                            {ern!=null?`${completed?"Completed":"Cancelled"} after Round ${ern}. Standings carry over from this point on.`:"Cancelled before any Round Robin rounds were played."}
                           </p>
                         </div>
                       </div>
@@ -2625,21 +2640,32 @@
                   // snapshot represents the current/most-recent state — render it at the top.
                   const showSnapshotAtTop=!!roundRobinStartSnapshot
                     &&history.every(h=>h.roundNum<(roundRobinStartSnapshot.startRoundNum||0));
-                  const _se=[...history].map((h,ri)=>({h,ri})).sort((a,b)=>a.h.roundNum-b.h.roundNum);
+                  // End card at top when RR was exited before any rounds were played.
+                  const showEndAtTop=!!roundRobinEndSnapshot&&roundRobinEndSnapshot.endRoundNum==null;
+                  const _se=[...history].map((h,ri)=>({type:"round",h,ri})).sort((a,b)=>a.h.roundNum-b.h.roundNum);
+                  const _allEntries=[..._se,...cancelledRoundNums.map(n=>({type:"cancelled",roundNum:n}))].sort((a,b)=>{const an=a.type==="round"?a.h.roundNum:a.roundNum,bn=b.type==="round"?b.h.roundNum:b.roundNum;return an-bn;});
 
                   return(
                   <div className="flex flex-col gap-3">
-                    {history.length===0&&!roundRobinStartSnapshot&&<div className="text-center text-slate-400 py-8 text-sm">No rounds completed yet.</div>}
+                    {history.length===0&&!roundRobinStartSnapshot&&!roundRobinEndSnapshot&&cancelledRoundNums.length===0&&<div className="text-center text-slate-400 py-8 text-sm">No rounds completed yet.</div>}
+                    {showEndAtTop&&renderRREndSnapshot()}
                     {showSnapshotAtTop&&renderRRSnapshot()}
-                    {_se.slice().reverse().map(({h,ri},_i)=>{
-                      const _sfi=_se.length-1-_i;
+                    {_allEntries.slice().reverse().map((entry,_i)=>{
+                      if(entry.type==="cancelled"){return(
+                        <div key={`cancelled-${entry.roundNum}`} className="rounded-2xl flex items-center gap-3" style={{padding:"clamp(10px,2.5vw,14px) clamp(12px,3vw,18px)",background:"rgba(220,38,38,0.04)",border:"1px dashed rgba(220,38,38,0.25)"}}>
+                          <span style={{fontSize:"clamp(16px,4vw,20px)"}}>✕</span>
+                          <span style={{fontSize:"clamp(11px,2.5vw,14px)",color:"#dc2626",fontWeight:700}}>Round {entry.roundNum} cancelled</span>
+                        </div>
+                      );}
+                      const {h,ri}=entry;
+                      const _sfi=_se.findIndex(e=>e.ri===ri);
                       const sbf=rebuildStandings(activeTeamIds,_se.slice(0,_sfi).map(e=>e.h)),saf=rebuildStandings(activeTeamIds,_se.slice(0,_sfi+1).map(e=>e.h));
                       const rbf=rerank(sbf),raf=rerank(saf);
                       const rb=id=>rbf.findIndex(t=>t.id===id)+1, ra=id=>raf.findIndex(t=>t.id===id)+1;
                       const played=h.games.flatMap(g=>[g.winnerId,g.loserId]);
                       const hasBye=h.bye?.length>0;
                       const isFirstRR=roundRobinStartSnapshot&&h.roundNum===roundRobinStartSnapshot.startRoundNum;
-                      const isLastRR=roundRobinEndSnapshot&&h.roundNum===roundRobinEndSnapshot.endRoundNum;
+                      const isLastRR=roundRobinEndSnapshot&&roundRobinEndSnapshot.endRoundNum!=null&&h.roundNum===roundRobinEndSnapshot.endRoundNum;
                       return(
                         <React.Fragment key={ri}>
                         {isLastRR&&renderRREndSnapshot()}
