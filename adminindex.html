@@ -96,9 +96,33 @@
         byeIds: toArr(s.roundData.byeIds),
         pausedTeamIds: toArr(s.roundData.pausedTeamIds),
       } : null;
+      const rrSched = s.roundRobinSchedule ? toArr(s.roundRobinSchedule).map(rd=>toArr(rd).map(p=>toArr(p))) : null;
+      const rrCourts = s.roundRobinCourts ? toArr(s.roundRobinCourts).map(String) : null;
+      const rrSnap = s.roundRobinStartSnapshot ? {
+        startRoundNum: s.roundRobinStartSnapshot.startRoundNum ?? null,
+        participatingIds: toArr(s.roundRobinStartSnapshot.participatingIds).map(String),
+        excludedIds: toArr(s.roundRobinStartSnapshot.excludedIds).map(String),
+      } : null;
+      const rrEndSnap = s.roundRobinEndSnapshot ? {
+        endRoundNum: s.roundRobinEndSnapshot.endRoundNum ?? null,
+        endReason: s.roundRobinEndSnapshot.endReason || "manual",
+      } : null;
+      const extras = s.activeRoundExtras ? toArr(s.activeRoundExtras) : [];
+      const presets = s.nextRoundPresets ? toArr(s.nextRoundPresets) : [];
+      const liveAdds = s.liveAdditions ? toArr(s.liveAdditions) : [];
       return { ...s, history:h, roundData:rd,
         activeTeamIds:toArr(s.activeTeamIds), courtNumbers:toArr(s.courtNumbers),
-        pausedIds:toArr(s.pausedIds), teamRegistry:registry };
+        pausedIds:toArr(s.pausedIds), teamRegistry:registry,
+        tournamentMode:s.tournamentMode||"swiss",
+        roundRobinSchedule:rrSched,
+        roundRobinCourts:rrCourts,
+        roundRobinStartRoundNum:s.roundRobinStartRoundNum??null,
+        roundRobinStartSnapshot:rrSnap,
+        roundRobinEndSnapshot:rrEndSnap,
+        activeRoundExtras:extras,
+        nextRoundPresets:presets,
+        liveAdditions:liveAdds,
+        tournamentFinished:!!s.tournamentFinished };
     }
 
     // ─── Persistence ────────────────────────────────────────────────────────
@@ -322,6 +346,36 @@
       };
     }
 
+    // ─── Round-Robin schedule generator ─────────────────────────────────────
+    // Circle-method round-robin → flattened into court-sized scheduling rounds.
+    // Returns array of scheduling rounds; each is an array of [teamIdA, teamIdB] pairs.
+    function generateRoundRobinSchedule(teamIds, numCourts){
+      if(!teamIds||teamIds.length<2)return[];
+      const teams=[...teamIds];
+      const odd=teams.length%2===1;
+      if(odd)teams.push(null); // placeholder to handle odd count
+      const n=teams.length;
+      const naturalRounds=[];
+      for(let r=0;r<n-1;r++){
+        const matches=[];
+        for(let i=0;i<n/2;i++){
+          const a=teams[i], b=teams[n-1-i];
+          if(a&&b)matches.push([a,b]);
+        }
+        naturalRounds.push(matches);
+        // rotate keeping teams[0] fixed
+        teams.splice(1,0,teams.pop());
+      }
+      const courts=Math.max(1,numCourts||1);
+      const scheduledRounds=[];
+      for(const matches of naturalRounds){
+        for(let i=0;i<matches.length;i+=courts){
+          scheduledRounds.push(matches.slice(i,i+courts));
+        }
+      }
+      return scheduledRounds;
+    }
+
     // ─── Helpers ────────────────────────────────────────────────────────────
     const ORDINAL=n=>{const s=["th","st","nd","rd"],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);};
     function TeamChip({teamId}){
@@ -386,8 +440,66 @@
       );
     }
 
+    // ─── Break Modal ─────────────────────────────────────────────────────────
+    function BreakModal({onStart,onClose}){
+      const[message,setMessage]=useState("Taking a short break!");
+      const[mins,setMins]=useState(5);
+      const valid=message.trim()&&mins>=1;
+      return(
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{background:"rgba(0,0,0,0.88)"}} onClick={onClose}>
+          <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4" style={{background:"#1e293b",border:"1px solid rgba(251,191,36,0.4)"}} onClick={e=>e.stopPropagation()}>
+            <div className="text-sm font-bold uppercase tracking-widest" style={{color:"#fbbf24"}}>☕ Start Break</div>
+            <div>
+              <p className="text-xs text-slate-400 mb-2 font-bold uppercase tracking-wide">Message (shown above games)</p>
+              <input value={message} onChange={e=>setMessage(e.target.value)} placeholder="Break message…"
+                style={{width:"100%",padding:"8px 12px",borderRadius:10,fontSize:14,background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.15)",color:"#e2e8f0",outline:"none",boxSizing:"border-box"}}/>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-2 font-bold uppercase tracking-wide">Duration (minutes)</p>
+              <input type="number" value={mins} min={1} max={120} onChange={e=>setMins(Math.max(1,Number(e.target.value)))}
+                style={{width:"100%",padding:"8px 12px",borderRadius:10,fontSize:14,background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.15)",color:"#e2e8f0",outline:"none",boxSizing:"border-box"}}/>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"rgba(255,255,255,0.06)",color:"#94a3b8",cursor:"pointer"}}>Cancel</button>
+              <button onClick={()=>valid&&onStart(message.trim(),mins*60)} disabled={!valid} className="flex-1 py-2 rounded-xl text-sm font-bold"
+                style={{background:valid?"linear-gradient(90deg,#d97706,#f59e0b)":"rgba(255,255,255,0.04)",color:valid?"#fff":"#475569",cursor:valid?"pointer":"not-allowed"}}>
+                Start Break ☕
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ─── Compact timer bar ───────────────────────────────────────────────────
-    function RoundTimer({secsLeft,totalSecs,roundNum,timerRunning,isAdmin,onToggle,onRestart,onOpenSettings}){
+    function RoundTimer({secsLeft,totalSecs,roundNum,timerRunning,isAdmin,onToggle,onRestart,onOpenSettings,breakInfo,onEndBreak}){
+      const[breakSecsLeft,setBreakSecsLeft]=useState(()=>breakInfo?Math.max(0,Math.round((breakInfo.endAt-Date.now())/1000)):0);
+      useEffect(()=>{
+        if(!breakInfo)return;
+        const tick=()=>setBreakSecsLeft(Math.max(0,Math.round((breakInfo.endAt-Date.now())/1000)));
+        tick();const id=setInterval(tick,1000);return()=>clearInterval(id);
+      },[breakInfo&&breakInfo.endAt]);
+      if(breakInfo){
+        const bm=Math.floor(breakSecsLeft/60),bs=breakSecsLeft%60,over=breakSecsLeft===0;
+        return(
+          <div className="flex items-center rounded-xl"
+            style={{padding:"clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)",gap:"clamp(8px,2vw,14px)",
+              background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.5)",marginBottom:"clamp(6px,1.5vw,10px)"}}>
+            <div style={{fontSize:"clamp(20px,5vw,28px)",flexShrink:0}}>☕</div>
+            <div className="flex-1">
+              <div style={{fontSize:"clamp(9px,2vw,12px)",color:"#d97706",lineHeight:1,marginBottom:2,fontWeight:800,letterSpacing:"0.08em"}}>BREAK</div>
+              <div style={{fontFamily:"monospace",fontWeight:800,fontSize:"clamp(13px,3.5vw,18px)",lineHeight:1,color:over?"#ef4444":"#92400e"}}>
+                {over?"BREAK OVER":`${bm}:${String(bs).padStart(2,"0")}`}
+              </div>
+            </div>
+            {isAdmin&&<button onClick={onEndBreak}
+              style={{fontSize:"clamp(10px,2.5vw,13px)",padding:"clamp(4px,1vw,7px) clamp(8px,2vw,12px)",borderRadius:8,fontWeight:700,cursor:"pointer",
+                background:"rgba(251,191,36,0.2)",color:"#92400e",border:"1px solid rgba(251,191,36,0.5)"}}>
+              End Break
+            </button>}
+          </div>
+        );
+      }
       const mins=Math.floor(secsLeft/60),secs=secsLeft%60;
       const pct=totalSecs>0?secsLeft/totalSecs:1;
       const expired=secsLeft===0,urgent=pct<0.2&&!expired;
@@ -762,16 +874,102 @@
       );
     }
 
+    // ─── Select Round-Robin Teams Modal ───────────────────────────────────────
+    // Shows teams in current standings order with checkboxes to pick participants
+    // and a court-subset picker.
+    function SelectRoundRobinTeamsModal({rankedTeamIds,tournamentCourts,onConfirm,onClose}){
+      const[selectedTeams,setSelectedTeams]=useState(()=>new Set());
+      const[selectedCourts,setSelectedCourts]=useState(()=>new Set());
+      const toggleTeam=id=>setSelectedTeams(p=>{const n=new Set(p);if(n.has(id))n.delete(id);else n.add(id);return n;});
+      const toggleCourt=c=>setSelectedCourts(p=>{const n=new Set(p);if(n.has(c))n.delete(c);else n.add(c);return n;});
+      const teamCount=selectedTeams.size, courtCount=selectedCourts.size;
+      const canConfirm=teamCount>=2 && courtCount>=1;
+      const orderedCourts=tournamentCourts.filter(c=>selectedCourts.has(c));
+      return(
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{background:"rgba(0,0,0,0.85)",overflowY:"auto"}} onClick={onClose}>
+          <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4" style={{background:"#1e293b",border:"1px solid rgba(99,102,241,0.4)"}} onClick={e=>e.stopPropagation()}>
+            <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">🔁 Start Round Robin</div>
+
+            {/* Teams */}
+            <div>
+              <p className="text-xs text-slate-400 mb-2 font-bold uppercase tracking-wide">Teams (standings order)</p>
+              <div className="flex flex-col gap-2" style={{maxHeight:260,overflowY:"auto"}}>
+                {rankedTeamIds.map((id,i)=>{
+                  const t=teamById(id);if(!t)return null;
+                  const sel=selectedTeams.has(id);
+                  return(
+                    <button key={id} onClick={()=>toggleTeam(id)}
+                      className="flex items-center gap-3 rounded-xl text-left"
+                      style={{padding:"8px 12px",cursor:"pointer",
+                        background:sel?`${t.color}22`:"rgba(255,255,255,0.04)",
+                        border:`1.5px solid ${sel?t.color:"rgba(255,255,255,0.1)"}`}}>
+                      <span className="font-bold text-slate-500" style={{width:24,fontSize:12}}>#{i+1}</span>
+                      <span style={{width:14,height:14,borderRadius:4,flexShrink:0,
+                        background:sel?t.color:"transparent",
+                        border:`2px solid ${sel?t.color:"rgba(255,255,255,0.25)"}`,
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        color:t.text,fontSize:10,fontWeight:900}}>{sel?"✓":""}</span>
+                      <span className="inline-flex items-center rounded-full font-bold flex-1"
+                        style={{background:t.color,color:t.text,padding:"4px 10px",fontSize:13,
+                          opacity:sel?1:0.55}}>
+                        {t.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">{teamCount} of {rankedTeamIds.length} team{rankedTeamIds.length!==1?"s":""} selected</p>
+            </div>
+
+            {/* Courts */}
+            <div>
+              <p className="text-xs text-slate-400 mb-2 font-bold uppercase tracking-wide">Courts to use</p>
+              <div className="flex flex-wrap gap-2">
+                {tournamentCourts.map(c=>{
+                  const sel=selectedCourts.has(c);
+                  return(
+                    <button key={c} onClick={()=>toggleCourt(c)}
+                      className="rounded-full font-bold"
+                      style={{padding:"5px 12px",fontSize:12,cursor:"pointer",
+                        background:sel?"rgba(99,102,241,0.25)":"rgba(255,255,255,0.04)",
+                        color:sel?"#a5b4fc":"#64748b",
+                        border:`2px solid ${sel?"rgba(99,102,241,0.5)":"rgba(255,255,255,0.1)"}`}}>
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">{courtCount} of {tournamentCourts.length} court{tournamentCourts.length!==1?"s":""} selected</p>
+            </div>
+
+            {!canConfirm&&<p className="text-xs text-amber-400 text-center">{teamCount<2?"Need at least 2 teams.":"Need at least 1 court."}</p>}
+
+            <div className="flex gap-2">
+              <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"rgba(255,255,255,0.06)",color:"#94a3b8",cursor:"pointer"}}>Cancel</button>
+              <button onClick={()=>canConfirm&&onConfirm([...selectedTeams],orderedCourts)} disabled={!canConfirm}
+                className="flex-1 py-2 rounded-xl text-sm font-bold"
+                style={{background:canConfirm?"linear-gradient(90deg,#6366f1,#8b5cf6)":"rgba(255,255,255,0.04)",
+                  color:canConfirm?"#fff":"#475569",cursor:canConfirm?"pointer":"not-allowed"}}>
+                Start →
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ─── Manage Courts Modal (admin, mid-tournament) ──────────────────────────
     function ManageCourtsModal({courtNumbers,onSave,onClose}){
       const[local,setLocal]=useState(courtNumbers.map(c=>String(c)));
       const rename=(i,v)=>setLocal(p=>p.map((c,j)=>j===i?v:c));
-      const valid=local.every(v=>v.trim()!=="")&&new Set(local.map(v=>v.trim())).size===local.length;
+      const remove=(i)=>setLocal(p=>p.filter((_,j)=>j!==i));
+      const addCourt=()=>setLocal(p=>[...p,String(p.length+1)]);
+      const valid=local.length>=1&&local.every(v=>v.trim()!=="")&&new Set(local.map(v=>v.trim())).size===local.length;
       return(
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{background:"rgba(0,0,0,0.85)",overflowY:"auto"}} onClick={onClose}>
           <div className="rounded-2xl p-5 w-full max-w-xs flex flex-col gap-4 my-4" style={{background:"#1e293b",border:"1px solid rgba(99,102,241,0.4)"}} onClick={e=>e.stopPropagation()}>
             <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">🏟️ Manage Courts</div>
-            <p className="text-xs text-slate-500">Rename court labels. Changes take effect immediately for all viewers.</p>
+            <p className="text-xs text-slate-500">Rename, add, or remove courts. Changes take effect immediately.</p>
             <div className="flex flex-col gap-2">
               {local.map((c,i)=>(
                 <div key={i} className="flex items-center gap-2">
@@ -780,14 +978,82 @@
                     style={{flex:1,padding:"6px 10px",borderRadius:8,fontSize:13,fontWeight:700,
                       background:"rgba(255,255,255,0.08)",border:`1px solid ${c.trim()===""||local.filter((_,j)=>j!==i).map(v=>v.trim()).includes(c.trim())?"#ef4444":"rgba(255,255,255,0.15)"}`,
                       color:"#e2e8f0",outline:"none"}}/>
+                  <button onClick={()=>remove(i)} disabled={local.length<=1}
+                    style={{padding:"4px 8px",borderRadius:6,fontSize:13,fontWeight:700,cursor:local.length<=1?"not-allowed":"pointer",
+                      background:"rgba(220,38,38,0.15)",color:local.length<=1?"#475569":"#f87171",border:"1px solid rgba(220,38,38,0.3)"}}>×</button>
                 </div>
               ))}
             </div>
+            <button onClick={addCourt}
+              style={{padding:"6px 12px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",
+                background:"rgba(99,102,241,0.15)",color:"#a5b4fc",border:"1px solid rgba(99,102,241,0.3)"}}>
+              + Add Court
+            </button>
             {!valid&&<p className="text-xs text-amber-400">Court names must be unique and non-empty.</p>}
             <div className="flex gap-2 pt-1">
               <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"rgba(255,255,255,0.06)",color:"#94a3b8",cursor:"pointer"}}>Cancel</button>
               <button onClick={()=>valid&&onSave(local.map(v=>v.trim()))} disabled={!valid} className="flex-1 py-2 rounded-xl text-sm font-bold"
                 style={{background:valid?"linear-gradient(90deg,#6366f1,#8b5cf6)":"rgba(255,255,255,0.04)",color:valid?"#fff":"#475569",cursor:valid?"pointer":"not-allowed"}}>Save</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Preset Match Modal ───────────────────────────────────────────────────
+    // Lets admin lock in a specific matchup for the next generated round.
+    function PresetMatchModal({allTeamIds,courtNumbers,usedTeamIds,onSave,onClose}){
+      const[teamAId,setTeamAId]=useState("");
+      const[teamBId,setTeamBId]=useState("");
+      const[courtNumber,setCourtNumber]=useState(courtNumbers[0]||"");
+      const usedSet=new Set(usedTeamIds);
+      const valid=teamAId&&teamBId&&teamAId!==teamBId&&courtNumber;
+      const chip=(id,active,onClick)=>{
+        const t=teamById(id);if(!t)return null;
+        const disabled=!active&&usedSet.has(id);
+        return(
+          <button key={id} onClick={disabled?undefined:onClick} disabled={disabled}
+            style={{padding:"5px 10px",borderRadius:999,fontSize:12,fontWeight:700,cursor:disabled?"not-allowed":"pointer",
+              opacity:disabled?0.35:1,
+              background:active?t.color+"bb":"rgba(255,255,255,0.05)",
+              color:active?t.text:"#64748b",
+              border:`2px solid ${active?t.color:"rgba(255,255,255,0.1)"}`}}>
+            {t.name}
+          </button>
+        );
+      };
+      return(
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{background:"rgba(0,0,0,0.88)",overflowY:"auto"}} onClick={onClose}>
+          <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4" style={{background:"#1e293b",border:"1px solid rgba(99,102,241,0.4)"}} onClick={e=>e.stopPropagation()}>
+            <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">📌 Pre-set Matchup</div>
+            <p className="text-xs text-slate-500">Lock in a game for the next round. Remaining courts are filled by the algorithm.</p>
+            <div>
+              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Team A</p>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
+                {allTeamIds.map(id=>chip(id,teamAId===id,()=>{setTeamAId(id);if(teamBId===id)setTeamBId("");}))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Team B</p>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
+                {allTeamIds.map(id=>chip(id,teamBId===id,()=>{setTeamBId(id);if(teamAId===id)setTeamAId("");}))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Court</p>
+              <select value={courtNumber} onChange={e=>setCourtNumber(e.target.value)}
+                style={{width:"100%",padding:"8px 12px",borderRadius:10,fontSize:14,fontWeight:700,
+                  background:"#0f172a",border:"1px solid rgba(255,255,255,0.2)",color:"#e2e8f0",outline:"none"}}>
+                <option value="">Select court…</option>
+                {courtNumbers.map(c=><option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"rgba(255,255,255,0.06)",color:"#94a3b8",cursor:"pointer"}}>Cancel</button>
+              <button onClick={()=>valid&&onSave({teamId1:teamAId,teamId2:teamBId,courtNumber})} disabled={!valid} className="flex-1 py-2 rounded-xl text-sm font-bold"
+                style={{background:valid?"linear-gradient(90deg,#6366f1,#8b5cf6)":"rgba(255,255,255,0.04)",color:valid?"#fff":"#475569",cursor:valid?"pointer":"not-allowed"}}>
+                Lock In →
+              </button>
             </div>
           </div>
         </div>
@@ -878,6 +1144,113 @@
       );
     }
 
+    // ─── Add-Game Modal ──────────────────────────────────────────────────────
+    // Lets admin manually add a game to a round (active or historical).
+    function AddGameModal({allTeamIds,defaultCourt,label,courtNumbers=[],onSave,onClose}){
+      const[teamAId,setTeamAId]=useState("");
+      const[teamBId,setTeamBId]=useState("");
+      const[scoreA,setScoreA]=useState("");
+      const[scoreB,setScoreB]=useState("");
+      const[courtNumber,setCourtNumber]=useState(defaultCourt||"");
+
+      const teamA=teamById(teamAId), teamB=teamById(teamBId);
+      const scoresValid=scoreA!==""&&scoreB!==""&&Number(scoreA)!==Number(scoreB);
+      const teamsValid=teamAId&&teamBId&&teamAId!==teamBId;
+      const courtValid=String(courtNumber).trim()!=="";
+      const valid=scoresValid&&teamsValid&&courtValid;
+      const aWins=valid&&Number(scoreA)>Number(scoreB);
+      const winnerId=valid?(aWins?teamAId:teamBId):null;
+      const loserId =valid?(aWins?teamBId:teamAId):null;
+      const winnerScore=valid?Math.max(Number(scoreA),Number(scoreB)):null;
+      const loserScore =valid?Math.min(Number(scoreA),Number(scoreB)):null;
+
+      const chip=(id,active,onClick)=>{
+        const t=teamById(id);if(!t)return null;
+        return(
+          <button key={id} onClick={onClick}
+            style={{padding:"5px 10px",borderRadius:999,fontSize:12,fontWeight:700,cursor:"pointer",
+              background:active?t.color+"bb":"rgba(255,255,255,0.05)",
+              color:active?t.text:"#64748b",
+              border:`2px solid ${active?t.color:"rgba(255,255,255,0.1)"}`}}>
+            {t.name}
+          </button>
+        );
+      };
+
+      const save=()=>{
+        if(!valid)return;
+        onSave({winnerId,loserId,winnerScore,loserScore,courtNumber:String(courtNumber).trim()});
+      };
+
+      return(
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{background:"rgba(0,0,0,0.88)",overflowY:"auto"}} onClick={onClose}>
+          <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4" style={{background:"#1e293b",border:"1px solid rgba(99,102,241,0.4)"}} onClick={e=>e.stopPropagation()}>
+            <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">➕ Add Game{label?` — ${label}`:""}</div>
+
+            <div>
+              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Team A</p>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
+                {allTeamIds.map(id=>chip(id,teamAId===id,()=>{ setTeamAId(id); if(teamBId===id)setTeamBId(teamAId); }))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2.5"
+                style={{background:teamA?`${teamA.color}22`:"rgba(255,255,255,0.04)",border:`1.5px solid ${teamA?teamA.color:"rgba(255,255,255,0.1)"}`}}>
+                {teamA&&<div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background:teamA.color}}/>}
+                <span className="font-bold text-sm flex-1">{teamA?.name||"—"}</span>
+              </div>
+              <NumInput value={scoreA} onChange={setScoreA}/>
+            </div>
+
+            <div className="text-center text-slate-600 text-xs font-bold my-0.5">VS</div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2.5"
+                style={{background:teamB?`${teamB.color}22`:"rgba(255,255,255,0.04)",border:`1.5px solid ${teamB?teamB.color:"rgba(255,255,255,0.1)"}`}}>
+                {teamB&&<div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background:teamB.color}}/>}
+                <span className="font-bold text-sm flex-1">{teamB?.name||"—"}</span>
+              </div>
+              <NumInput value={scoreB} onChange={setScoreB}/>
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Team B</p>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
+                {allTeamIds.map(id=>chip(id,teamBId===id,()=>{ setTeamBId(id); if(teamAId===id)setTeamAId(teamBId); }))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Court</p>
+              {courtNumbers.length>0?(
+                <select value={courtNumber} onChange={e=>setCourtNumber(e.target.value)}
+                  style={{width:"100%",padding:"8px 12px",borderRadius:10,fontSize:14,fontWeight:700,
+                    background:"#0f172a",border:"1px solid rgba(255,255,255,0.2)",color:"#e2e8f0",outline:"none"}}>
+                  <option value="">Select court…</option>
+                  {courtNumbers.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              ):(
+                <input value={courtNumber} onChange={e=>setCourtNumber(e.target.value)} placeholder="Court name or number"
+                  style={{width:"100%",padding:"8px 12px",borderRadius:10,fontSize:14,fontWeight:700,
+                    background:"#0f172a",border:"1px solid rgba(255,255,255,0.2)",color:"#e2e8f0",outline:"none"}}/>
+              )}
+            </div>
+
+            {valid&&winnerId&&<p className="text-xs text-green-400 text-center">→ {teamById(winnerId)?.name} wins {winnerScore}–{loserScore}</p>}
+            {!scoresValid&&scoreA!==""&&scoreB!==""&&<p className="text-xs text-amber-400 text-center">Scores can't be equal.</p>}
+            {!teamsValid&&teamAId&&teamBId&&<p className="text-xs text-amber-400 text-center">Teams must be different.</p>}
+
+            <div className="flex gap-2">
+              <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold" style={{background:"rgba(255,255,255,0.06)",color:"#94a3b8",cursor:"pointer"}}>Cancel</button>
+              <button onClick={save} disabled={!valid} className="flex-1 py-2 rounded-xl text-sm font-bold"
+                style={{background:valid?"linear-gradient(90deg,#6366f1,#8b5cf6)":"rgba(255,255,255,0.04)",color:valid?"#fff":"#475569",cursor:valid?"pointer":"not-allowed"}}>Add</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ─── Pause Panel ─────────────────────────────────────────────────────────
     function PausePanel({activeTeamIds,pausedIds,onTogglePause}){
       return(
@@ -940,6 +1313,17 @@
       const[activeTab,setActiveTab]=useState("play");
       // Guard: timer tab no longer exists, reset if somehow loaded from old state
       useEffect(()=>{ if(activeTab==="timer") setActiveTab("play"); },[activeTab]);
+      const TAB_ORDER=["play","standings","history"];
+      const swipeTouchRef=useRef(null);
+      const handleSwipeStart=e=>{const t=e.touches[0];swipeTouchRef.current={x:t.clientX,y:t.clientY};};
+      const handleSwipeEnd=e=>{
+        if(!swipeTouchRef.current)return;
+        const dx=e.changedTouches[0].clientX-swipeTouchRef.current.x;
+        const dy=e.changedTouches[0].clientY-swipeTouchRef.current.y;
+        swipeTouchRef.current=null;
+        if(Math.abs(dx)<50||Math.abs(dx)<Math.abs(dy))return;
+        setActiveTab(t=>{const i=TAB_ORDER.indexOf(t);if(i===-1)return t;const ni=i+(dx<0?1:-1);return TAB_ORDER[Math.max(0,Math.min(TAB_ORDER.length-1,ni))];});
+      };
       const[editTarget,setEditTarget]=useState(null);
       const[pausedIds,setPausedIds]=useState([]);
       const[isAdmin,setIsAdmin]=useState(false);
@@ -952,6 +1336,24 @@
       const[showManageCourts,setShowManageCourts]=useState(false);
       const[savedState,setSavedState]=useState(null);
       const[finalRound,setFinalRound]=useState(false);
+      const[tournamentMode,setTournamentMode]=useState("swiss");
+      const[roundRobinSchedule,setRoundRobinSchedule]=useState(null);
+      const[roundRobinCourts,setRoundRobinCourts]=useState(null);
+      const[roundRobinStartRoundNum,setRoundRobinStartRoundNum]=useState(null);
+      const[roundRobinStartSnapshot,setRoundRobinStartSnapshot]=useState(null);
+      const[roundRobinEndSnapshot,setRoundRobinEndSnapshot]=useState(null);
+      const[activeRoundExtras,setActiveRoundExtras]=useState([]);
+      const[liveAdditions,setLiveAdditions]=useState([]);
+      const[showLiveAddGame,setShowLiveAddGame]=useState(false);
+      const[breakMode,setBreakMode]=useState(null);
+      const[showBreakModal,setShowBreakModal]=useState(false);
+      const[removeGameTarget,setRemoveGameTarget]=useState(null);
+      const[headerHidden,setHeaderHidden]=useState(false);
+      const[nextRoundPresets,setNextRoundPresets]=useState([]);
+      const[showPresetMatch,setShowPresetMatch]=useState(false);
+      const[tournamentFinished,setTournamentFinished]=useState(false);
+      const[showAddGame,setShowAddGame]=useState(null);// {target:"active"|ri, defaultCourt}
+      const[showSelectRRTeams,setShowSelectRRTeams]=useState(false);
       const[adminPin,setAdminPin]=useState(null); // loaded from Firebase config/adminPin
       const[adminPinLoaded,setAdminPinLoaded]=useState(false);
 
@@ -984,7 +1386,7 @@
         const secs=running&&startedAt?Math.max(0,pausedSecs-Math.floor((Date.now()-startedAt)/1000)):pausedSecs;
         setTimerSecsLeft(secs);setTimerRunning(running);setTimerPausedSecsLeft(pausedSecs);
         clearInterval(timerTickRef.current);
-        if(running&&startedAt){
+        if(running&&startedAt&&secs>0){
           timerTickRef.current=setInterval(()=>{
             const s=computeSecsLeft();setTimerSecsLeft(s);
             // Warning beeps at 3 min and 1 min remaining (only if timer was longer than those)
@@ -1032,12 +1434,25 @@
         setTimerDuration(s.timerDuration||0);setTimerDefaultMins(s.timerDefaultMins||12);
         setHistory(s.history);setStandings(ns);setRound(nr);setRoundNum(s.roundNum);
         setPausedIds(s.pausedIds||[]);setRoundComplete(s.roundComplete||false);
+        setTournamentMode(s.tournamentMode||"swiss");
+        setRoundRobinSchedule(s.roundRobinSchedule||null);
+        setRoundRobinCourts(s.roundRobinCourts||null);
+        setRoundRobinStartRoundNum(s.roundRobinStartRoundNum??null);
+        setRoundRobinStartSnapshot(s.roundRobinStartSnapshot||null);
+        setRoundRobinEndSnapshot(s.roundRobinEndSnapshot||null);
+        setActiveRoundExtras(s.activeRoundExtras||[]);
+        setLiveAdditions(s.liveAdditions||[]);
+        setNextRoundPresets(s.nextRoundPresets||[]);
+        setTournamentFinished(!!s.tournamentFinished);
+        setBreakMode(s.breakMode||null);
         const isNew=s.roundNum!==lastSeenRoundNum.current;
         if(isNew){lastSeenRoundNum.current=s.roundNum;pendingRef.current={};setPending({});setRoundKey(k=>k+1);}
         alarmFiredRef.current=false;
         const _tRun=s.timerRunning||false,_tSA=s.timerStartedAt||null,_tPS=s.timerPausedSecsLeft??s.timerDuration??0,_tDur=s.timerDuration||0;
         const _curSecs=_tRun&&_tSA?Math.max(0,_tPS-Math.floor((Date.now()-_tSA)/1000)):_tPS;
-        [180,60].forEach(thresh=>{if(_tDur>thresh&&_curSecs<thresh)warningsFiredRef.current.add(thresh);});
+        [180,60].forEach(thresh=>{if(_tDur>thresh&&_curSecs<=thresh)warningsFiredRef.current.add(thresh);});
+        // Alarm should ONLY fire on a live transition to 0, never on page load with timer already expired.
+        if(_curSecs<=0&&_tDur>0)alarmFiredRef.current=true;
         applyTimerState(_tRun,_tSA,_tPS);
         setPhase("play");
       },[]);
@@ -1087,8 +1502,9 @@
           ?Math.max(0,timerPausedSecsRef.current-Math.floor((Date.now()-timerStartedAtRef.current)/1000))
           :timerPausedSecsRef.current;
         saveState({phase,activeTeamIds,courtNumbers,timerDuration,timerDefaultMins,history,roundNum,pausedIds,roundData:rd,teamRegistry:tournamentTeams,tournamentTitle,
+          tournamentMode,roundRobinSchedule,roundRobinCourts,roundRobinStartRoundNum,roundRobinStartSnapshot,roundRobinEndSnapshot,activeRoundExtras,liveAdditions,nextRoundPresets,tournamentFinished,breakMode,
           timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:savedSecsLeft,savedAt:Date.now()});
-      },[phase,history,roundNum,pausedIds,activeTeamIds,courtNumbers,timerDuration]);
+      },[phase,history,roundNum,pausedIds,activeTeamIds,courtNumbers,timerDuration,tournamentMode,roundRobinSchedule,roundRobinCourts,roundRobinStartRoundNum,roundRobinStartSnapshot,roundRobinEndSnapshot,activeRoundExtras,liveAdditions,nextRoundPresets,tournamentFinished,breakMode]);
 
       const handleRestore=()=>{ const s=savedState;setSavedState(null);updateAllStates(normaliseSnapshot(s));setActiveTab("play"); };
 
@@ -1099,26 +1515,46 @@
         else{const s=computeSecsLeft();applyTimerState(false,null,s);if(isAdmin)pushTimerState(false,null,s);}
       };
 
-      const numCourts=courtNumbers.length, courtKey=idx=>`court_${idx}`;
+      const numCourts=courtNumbers.length, courtKey=idx=>`court_${idx}`, liveKey=i=>`live_${i}`;
 
       const handleStart=(allTeams,teamIds,courts,durSecs,title)=>{
         registerTeams(allTeams);setTournamentTeams(allTeams);
         const resolvedTitle=title||"Tournament";
         setTournamentTitle(resolvedTitle);
         const s=mkStandings(teamIds);
-        const snap={phase:"play",activeTeamIds:teamIds,courtNumbers:courts,teamRegistry:allTeams,tournamentTitle:resolvedTitle,timerDuration:durSecs,timerDefaultMins:durSecs>0?Math.round(durSecs/60):12,history:[],roundNum:0,pausedIds:[],timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:durSecs,roundData:null,roundComplete:false,savedAt:Date.now()};
+        const snap={phase:"play",activeTeamIds:teamIds,courtNumbers:courts,teamRegistry:allTeams,tournamentTitle:resolvedTitle,timerDuration:durSecs,timerDefaultMins:durSecs>0?Math.round(durSecs/60):12,history:[],roundNum:0,pausedIds:[],timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:durSecs,roundData:null,roundComplete:false,tournamentMode:"swiss",roundRobinSchedule:null,roundRobinCourts:null,roundRobinStartRoundNum:null,roundRobinStartSnapshot:null,roundRobinEndSnapshot:null,activeRoundExtras:[],tournamentFinished:false,savedAt:Date.now()};
         saveState(snap);pushSnapshot(snap);setIsAdmin(true);
         setActiveTeamIds(teamIds);setCourtNumbers(courts);setTimerDuration(durSecs);
         setStandings(s);setRound(null);setRoundNum(0);setHistory([]);
         lastSeenRoundNum.current=0;pendingRef.current={};setPending({});setPausedIds([]);setRoundKey(0);setRoundComplete(false);
+        setTournamentMode("swiss");setRoundRobinSchedule(null);setRoundRobinCourts(null);setRoundRobinStartRoundNum(null);setRoundRobinStartSnapshot(null);setRoundRobinEndSnapshot(null);setActiveRoundExtras([]);setTournamentFinished(false);
         alarmFiredRef.current=false; warningsFiredRef.current=new Set(); setTimerAlarmed(false);applyTimerState(false,null,durSecs);
         setPhase("play");setActiveTab("play");
       };
 
+      const handleBreakStart=(message,durationSecs)=>{
+        const bm={message,endAt:Date.now()+durationSecs*1000};
+        setBreakMode(bm);setShowBreakModal(false);
+        if(isAdmin)pushAtomicUpdate({breakMode:bm});
+      };
+      const handleBreakEnd=()=>{
+        setBreakMode(null);
+        if(isAdmin)pushAtomicUpdate({breakMode:null});
+      };
+
       const handlePinSuccess=()=>{
         if(pinPurpose==="admin")setIsAdmin(true);
-        else if(pinPurpose==="reset"){clearSave();pushSnapshot(null);lastSeenRoundNum.current=-1;setPhase("setup");setIsAdmin(false);setHistory([]);setStandings([]);setRound(null);setPausedIds([]);pendingRef.current={};setPending({});resetTimer(0);}
+        else if(pinPurpose==="reset"){clearSave();pushSnapshot(null);lastSeenRoundNum.current=-1;setPhase("setup");setIsAdmin(false);setHistory([]);setStandings([]);setRound(null);setPausedIds([]);pendingRef.current={};setPending({});setTournamentMode("swiss");setRoundRobinSchedule(null);setRoundRobinCourts(null);setRoundRobinStartRoundNum(null);setRoundRobinStartSnapshot(null);setRoundRobinEndSnapshot(null);setActiveRoundExtras([]);setLiveAdditions([]);setNextRoundPresets([]);setTournamentFinished(false);setBreakMode(null);resetTimer(0);}
         else if(pinPurpose==="regenerate"){doRegenerateRound();}
+        else if(pinPurpose==="exitRR"){doExitRoundRobin();}
+        else if(pinPurpose==="cancelRound"){doCancelRound();}
+        else if(pinPurpose==="removeGame"&&removeGameTarget){
+          const{ri,gameIdx}=removeGameTarget;
+          const nh=history.map((h,i)=>i!==ri?h:{...h,games:h.games.filter((_,gi)=>gi!==gameIdx)});
+          const ns=rebuildStandings(activeTeamIds,nh);
+          if(isAdmin)pushAtomicUpdate({history:nh});
+          setHistory(nh);setStandings(ns);setRemoveGameTarget(null);
+        }
         setPinPurpose(null);
       };
 
@@ -1133,9 +1569,14 @@
       };
 
             const handleManageCourtsSave=(newCourts)=>{
+        const update={courtNumbers:newCourts};
+        if(tournamentMode==="roundrobin"&&roundRobinCourts){
+          const mapped=roundRobinCourts.map(old=>{const idx=courtNumbers.indexOf(old);return idx>=0&&idx<newCourts.length?newCourts[idx]:old;});
+          setRoundRobinCourts(mapped);update.roundRobinCourts=mapped;
+        }
         setCourtNumbers(newCourts);
         setShowManageCourts(false);
-        if(isAdmin)pushAtomicUpdate({courtNumbers:newCourts});
+        if(isAdmin)pushAtomicUpdate(update);
       };
 
       const handleTogglePause=id=>{
@@ -1150,12 +1591,30 @@
         pendingRef.current=np;
         setPending(np);
         if(isAdmin)pushAtomicUpdate({[`pendingResults/${key}`]:result});
-        if(round.courts.every((_,i)=>np[courtKey(i)])){
-          const games=round.courts.map((_,i)=>({...np[courtKey(i)],courtNumber:courtNumbers[i]??i+1}));
+        if(round.courts.every((_,i)=>np[courtKey(i)])&&liveAdditions.every((_,i)=>np[liveKey(i)])){
+          const officialGames=round.courts.map((_,i)=>({...np[courtKey(i)],courtNumber:courtNumbers[i]??i+1}));
+          const liveGames=liveAdditions.map((la,i)=>({...np[liveKey(i)],courtNumber:la.courtNumber}));
+          const games=[...officialGames,...liveGames,...activeRoundExtras];
           const entry={roundNum,games,bye:round.bye.map(t=>t.id),paused:(round.paused||[]).map(t=>t.id)};
           const nh=[...history,entry], ns=rebuildStandings(activeTeamIds,nh);
-          if(isAdmin){const snap={phase:"play",activeTeamIds,courtNumbers,teamRegistry:tournamentTeams,tournamentTitle,timerDuration,timerDefaultMins,history:nh,roundNum,pausedIds,roundComplete:true,timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:timerDuration,roundData:null,savedAt:Date.now()};saveState(snap);pushSnapshot(snap);}
-          setHistory(nh);setStandings(ns);setRound(null);setRoundComplete(true);alarmFiredRef.current=false;setTimerAlarmed(false);applyTimerState(false,null,timerDuration);
+          if(isAdmin){const snap={phase:"play",activeTeamIds,courtNumbers,teamRegistry:tournamentTeams,tournamentTitle,timerDuration,timerDefaultMins,history:nh,roundNum,pausedIds,roundComplete:true,timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:timerDuration,roundData:null,tournamentMode,roundRobinSchedule,roundRobinCourts,roundRobinStartRoundNum,roundRobinStartSnapshot,roundRobinEndSnapshot,activeRoundExtras:[],liveAdditions:[],nextRoundPresets,tournamentFinished,savedAt:Date.now()};saveState(snap);pushSnapshot(snap);}
+          setHistory(nh);setStandings(ns);setRound(null);setRoundComplete(true);setActiveRoundExtras([]);setLiveAdditions([]);alarmFiredRef.current=false;setTimerAlarmed(false);applyTimerState(false,null,timerDuration);
+        }
+      };
+
+      const handleLiveResult=(i,result)=>{
+        warmUpAudio();const key=liveKey(i);
+        const np={...pendingRef.current,[key]:result};
+        pendingRef.current=np;setPending(np);
+        if(isAdmin)pushAtomicUpdate({[`pendingResults/${key}`]:result});
+        if(round.courts.every((_,ci)=>np[courtKey(ci)])&&liveAdditions.every((_,li)=>np[liveKey(li)])){
+          const officialGames=round.courts.map((_,ci)=>({...np[courtKey(ci)],courtNumber:courtNumbers[ci]??ci+1}));
+          const liveGames=liveAdditions.map((la,li)=>({...np[liveKey(li)],courtNumber:la.courtNumber}));
+          const games=[...officialGames,...liveGames,...activeRoundExtras];
+          const entry={roundNum,games,bye:round.bye.map(t=>t.id),paused:(round.paused||[]).map(t=>t.id)};
+          const nh=[...history,entry],ns=rebuildStandings(activeTeamIds,nh);
+          if(isAdmin){const snap={phase:"play",activeTeamIds,courtNumbers,teamRegistry:tournamentTeams,tournamentTitle,timerDuration,timerDefaultMins,history:nh,roundNum,pausedIds,roundComplete:true,timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:timerDuration,roundData:null,tournamentMode,roundRobinSchedule,roundRobinCourts,roundRobinStartRoundNum,roundRobinStartSnapshot,roundRobinEndSnapshot,activeRoundExtras:[],liveAdditions:[],nextRoundPresets,tournamentFinished,savedAt:Date.now()};saveState(snap);pushSnapshot(snap);}
+          setHistory(nh);setStandings(ns);setRound(null);setRoundComplete(true);setActiveRoundExtras([]);setLiveAdditions([]);alarmFiredRef.current=false;setTimerAlarmed(false);applyTimerState(false,null,timerDuration);
         }
       };
 
@@ -1168,23 +1627,170 @@
         const ns=rebuildStandings(activeTeamIds,history);
         const nr=generateRound(ns,numCourts,history.length,history,pausedIds,finalRound);
         if(isAdmin){const rd={courtTeamIds:nr.courts.map(p=>p.map(t=>t.id)),byeIds:nr.bye.map(t=>t.id),pausedTeamIds:(nr.paused||[]).map(t=>t.id)};pushAtomicUpdate({roundData:rd,pendingResults:null});}
-        setRound(nr);pendingRef.current={};setPending({});setRoundKey(k=>k+1);
+        setRound(nr);pendingRef.current={};setPending({});setRoundKey(k=>k+1);setLiveAdditions([]);
+      };
+
+      const doCancelRound=()=>{
+        const prevRN=Math.max(0,roundNum-1);
+        const prevRC=history.length>0;
+        const snap={phase:"play",activeTeamIds,courtNumbers,teamRegistry:tournamentTeams,tournamentTitle,
+          timerDuration,timerDefaultMins,history,roundNum:prevRN,pausedIds,roundComplete:prevRC,
+          timerRunning:false,timerStartedAt:null,timerPausedSecsLeft:timerDuration,
+          roundData:null,tournamentMode,roundRobinSchedule,roundRobinCourts,roundRobinStartRoundNum,
+          roundRobinStartSnapshot,roundRobinEndSnapshot,activeRoundExtras:[],liveAdditions:[],nextRoundPresets,tournamentFinished,savedAt:Date.now()};
+        lastSeenRoundNum.current=prevRN;saveState(snap);pushSnapshot(snap);
+        setRound(null);setRoundNum(prevRN);setRoundComplete(prevRC);
+        pendingRef.current={};setPending({});setActiveRoundExtras([]);setRoundKey(k=>k+1);
+        alarmFiredRef.current=false;warningsFiredRef.current=new Set();setTimerAlarmed(false);
+        applyTimerState(false,null,timerDuration);
       };
 
       // Advance to next round (or generate round 1 from roundNum=0)
       const handleGenerateRound=()=>{
         const ns=rebuildStandings(activeTeamIds,history);
-        const nr=generateRound(ns,numCourts,history.length,history,pausedIds,finalRound);
+        // Apply presets: lock specified teams to their courts, let algorithm fill the rest
+        const validPresets=nextRoundPresets.filter(p=>
+          !pausedIds.includes(p.teamId1)&&!pausedIds.includes(p.teamId2)&&
+          activeTeamIds.includes(p.teamId1)&&activeTeamIds.includes(p.teamId2)
+        );
+        const presetTeamSet=new Set(validPresets.flatMap(p=>[p.teamId1,p.teamId2]));
+        const nsFiltered=ns.filter(t=>!presetTeamSet.has(t.id));
+        const numAlgCourts=Math.max(0,numCourts-validPresets.length);
+        const nr=generateRound(nsFiltered,numAlgCourts,history.length,history,pausedIds,finalRound);
+        // Merge presets at their specified court indices; algorithm courts fill gaps
+        const safe=id=>ns.find(t=>t.id===id)||teamById(id)||{id,name:String(id),color:"#475569",text:"#fff"};
+        const allCourts=new Array(numCourts).fill(null);
+        validPresets.forEach(p=>{const idx=courtNumbers.indexOf(p.courtNumber);if(idx>=0&&idx<numCourts&&!allCourts[idx])allCourts[idx]=[safe(p.teamId1),safe(p.teamId2)];});
+        let algI=0;
+        for(let i=0;i<numCourts;i++){if(!allCourts[i]&&algI<nr.courts.length)allCourts[i]=nr.courts[algI++];}
+        while(algI<nr.courts.length)allCourts.push(nr.courts[algI++]);
+        const finalCourts=allCourts.filter(Boolean);
+        const mergedNr={...nr,courts:finalCourts};
         const newRN=roundNum===0?1:roundNum+1;
         if(isAdmin){
-          const rd={courtTeamIds:nr.courts.map(p=>p.map(t=>t.id)),byeIds:nr.bye.map(t=>t.id),pausedTeamIds:(nr.paused||[]).map(t=>t.id)};
+          const rd={courtTeamIds:mergedNr.courts.map(p=>p.map(t=>t.id)),byeIds:nr.bye.map(t=>t.id),pausedTeamIds:(nr.paused||[]).map(t=>t.id)};
           const sa=timerDuration>0?Date.now():null;
-          const snap={phase:"play",activeTeamIds,courtNumbers,teamRegistry:tournamentTeams,tournamentTitle,timerDuration,timerDefaultMins,history,roundNum:newRN,pausedIds,roundComplete:false,timerRunning:timerDuration>0,timerStartedAt:sa,timerPausedSecsLeft:timerDuration,roundData:rd,savedAt:Date.now()};
+          const snap={phase:"play",activeTeamIds,courtNumbers,teamRegistry:tournamentTeams,tournamentTitle,timerDuration,timerDefaultMins,history,roundNum:newRN,pausedIds,roundComplete:false,timerRunning:timerDuration>0,timerStartedAt:sa,timerPausedSecsLeft:timerDuration,roundData:rd,tournamentMode,roundRobinSchedule,roundRobinCourts,roundRobinStartRoundNum,roundRobinStartSnapshot,roundRobinEndSnapshot,activeRoundExtras,liveAdditions:[],nextRoundPresets:[],tournamentFinished,savedAt:Date.now()};
           lastSeenRoundNum.current=newRN;saveState(snap);pushSnapshot(snap);
         }
-        setRound(nr);setRoundNum(newRN);pendingRef.current={};setPending({});setRoundKey(k=>k+1);setRoundComplete(false);setFinalRound(false);
+        setRound(mergedNr);setRoundNum(newRN);pendingRef.current={};setPending({});setRoundKey(k=>k+1);setRoundComplete(false);setFinalRound(false);setActiveRoundExtras([]);setNextRoundPresets([]);
         alarmFiredRef.current=false; warningsFiredRef.current=new Set();
         const sa=timerDuration>0?Date.now():null;applyTimerState(timerDuration>0,sa,timerDuration);
+      };
+
+      // ── Round-Robin: start (called from team-selection modal) ─────────────
+      const handleStartRoundRobin=(participatingIds,courtsForRR)=>{
+        const courts=(courtsForRR&&courtsForRR.length>0)?courtsForRR:courtNumbers;
+        const schedule=generateRoundRobinSchedule(participatingIds,courts.length);
+        const rrStart=(roundNum||0)+1;
+        const partSet=new Set(participatingIds);
+        const excludedIds=activeTeamIds.filter(id=>!partSet.has(id));
+        const snapshot={startRoundNum:rrStart,participatingIds:[...participatingIds],excludedIds};
+        setTournamentMode("roundrobin");
+        setRoundRobinSchedule(schedule);
+        setRoundRobinCourts(courts);
+        setRoundRobinStartRoundNum(rrStart);
+        setRoundRobinStartSnapshot(snapshot);
+        setRoundRobinEndSnapshot(null);
+        setShowSelectRRTeams(false);
+        if(isAdmin){
+          pushAtomicUpdate({
+            tournamentMode:"roundrobin",
+            roundRobinSchedule:schedule,
+            roundRobinCourts:courts,
+            roundRobinStartRoundNum:rrStart,
+            roundRobinStartSnapshot:snapshot,
+            roundRobinEndSnapshot:null,
+            roundData:null,
+            roundComplete:false,
+            pendingResults:null,
+          });
+        }
+        pendingRef.current={};setPending({});setRound(null);setRoundComplete(false);
+      };
+
+      // ── Round-Robin: exit (revert to swiss; preserve history) ─────────────
+      // PIN-gated to avoid accidental exits losing the schedule.
+      const handleExitRoundRobin=()=>{ setPinPurpose("exitRR"); };
+      const doExitRoundRobin=(reason="manual")=>{
+        // Write an end-snapshot if at least one RR round was committed.
+        const srn=roundRobinStartRoundNum||0;
+        const rrRoundsInHistory=history.filter(h=>h.roundNum>=srn);
+        let endSnap=null;
+        if(rrRoundsInHistory.length>0){
+          const lastRRNum=rrRoundsInHistory.reduce((m,h)=>Math.max(m,h.roundNum),0);
+          endSnap={endRoundNum:lastRRNum,endReason:reason};
+        }
+        setTournamentMode("swiss");
+        setRoundRobinSchedule(null);
+        setRoundRobinCourts(null);
+        setRoundRobinStartRoundNum(null);
+        if(endSnap)setRoundRobinEndSnapshot(endSnap);
+        // Clear any uncommitted RR pending entries
+        const cleared={};
+        Object.keys(pendingRef.current).forEach(k=>{if(!k.startsWith("rr_"))cleared[k]=pendingRef.current[k];});
+        pendingRef.current=cleared;setPending(cleared);
+        if(isAdmin){
+          pushAtomicUpdate({
+            tournamentMode:"swiss",
+            roundRobinSchedule:null,
+            roundRobinCourts:null,
+            roundRobinStartRoundNum:null,
+            ...(endSnap?{roundRobinEndSnapshot:endSnap}:{}),
+            pendingResults:null,
+          });
+        }
+      };
+
+      // ── Round-Robin: per-match score submission ────────────────────────────
+      // Each match keyed by `rr_<schedRoundIdx>_<matchIdx>`. When all matches
+      // of a scheduling round are filled, that round commits to history.
+      const rrMatchKey=(sr,mi)=>`rr_${sr}_${mi}`;
+      const handleRRMatchResult=(srIdx,matchIdx,result)=>{
+        warmUpAudio();
+        const key=rrMatchKey(srIdx,matchIdx);
+        const np={...pendingRef.current,[key]:result};
+        pendingRef.current=np;setPending(np);
+        if(isAdmin)pushAtomicUpdate({[`pendingResults/${key}`]:result});
+
+        // Check if this scheduling round is now complete
+        const schedRound=roundRobinSchedule[srIdx]||[];
+        const allFilled=schedRound.every((_,mi)=>np[rrMatchKey(srIdx,mi)]);
+        if(allFilled){
+          const targetRoundNum=(roundRobinStartRoundNum||1)+srIdx;
+          // Avoid double-commit if already in history
+          if(history.some(h=>h.roundNum===targetRoundNum))return;
+          const rrCourts=(roundRobinCourts&&roundRobinCourts.length>0)?roundRobinCourts:courtNumbers;
+          const games=schedRound.map((_,mi)=>{
+            const r=np[rrMatchKey(srIdx,mi)];
+            return{...r,courtNumber:rrCourts[mi]??mi+1};
+          });
+          const entry={roundNum:targetRoundNum,games,bye:[],paused:[]};
+          const nh=[...history,entry], ns=rebuildStandings(activeTeamIds,nh);
+          // Remove this scheduling round's pending keys
+          const cleared={...np};
+          schedRound.forEach((_,mi)=>{delete cleared[rrMatchKey(srIdx,mi)];});
+          pendingRef.current=cleared;setPending(cleared);
+          setHistory(nh);setStandings(ns);
+          // Track max round committed (admin may score scheduling rounds out of order)
+          const newRoundNum=Math.max(roundNum||0,targetRoundNum);
+          // Detect if every scheduling round is now committed → write the end-snapshot
+          const totalSched=roundRobinSchedule.length;
+          const allDone=roundRobinSchedule.every((_,i)=>nh.some(hh=>hh.roundNum===(roundRobinStartRoundNum||1)+i));
+          let endSnap=null;
+          if(allDone&&totalSched>0){
+            const lastRRNum=(roundRobinStartRoundNum||1)+totalSched-1;
+            endSnap={endRoundNum:lastRRNum,endReason:"completed"};
+            setRoundRobinEndSnapshot(endSnap);
+          }
+          if(isAdmin){
+            const pendingClear={};
+            schedRound.forEach((_,mi)=>{pendingClear[`pendingResults/${rrMatchKey(srIdx,mi)}`]=null;});
+            pushAtomicUpdate({history:nh,roundNum:newRoundNum,...pendingClear,...(endSnap?{roundRobinEndSnapshot:endSnap}:{})});
+          }
+          setRoundNum(newRoundNum);
+          lastSeenRoundNum.current=newRoundNum;
+        }
       };
 
       // Edit historical game (teams + scores) + recompute byes for that round
@@ -1197,16 +1803,81 @@
         setHistory(nh);setStandings(ns);setEditTarget(null);
       };
 
+      // ── Manually add a game ─────────────────────────────────────────────────
+      // target: "active" → adds to the currently-active round's extras (committed when round commits)
+      //         number  → history index — modifies that history entry directly
+      const handleAddGameSave=(target,game)=>{
+        if(target==="active"){
+          // If the round is currently active, store as an extra (will commit with the round).
+          // If round is null but we want to attach to most-recent history entry, fall through.
+          if(round){
+            const ne=[...activeRoundExtras,game];
+            setActiveRoundExtras(ne);
+            if(isAdmin)pushAtomicUpdate({activeRoundExtras:ne});
+          }else if(history.length>0){
+            // No active round — append to the most recent history entry.
+            const ri=history.length-1;
+            const nh=history.map((h,i)=>i!==ri?h:{...h,games:[...h.games,game]});
+            const ns=rebuildStandings(activeTeamIds,nh);
+            setHistory(nh);setStandings(ns);
+            if(isAdmin)pushAtomicUpdate({history:nh});
+          }
+        }else{
+          const ri=Number(target);
+          const nh=history.map((h,i)=>i!==ri?h:{...h,games:[...h.games,game]});
+          const ns=rebuildStandings(activeTeamIds,nh);
+          setHistory(nh);setStandings(ns);
+          if(isAdmin)pushAtomicUpdate({history:nh});
+        }
+        setShowAddGame(null);
+      };
+
+      // ── Tournament finish / resume ──────────────────────────────────────────
+      const handleFinishTournament=()=>{
+        setTournamentFinished(true);
+        if(isAdmin)pushAtomicUpdate({tournamentFinished:true});
+      };
+      const handleResumeTournament=()=>{
+        setTournamentFinished(false);
+        if(isAdmin)pushAtomicUpdate({tournamentFinished:false});
+      };
+
+      // ── Post-RR-completion shortcut: continue with Swiss ────────────────────
+      // Called from the post-RR "What's next?" panel — no PIN required because
+      // RR already finished naturally; the schedule is empty of unplayed work.
+      const handleContinueSwissAfterRR=()=>{ doExitRoundRobin("completed"); };
+
       const ranked=rerank(standings);
 
       return(
         <div className="min-h-screen" onClick={warmUpAudio}
           style={{background:"#fff",fontFamily:"'Trebuchet MS',sans-serif",color:"#1e293b"}}>
 
-          {pinPurpose&&<PinModal title={pinPurpose==="reset"?"PIN required to reset":"Admin PIN"} correctPin={adminPin} pinLoaded={adminPinLoaded} onSuccess={handlePinSuccess} onClose={()=>setPinPurpose(null)}/>}
+          {pinPurpose&&<PinModal title={pinPurpose==="reset"?"PIN required to reset":pinPurpose==="exitRR"?"PIN required to exit Round Robin":pinPurpose==="cancelRound"?"PIN required to cancel round":pinPurpose==="removeGame"?"PIN required to delete game":"Admin PIN"} correctPin={adminPin} pinLoaded={adminPinLoaded} onSuccess={handlePinSuccess} onClose={()=>{setPinPurpose(null);setRemoveGameTarget(null);}}/>}
+          {showBreakModal&&<BreakModal onStart={handleBreakStart} onClose={()=>setShowBreakModal(false)}/>}
           {showTimerSettings&&<TimerSettingsModal currentMins={timerDefaultMins} onSave={m=>{setTimerDefaultMins(m);setTimerDuration(m*60);if(isAdmin)pushAtomicUpdate({timerDefaultMins:m,timerDuration:m*60});}} onClose={()=>setShowTimerSettings(false)}/>}
           {showManageTeams&&<ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} onSave={handleManageTeamsSave} onClose={()=>setShowManageTeams(false)}/>}
           {showManageCourts&&<ManageCourtsModal courtNumbers={courtNumbers} onSave={handleManageCourtsSave} onClose={()=>setShowManageCourts(false)}/>}
+          {showSelectRRTeams&&<SelectRoundRobinTeamsModal rankedTeamIds={ranked.map(t=>t.id)} tournamentCourts={courtNumbers} onConfirm={handleStartRoundRobin} onClose={()=>setShowSelectRRTeams(false)}/>}
+          {showAddGame&&<AddGameModal
+            allTeamIds={activeTeamIds}
+            defaultCourt={showAddGame.defaultCourt||""}
+            courtNumbers={courtNumbers}
+            label={showAddGame.target==="active"?(round?`Round ${roundNum}`:(history.length>0?`Round ${history[history.length-1].roundNum}`:"")):`Round ${history[Number(showAddGame.target)]?.roundNum||""}`}
+            onSave={g=>handleAddGameSave(showAddGame.target,g)}
+            onClose={()=>setShowAddGame(null)}/>}
+          {showPresetMatch&&<PresetMatchModal
+            allTeamIds={activeTeamIds}
+            courtNumbers={courtNumbers}
+            usedTeamIds={nextRoundPresets.flatMap(p=>[p.teamId1,p.teamId2])}
+            onSave={p=>{const np=[...nextRoundPresets,p];setNextRoundPresets(np);if(isAdmin)pushAtomicUpdate({nextRoundPresets:np});setShowPresetMatch(false);}}
+            onClose={()=>setShowPresetMatch(false)}/>}
+          {showLiveAddGame&&<PresetMatchModal
+            allTeamIds={activeTeamIds}
+            courtNumbers={courtNumbers}
+            usedTeamIds={[...(round?.courts.flatMap(p=>p.map(t=>t.id))||[]),...liveAdditions.flatMap(la=>[la.teamId1,la.teamId2])]}
+            onSave={la=>{const nl=[...liveAdditions,la];setLiveAdditions(nl);if(isAdmin)pushAtomicUpdate({liveAdditions:nl});setShowLiveAddGame(false);}}
+            onClose={()=>setShowLiveAddGame(false)}/>}
           {editTarget&&history[editTarget.ri]&&(
             <EditGameModal
               game={history[editTarget.ri].games[editTarget.gameIdx]}
@@ -1217,8 +1888,17 @@
               onClose={()=>setEditTarget(null)}/>
           )}
 
+          {/* Floating "show header" pill — only when header is hidden */}
+          {headerHidden&&(
+            <button onClick={()=>setHeaderHidden(false)}
+              style={{position:"fixed",top:8,right:8,zIndex:50,padding:"6px 14px",borderRadius:999,fontWeight:700,fontSize:12,cursor:"pointer",
+                background:"rgba(15,76,117,0.9)",color:"#fff",border:"none",boxShadow:"0 2px 8px rgba(0,0,0,0.25)"}}>
+              ▼ Show header
+            </button>
+          )}
+
           {/* ── Fixed header + nav ── */}
-          <div style={{position:"fixed",top:0,left:0,right:0,zIndex:40,background:"#fff",borderBottom:"1px solid rgba(0,0,0,0.08)",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+          <div style={{position:"fixed",top:0,left:0,right:0,zIndex:40,background:"#fff",borderBottom:"1px solid rgba(0,0,0,0.08)",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",display:headerHidden?"none":undefined}}>
             <div style={{maxWidth:720,margin:"0 auto",padding:"0 clamp(12px,3vw,20px)"}}>
               {/* Title bar */}
               <div className="flex items-center gap-3 py-3">
@@ -1245,6 +1925,11 @@
                     border:`1px solid ${isAdmin?"rgba(251,191,36,0.5)":"rgba(0,0,0,0.12)"}`}}>
                   {isAdmin?"🔓 Admin":"🔒"}
                 </button>
+                <button onClick={()=>setHeaderHidden(true)} title="Hide header"
+                  style={{flexShrink:0,fontSize:13,padding:"6px 8px",borderRadius:10,fontWeight:700,cursor:"pointer",
+                    background:"rgba(0,0,0,0.04)",color:"#94a3b8",border:"1px solid rgba(0,0,0,0.08)"}}>
+                  ▲
+                </button>
               </div>
 
               {/* Tab bar — only shown during play */}
@@ -1261,12 +1946,22 @@
                   ))}
                 </div>
               )}
+              {/* Compact timer / break bar pinned to the fixed header */}
+              {phase==="play"&&(timerDuration>0||breakMode)&&(
+                <div className="pb-2">
+                  <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum}
+                    timerRunning={timerRunning} isAdmin={isAdmin}
+                    onToggle={timerToggle} onRestart={()=>resetTimer(timerDuration)} onOpenSettings={()=>setShowTimerSettings(true)}
+                    breakInfo={breakMode} onEndBreak={handleBreakEnd}/>
+                </div>
+              )}
             </div>
           </div>
 
           {/* ── Scrollable content, padded below fixed header ── */}
-          {/* Header height: ~80px title + ~40px tabs when play = ~120px; ~80px otherwise */}
-          <div style={{maxWidth:720,margin:"0 auto",padding:`${phase==="play"?"clamp(130px,18vw,160px)":"clamp(90px,12vw,110px)"} clamp(12px,3vw,20px) clamp(16px,3vw,24px)`}}>
+          {/* Header height: ~80px title + ~40px tabs (+ ~70px timer when enabled) when play; ~80px otherwise */}
+          <div onTouchStart={phase==="play"?handleSwipeStart:undefined} onTouchEnd={phase==="play"?handleSwipeEnd:undefined}
+            style={{maxWidth:720,margin:"0 auto",padding:`${headerHidden?"clamp(44px,8vw,56px)":phase==="play"?((timerDuration>0||breakMode)?"clamp(200px,30vw,250px)":"clamp(130px,18vw,160px)"):"clamp(90px,12vw,110px)"} clamp(12px,3vw,20px) clamp(16px,3vw,24px)`}}>
 
             {(phase==="loading"||phase==="waiting")&&!isAdmin&&(
               <div className="rounded-2xl p-10 text-center flex flex-col items-center gap-4" style={{background:"rgba(0,0,0,0.03)",border:"1px solid rgba(0,0,0,0.08)"}}>
@@ -1280,17 +1975,90 @@
 
             {phase==="play"&&(
               <>
-                {/* Compact timer shown on non-play tabs, below the nav */}
-                {timerDuration>0&&activeTab!=="play"&&(
-                  <div style={{marginBottom:"clamp(8px,2vw,14px)"}}>
-                    <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum}
-                      timerRunning={timerRunning} isAdmin={isAdmin}
-                      onToggle={timerToggle} onRestart={()=>resetTimer(timerDuration)} onOpenSettings={()=>setShowTimerSettings(true)}/>
+                {/* The compact RoundTimer used to live here (non-play tabs only); it now sits
+                    in the fixed header on every tab — see the timer block above the content. */}
+
+                {/* ── Break banner — shown on Play tab when break is active ── */}
+                {activeTab==="play"&&breakMode&&(
+                  <div className="rounded-2xl flex flex-col gap-2" style={{padding:"clamp(14px,3.5vw,22px)",background:"linear-gradient(135deg,#fef3c7,#fde68a)",border:"1px solid rgba(217,119,6,0.4)"}}>
+                    <div className="flex items-center gap-2">
+                      <span style={{fontSize:"clamp(22px,5.5vw,32px)"}}>☕</span>
+                      <div>
+                        <p style={{fontWeight:900,fontSize:"clamp(14px,3.5vw,20px)",color:"#92400e",margin:0}}>{breakMode.message}</p>
+                        <p style={{fontSize:"clamp(10px,2.5vw,13px)",color:"#b45309",margin:0}}>Tournament is on a break — matches resume shortly.</p>
+                      </div>
+                    </div>
+                    {isAdmin&&<button onClick={handleBreakEnd}
+                      style={{alignSelf:"flex-start",padding:"6px 16px",borderRadius:8,fontWeight:700,fontSize:"clamp(11px,2.5vw,13px)",cursor:"pointer",
+                        background:"rgba(146,64,14,0.15)",color:"#92400e",border:"1px solid rgba(146,64,14,0.3)"}}>
+                      End Break
+                    </button>}
                   </div>
                 )}
 
+                {/* ── Play tab — Tournament FINISHED (top priority) ── */}
+                {activeTab==="play"&&tournamentFinished&&(()=>{
+                  const top=ranked.slice(0,3);
+                  const podium=[top[1],top[0],top[2]].filter(Boolean);
+                  const heights=[120,160,90];
+                  const medals=["🥈","🥇","🥉"];
+                  const placeFor=t=>top.indexOf(t)+1;
+                  return(
+                    <div className="flex flex-col" style={{gap:"clamp(10px,2.5vw,16px)"}}>
+                      <div className="rounded-2xl text-center"
+                        style={{padding:"clamp(16px,4vw,28px)",
+                          background:"linear-gradient(135deg,#fef3c7,#fde68a)",
+                          border:"1px solid rgba(217,119,6,0.3)"}}>
+                        <div style={{fontSize:"clamp(36px,9vw,56px)"}}>🏆</div>
+                        <p className="font-black" style={{color:"#92400e",fontSize:"clamp(18px,4.5vw,26px)",margin:"4px 0"}}>Tournament Complete</p>
+                        <p style={{color:"#78350f",fontSize:"clamp(11px,2.8vw,14px)",margin:0}}>
+                          {history.length} round{history.length!==1?"s":""} played
+                        </p>
+                      </div>
+                      <div className="flex items-end justify-center" style={{gap:"clamp(6px,1.5vw,12px)",padding:"clamp(12px,3vw,20px) 0"}}>
+                        {podium.map((t,i)=>{
+                          const h=heights[i], place=placeFor(t);
+                          return(
+                            <div key={t.id} className="flex flex-col items-center" style={{flex:"1 1 0",minWidth:0,maxWidth:160}}>
+                              <div style={{fontSize:"clamp(22px,6vw,36px)",marginBottom:4}}>{medals[i]}</div>
+                              <div className="rounded-full font-black inline-flex items-center justify-center"
+                                style={{background:t.color,color:t.text,
+                                  padding:"clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)",
+                                  fontSize:"clamp(12px,3vw,17px)",
+                                  border:"3px solid rgba(255,255,255,0.5)",
+                                  boxShadow:`0 4px 16px ${t.color}55`,
+                                  maxWidth:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                                {t.name}
+                              </div>
+                              <div style={{fontSize:"clamp(10px,2.5vw,13px)",color:"#64748b",fontWeight:700,marginTop:6}}>
+                                {t.wins}W · {t.losses}L · {t.scoreDiff>0?"+":""}{t.scoreDiff}
+                              </div>
+                              <div style={{
+                                width:"100%",height:`clamp(${h*0.5}px,${h*0.18}vw,${h}px)`,
+                                marginTop:8,borderRadius:"8px 8px 0 0",
+                                background:place===1?"linear-gradient(180deg,#fbbf24,#d97706)":place===2?"linear-gradient(180deg,#cbd5e1,#94a3b8)":"linear-gradient(180deg,#f59e42,#b45309)",
+                                display:"flex",alignItems:"center",justifyContent:"center",
+                                color:"#fff",fontWeight:900,fontSize:"clamp(20px,5vw,32px)",
+                                textShadow:"0 2px 4px rgba(0,0,0,0.3)"}}>
+                                {place}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {isAdmin&&<button onClick={handleResumeTournament}
+                        style={{padding:"clamp(8px,2vw,12px)",borderRadius:12,fontWeight:700,
+                          fontSize:"clamp(12px,3vw,15px)",cursor:"pointer",
+                          background:"rgba(0,0,0,0.05)",color:"#475569",border:"1px solid rgba(0,0,0,0.1)"}}>
+                        ↩ Resume tournament
+                      </button>}
+                      {isAdmin&&<button onClick={()=>setPinPurpose("reset")} style={{cursor:"pointer",background:"none",border:"none",color:"#94a3b8",fontSize:12,textDecoration:"underline"}}>↩ Back to setup (resets tournament)</button>}
+                    </div>
+                  );
+                })()}
+
                 {/* ── Play tab — no active round (pre-start or between rounds) ── */}
-                {activeTab==="play"&&!round&&(
+                {activeTab==="play"&&!tournamentFinished&&!round&&tournamentMode==="swiss"&&(
                   <div className="flex flex-col gap-4">
                     {isAdmin?(
                       <div className="rounded-2xl flex flex-col" style={{padding:"clamp(12px,3vw,20px)",gap:"clamp(8px,2vw,14px)",background:"#f8fafc",border:"1px solid rgba(0,0,0,0.08)"}}>
@@ -1321,6 +2089,43 @@
                             background:finalRound?"linear-gradient(90deg,#d97706,#f59e0b)":"linear-gradient(90deg,#0f4c75,#1a6fa8)",color:"#fff"}}>
                           {roundNum===0?"Generate Round 1 →":finalRound?"🏁 Generate Final Round →":`Generate Round ${roundNum+1} →`}
                         </button>
+                        <button onClick={()=>setShowSelectRRTeams(true)}
+                          style={{width:"100%",padding:"clamp(8px,2vw,12px)",borderRadius:12,fontWeight:700,fontSize:"clamp(12px,3vw,15px)",cursor:"pointer",
+                            background:"linear-gradient(90deg,#6366f1,#8b5cf6)",color:"#fff",border:"none"}}>
+                          🔁 Start Round Robin →
+                        </button>
+                        <button onClick={()=>setShowPresetMatch(true)}
+                          style={{width:"100%",padding:"clamp(8px,2vw,12px)",borderRadius:12,fontWeight:700,fontSize:"clamp(12px,3vw,15px)",cursor:"pointer",
+                            background:"rgba(99,102,241,0.1)",color:"#4338ca",border:"1px solid rgba(99,102,241,0.3)"}}>
+                          📌 Pre-set Game for Round {roundNum===0?1:roundNum+1}
+                        </button>
+                        {nextRoundPresets.length>0&&(
+                          <div className="rounded-xl" style={{padding:"clamp(8px,2vw,12px)",background:"rgba(99,102,241,0.06)",border:"1px solid rgba(99,102,241,0.2)"}}>
+                            <p style={{fontSize:"clamp(9px,2vw,11px)",color:"#4338ca",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Pre-set matchups ({nextRoundPresets.length})</p>
+                            <div className="flex flex-col gap-1">
+                              {nextRoundPresets.map((p,pi)=>{const t1=teamById(p.teamId1),t2=teamById(p.teamId2);return(
+                                <div key={pi} className="flex items-center" style={{gap:"clamp(4px,1vw,8px)",fontSize:"clamp(11px,2.5vw,13px)"}}>
+                                  <span style={{color:"#94a3b8",minWidth:50}}>Court {p.courtNumber}</span>
+                                  <span style={{color:t1?.color,fontWeight:700}}>{t1?.name}</span>
+                                  <span style={{color:"#cbd5e1"}}>vs</span>
+                                  <span style={{color:t2?.color,fontWeight:700}}>{t2?.name}</span>
+                                  <button onClick={()=>{const np=nextRoundPresets.filter((_,i)=>i!==pi);setNextRoundPresets(np);if(isAdmin)pushAtomicUpdate({nextRoundPresets:np});}}
+                                    style={{marginLeft:"auto",fontSize:11,padding:"2px 8px",borderRadius:6,background:"rgba(220,38,38,0.1)",color:"#dc2626",border:"1px solid rgba(220,38,38,0.2)",cursor:"pointer"}}>×</button>
+                                </div>
+                              );})}
+                            </div>
+                          </div>
+                        )}
+                        <button onClick={()=>setShowBreakModal(true)}
+                          style={{width:"100%",padding:"clamp(8px,2vw,12px)",borderRadius:12,fontWeight:700,fontSize:"clamp(12px,3vw,15px)",cursor:"pointer",
+                            background:"rgba(217,119,6,0.1)",color:"#92400e",border:"1px solid rgba(217,119,6,0.3)"}}>
+                          ☕ Pause Tournament (Break)
+                        </button>
+                        {isAdmin&&<button onClick={handleFinishTournament}
+                          style={{width:"100%",padding:"clamp(8px,2vw,12px)",borderRadius:12,fontWeight:700,fontSize:"clamp(12px,3vw,15px)",cursor:"pointer",
+                            background:"linear-gradient(90deg,#d97706,#f59e0b)",color:"#fff",border:"none"}}>
+                          🏁 Finish Tournament
+                        </button>}
                       </div>
                     ):(
                       <div className="rounded-2xl p-10 text-center flex flex-col items-center gap-3" style={{background:"rgba(0,0,0,0.03)",border:"1px solid rgba(0,0,0,0.08)"}}>
@@ -1340,30 +2145,22 @@
                   </div>
                 )}
 
-                {/* ── Play tab — active round ── */}
-                {activeTab==="play"&&round&&(
+                {/* ── Play tab — active round (Swiss only) ── */}
+                {activeTab==="play"&&!tournamentFinished&&round&&tournamentMode==="swiss"&&(
                   <div className="flex flex-col gap-4">
-                    {/* Full-screen timer lives here, at top of Play tab */}
-                    {timerDuration>0&&(
-                      <FullScreenTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum}
-                        timerRunning={timerRunning} isAdmin={isAdmin} timerDuration={timerDuration}
-                        onToggle={timerToggle} onRestart={()=>resetTimer(timerDuration)} onOpenSettings={()=>setShowTimerSettings(true)}/>
-                    )}
+                    {/* Full-screen timer removed from the Play tab on 2026-04-29.
+                        Compact RoundTimer now lives in the fixed header instead.
+                        Keeping the original code below as a reference — may want
+                        to bring it back later or reuse for a different surface.
+                        {timerDuration>0&&(
+                          <FullScreenTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum}
+                            timerRunning={timerRunning} isAdmin={isAdmin} timerDuration={timerDuration}
+                            onToggle={timerToggle} onRestart={()=>resetTimer(timerDuration)} onOpenSettings={()=>setShowTimerSettings(true)}/>
+                        )}
+                    */}
 
                     <div className="flex flex-col" style={{gap:"clamp(6px,1.5vw,10px)"}}>
                       <span className="text-blue-900 font-bold" style={{fontSize:"clamp(13px,3vw,17px)"}}>Round {roundNum}</span>
-                      {round.paused?.length>0&&(
-                        <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
-                          <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Paused:</span>
-                          {round.paused.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
-                        </div>
-                      )}
-                      {round.bye?.length>0&&(
-                        <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
-                          <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Bye:</span>
-                          {round.bye.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
-                        </div>
-                      )}
                     </div>
 
                     {isAdmin?(
@@ -1373,6 +2170,12 @@
                           <CourtCard key={`${roundKey}-court-${idx}`} courtLabel={`Court ${courtNumbers[idx]??idx+1}`}
                             teams={teams} onResult={r=>handleResult(idx,r)} done={!!pending[courtKey(idx)]}/>
                         ))}
+                        {liveAdditions.map((la,i)=>{
+                          const tA=teamById(la.teamId1),tB=teamById(la.teamId2);
+                          if(!tA||!tB)return null;
+                          return <CourtCard key={`live-${i}`} courtLabel={`Court ${la.courtNumber}`}
+                            teams={[tA,tB]} onResult={r=>handleLiveResult(i,r)} done={!!pending[liveKey(i)]}/>;
+                        })}
                         <div className="rounded-2xl flex flex-col" style={{padding:"clamp(10px,2.5vw,16px)",gap:"clamp(8px,2vw,12px)",background:"#f8fafc",border:"1px solid rgba(0,0,0,0.08)"}}>
                           <p style={{fontSize:"clamp(9px,2vw,12px)",color:"#64748b",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em"}}>Round Options</p>
                           <div className="flex flex-wrap" style={{gap:"clamp(6px,1.5vw,10px)"}}>
@@ -1388,8 +2191,47 @@
                                 background:"rgba(15,76,117,0.08)",color:"#0f4c75",border:"1px solid rgba(15,76,117,0.2)"}}>
                               🔀 Regenerate Round
                             </button>
+                            <button onClick={()=>setShowLiveAddGame(true)}
+                              style={{fontSize:"clamp(11px,2.5vw,14px)",padding:"clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)",borderRadius:10,fontWeight:700,cursor:"pointer",
+                                background:"rgba(99,102,241,0.1)",color:"#4338ca",border:"1px solid rgba(99,102,241,0.3)"}}>
+                              ➕ Add Game
+                            </button>
+                            <button onClick={()=>setShowBreakModal(true)}
+                              style={{fontSize:"clamp(11px,2.5vw,14px)",padding:"clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)",borderRadius:10,fontWeight:700,cursor:"pointer",
+                                background:"rgba(217,119,6,0.1)",color:"#92400e",border:"1px solid rgba(217,119,6,0.3)"}}>
+                              ☕ Break
+                            </button>
+                            <button onClick={()=>setPinPurpose("cancelRound")}
+                              style={{fontSize:"clamp(11px,2.5vw,14px)",padding:"clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)",borderRadius:10,fontWeight:700,cursor:"pointer",
+                                background:"rgba(220,38,38,0.08)",color:"#dc2626",border:"1px solid rgba(220,38,38,0.25)"}}>
+                              ✕ Cancel Round
+                            </button>
+                            <button onClick={handleFinishTournament}
+                              style={{fontSize:"clamp(11px,2.5vw,14px)",padding:"clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)",borderRadius:10,fontWeight:700,cursor:"pointer",
+                                background:"linear-gradient(90deg,#d97706,#f59e0b)",color:"#fff",border:"none"}}>
+                              🏁 Finish Tournament
+                            </button>
                           </div>
                           <p style={{fontSize:"clamp(10px,2.5vw,13px)",color:"#94a3b8"}}>Regenerate if matchups need adjusting.{Object.keys(pending).length>0?" PIN required — scores already entered.":""}</p>
+                          {activeRoundExtras.length>0&&(
+                            <div className="rounded-xl" style={{padding:"clamp(8px,2vw,12px)",background:"rgba(99,102,241,0.06)",border:"1px solid rgba(99,102,241,0.2)"}}>
+                              <p style={{fontSize:"clamp(9px,2vw,11px)",color:"#4338ca",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Manually added ({activeRoundExtras.length})</p>
+                              <div className="flex flex-col gap-1">
+                                {activeRoundExtras.map((g,gi)=>{const w=teamById(g.winnerId),l=teamById(g.loserId);return(
+                                  <div key={gi} className="flex items-center" style={{gap:"clamp(4px,1vw,8px)",fontSize:"clamp(11px,2.5vw,13px)"}}>
+                                    <span style={{color:"#94a3b8",minWidth:50}}>Court {g.courtNumber}</span>
+                                    <span style={{color:w?.color,fontWeight:700}}>{w?.name}</span>
+                                    <span style={{color:w?.color,fontWeight:800}}>{g.winnerScore}</span>
+                                    <span style={{color:"#cbd5e1"}}>–</span>
+                                    <span style={{color:l?.color,fontWeight:800}}>{g.loserScore}</span>
+                                    <span style={{color:l?.color,fontWeight:700}}>{l?.name}</span>
+                                    <button onClick={()=>{const ne=activeRoundExtras.filter((_,i)=>i!==gi);setActiveRoundExtras(ne);if(isAdmin)pushAtomicUpdate({activeRoundExtras:ne});}}
+                                      style={{marginLeft:"auto",fontSize:11,padding:"2px 8px",borderRadius:6,background:"rgba(220,38,38,0.1)",color:"#dc2626",border:"1px solid rgba(220,38,38,0.2)",cursor:"pointer"}}>×</button>
+                                  </div>
+                                );})}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </>
                     ):(
@@ -1413,6 +2255,46 @@
                             </div>
                           </div>
                         ))}
+                        {liveAdditions.map((la,i)=>{
+                          const tA=teamById(la.teamId1),tB=teamById(la.teamId2);
+                          if(!tA||!tB)return null;
+                          return(
+                            <div key={`live-${i}`} className="rounded-2xl" style={{padding:"clamp(12px,3vw,20px)",background:"#fff",border:"1px solid rgba(0,0,0,0.1)",boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
+                              <p style={{fontSize:"clamp(10px,2.5vw,13px)",color:"#0f4c75",fontWeight:800,marginBottom:"clamp(8px,2vw,14px)",textTransform:"uppercase",letterSpacing:"0.1em"}}>Court {la.courtNumber}</p>
+                              <div className="flex items-stretch" style={{gap:"clamp(8px,2vw,14px)"}}>
+                                <div className="flex-1 flex items-center justify-center rounded-2xl"
+                                  style={{padding:"clamp(14px,3.5vw,24px) clamp(10px,2.5vw,16px)",background:tA.color,border:`2px solid ${tA.color}`}}>
+                                  <span className="font-black text-center leading-tight" style={{fontSize:"clamp(18px,5vw,36px)",color:tA.text}}>{tA.name}</span>
+                                </div>
+                                <div className="flex items-center justify-center flex-shrink-0">
+                                  <span style={{color:"#cbd5e1",fontWeight:900,fontSize:"clamp(14px,3.5vw,22px)"}}>VS</span>
+                                </div>
+                                <div className="flex-1 flex items-center justify-center rounded-2xl"
+                                  style={{padding:"clamp(14px,3.5vw,24px) clamp(10px,2.5vw,16px)",background:tB.color,border:`2px solid ${tB.color}`}}>
+                                  <span className="font-black text-center leading-tight" style={{fontSize:"clamp(18px,5vw,36px)",color:tB.text}}>{tB.name}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Paused / Bye row — shown below the courts/games */}
+                    {(round.paused?.length>0||round.bye?.length>0)&&(
+                      <div className="flex flex-col" style={{gap:"clamp(4px,1vw,8px)"}}>
+                        {round.paused?.length>0&&(
+                          <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
+                            <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Paused:</span>
+                            {round.paused.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
+                          </div>
+                        )}
+                        {round.bye?.length>0&&(
+                          <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
+                            <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Bye:</span>
+                            {round.bye.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1422,6 +2304,161 @@
                     {isAdmin&&<button onClick={()=>setShowManageCourts(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>🏟️ Manage courts (rename)</button>}
                   </div>
                 )}
+
+                {/* ── Play tab — Round Robin mode ── */}
+                {activeTab==="play"&&!tournamentFinished&&tournamentMode==="roundrobin"&&roundRobinSchedule&&(()=>{
+                  const rrCourts=(roundRobinCourts&&roundRobinCourts.length>0)?roundRobinCourts:courtNumbers;
+                  const completedCount=roundRobinSchedule.filter((_,i)=>history.some(h=>h.roundNum===(roundRobinStartRoundNum||1)+i)).length;
+                  const allDone=completedCount===roundRobinSchedule.length&&roundRobinSchedule.length>0;
+
+                  return(
+                  <div className="flex flex-col" style={{gap:"clamp(10px,2.5vw,16px)"}}>
+                    {/* Full-screen timer removed from the Play tab on 2026-04-29.
+                        Compact RoundTimer now lives in the fixed header instead.
+                        Keeping the original code below as a reference — may want
+                        to bring it back later or reuse for a different surface.
+                        {timerDuration>0&&(
+                          <FullScreenTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum}
+                            timerRunning={timerRunning} isAdmin={isAdmin} timerDuration={timerDuration}
+                            onToggle={timerToggle} onRestart={()=>resetTimer(timerDuration)} onOpenSettings={()=>setShowTimerSettings(true)}/>
+                        )}
+                    */}
+                    <div className="rounded-2xl flex flex-col"
+                      style={{padding:"clamp(10px,2.5vw,16px)",gap:"clamp(4px,1vw,8px)",
+                        background:"rgba(99,102,241,0.06)",border:"1px solid rgba(99,102,241,0.25)"}}>
+                      <p className="font-bold" style={{color:"#4338ca",fontSize:"clamp(13px,3.5vw,17px)"}}>
+                        🔁 Round Robin
+                      </p>
+                      <p style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)"}}>
+                        {roundRobinSchedule.length} round{roundRobinSchedule.length!==1?"s":""} ·
+                        {" "}{roundRobinSchedule.reduce((a,r)=>a+r.length,0)} total matches ·
+                        {" "}Courts: {rrCourts.join(", ")}.
+                        {" "}{completedCount}/{roundRobinSchedule.length} round{roundRobinSchedule.length!==1?"s":""} complete.
+                      </p>
+                    </div>
+
+                    {roundRobinSchedule.map((schedRound,srIdx)=>{
+                      const labelNum=(roundRobinStartRoundNum||1)+srIdx;
+                      const committedEntry=history.find(h=>h.roundNum===labelNum);
+                      const isComplete=!!committedEntry;
+                      return(
+                        <div key={srIdx} className="flex flex-col"
+                          style={{gap:"clamp(8px,2vw,12px)",
+                            padding:"clamp(10px,2.5vw,14px)",
+                            borderRadius:14,
+                            background:isComplete?"rgba(34,197,94,0.05)":"rgba(0,0,0,0.02)",
+                            border:`1px solid ${isComplete?"rgba(34,197,94,0.25)":"rgba(0,0,0,0.08)"}`}}>
+                          <div className="flex items-center justify-between">
+                            <span style={{color:isComplete?"#16a34a":"#0f4c75",fontWeight:800,
+                              fontSize:"clamp(12px,3vw,15px)",textTransform:"uppercase",letterSpacing:"0.08em"}}>
+                              {isComplete?"✓ ":""}Round {labelNum}
+                            </span>
+                            {isComplete&&<span style={{color:"#16a34a",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700}}>Complete</span>}
+                          </div>
+
+                          {schedRound.map(([idA,idB],mi)=>{
+                            const tA=teamById(idA), tB=teamById(idB);
+                            if(!tA||!tB)return null;
+                            const courtLabel=`Court ${rrCourts[mi]??mi+1}`;
+                            // If round is committed, find the matching game from history
+                            const committedGame=isComplete
+                              ?committedEntry.games.find(g=>(g.winnerId===idA&&g.loserId===idB)||(g.winnerId===idB&&g.loserId===idA))
+                              :null;
+                            const pendingKey=rrMatchKey(srIdx,mi);
+                            const pendingResult=pending[pendingKey];
+
+                            if(committedGame){
+                              const w=teamById(committedGame.winnerId), l=teamById(committedGame.loserId);
+                              return(
+                                <div key={mi} className="rounded-xl flex items-center"
+                                  style={{padding:"clamp(8px,2vw,12px)",gap:"clamp(8px,2vw,12px)",
+                                    background:"#fff",border:"1px solid rgba(0,0,0,0.08)"}}>
+                                  <span style={{color:"#94a3b8",fontSize:"clamp(10px,2.5vw,12px)",fontWeight:700,minWidth:50}}>{courtLabel}</span>
+                                  <span className="inline-flex items-center rounded-full font-bold"
+                                    style={{background:w?.color,color:w?.text,padding:"3px 10px",fontSize:"clamp(11px,2.8vw,14px)",whiteSpace:"nowrap"}}>{w?.name}</span>
+                                  <span style={{fontWeight:800,color:w?.color,fontSize:"clamp(13px,3vw,16px)"}}>{committedGame.winnerScore}</span>
+                                  <span style={{color:"#cbd5e1"}}>–</span>
+                                  <span style={{fontWeight:800,color:l?.color,fontSize:"clamp(13px,3vw,16px)"}}>{committedGame.loserScore}</span>
+                                  <span className="inline-flex items-center rounded-full font-bold"
+                                    style={{background:l?.color,color:l?.text,padding:"3px 10px",fontSize:"clamp(11px,2.8vw,14px)",whiteSpace:"nowrap"}}>{l?.name}</span>
+                                </div>
+                              );
+                            }
+
+                            if(isAdmin){
+                              return(
+                                <CourtCard key={`rr-${srIdx}-${mi}-${pendingResult?'done':'open'}`}
+                                  courtLabel={courtLabel}
+                                  teams={[tA,tB]}
+                                  onResult={r=>handleRRMatchResult(srIdx,mi,r)}
+                                  done={!!pendingResult}/>
+                              );
+                            }
+                            // Viewer (read-only)
+                            return(
+                              <div key={mi} className="rounded-xl" style={{padding:"clamp(10px,2.5vw,14px)",background:"#fff",border:"1px solid rgba(0,0,0,0.1)"}}>
+                                <p style={{fontSize:"clamp(10px,2.5vw,13px)",color:"#0f4c75",fontWeight:800,marginBottom:"clamp(6px,1.5vw,10px)",textTransform:"uppercase",letterSpacing:"0.1em"}}>{courtLabel}</p>
+                                <div className="flex items-stretch" style={{gap:"clamp(6px,1.5vw,10px)"}}>
+                                  <div className="flex-1 flex items-center justify-center rounded-xl"
+                                    style={{padding:"clamp(10px,2.5vw,16px)",background:tA.color,border:`2px solid ${tA.color}`}}>
+                                    <span className="font-black text-center" style={{fontSize:"clamp(14px,3.5vw,22px)",color:tA.text}}>{tA.name}</span>
+                                  </div>
+                                  <div className="flex items-center justify-center flex-shrink-0">
+                                    <span style={{color:"#cbd5e1",fontWeight:900,fontSize:"clamp(12px,3vw,18px)"}}>VS</span>
+                                  </div>
+                                  <div className="flex-1 flex items-center justify-center rounded-xl"
+                                    style={{padding:"clamp(10px,2.5vw,16px)",background:tB.color,border:`2px solid ${tB.color}`}}>
+                                    <span className="font-black text-center" style={{fontSize:"clamp(14px,3.5vw,22px)",color:tB.text}}>{tB.name}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+
+                    {allDone&&isAdmin&&(
+                      <div className="rounded-2xl flex flex-col"
+                        style={{padding:"clamp(12px,3vw,18px)",gap:"clamp(8px,2vw,12px)",
+                          background:"linear-gradient(135deg,#fef3c7,#fde68a)",border:"1px solid rgba(217,119,6,0.3)"}}>
+                        <p className="font-black text-center" style={{color:"#92400e",fontSize:"clamp(15px,3.5vw,20px)",margin:0}}>🏆 Round Robin Complete</p>
+                        <p className="text-center" style={{color:"#78350f",fontSize:"clamp(11px,2.8vw,14px)",margin:0}}>
+                          {roundRobinSchedule.length} round{roundRobinSchedule.length!==1?"s":""} · {roundRobinSchedule.reduce((a,r)=>a+r.length,0)} matches played
+                        </p>
+                        <button onClick={handleContinueSwissAfterRR}
+                          style={{padding:"clamp(10px,2.5vw,14px)",borderRadius:12,fontWeight:800,fontSize:"clamp(13px,3vw,16px)",cursor:"pointer",
+                            background:"linear-gradient(90deg,#0f4c75,#1a6fa8)",color:"#fff",border:"none"}}>
+                          ↩ Continue with Swiss
+                        </button>
+                        <button onClick={()=>{doExitRoundRobin("completed");setShowSelectRRTeams(true);}}
+                          style={{padding:"clamp(10px,2.5vw,14px)",borderRadius:12,fontWeight:800,fontSize:"clamp(13px,3vw,16px)",cursor:"pointer",
+                            background:"linear-gradient(90deg,#6366f1,#8b5cf6)",color:"#fff",border:"none"}}>
+                          🔁 Start a new Round Robin
+                        </button>
+                        <button onClick={handleFinishTournament}
+                          style={{padding:"clamp(10px,2.5vw,14px)",borderRadius:12,fontWeight:800,fontSize:"clamp(13px,3vw,16px)",cursor:"pointer",
+                            background:"linear-gradient(90deg,#d97706,#f59e0b)",color:"#fff",border:"none"}}>
+                          🏁 Finish Tournament
+                        </button>
+                      </div>
+                    )}
+                    {isAdmin&&!allDone&&<button onClick={handleExitRoundRobin}
+                      style={{padding:"clamp(8px,2vw,12px)",borderRadius:12,fontWeight:700,
+                        fontSize:"clamp(12px,3vw,15px)",cursor:"pointer",
+                        background:"rgba(0,0,0,0.05)",color:"#475569",border:"1px solid rgba(0,0,0,0.1)"}}>
+                      ↩ Exit Round Robin (back to Swiss)
+                    </button>}
+                    {isAdmin&&<button onClick={handleFinishTournament}
+                      style={{padding:"clamp(8px,2vw,12px)",borderRadius:12,fontWeight:700,fontSize:"clamp(12px,3vw,15px)",cursor:"pointer",
+                        background:"linear-gradient(90deg,#d97706,#f59e0b)",color:"#fff",border:"none",display:allDone?"none":"block"}}>
+                      🏁 Finish Tournament
+                    </button>}
+                    {isAdmin&&<button onClick={()=>setPinPurpose("reset")} style={{cursor:"pointer",background:"none",border:"none",color:"#94a3b8",fontSize:12,textDecoration:"underline"}}>↩ Back to setup (resets tournament)</button>}
+                    {isAdmin&&<button onClick={()=>setShowManageCourts(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>🏟️ Manage courts (rename)</button>}
+                  </div>
+                  );
+                })()}
 
                 {/* ── Standings tab ── */}
                 {activeTab==="standings"&&(
@@ -1463,21 +2500,158 @@
                 )}
 
                 {/* ── History tab ── */}
-                {activeTab==="history"&&(
+                {activeTab==="history"&&(()=>{
+                  // Snapshot card shown at the round-robin transition point.
+                  // Standings rebuilt from history entries with roundNum < startRoundNum.
+                  const renderRRSnapshot=()=>{
+                    if(!roundRobinStartSnapshot)return null;
+                    const {startRoundNum:srn,participatingIds=[],excludedIds=[]}=roundRobinStartSnapshot;
+                    const snapHist=history.filter(h=>h.roundNum<srn);
+                    const snapRanked=rerank(rebuildStandings(activeTeamIds,snapHist));
+                    const chip=(id,faded)=>{
+                      const t=teamById(id);if(!t)return null;
+                      return(
+                        <span key={id} className="inline-flex items-center rounded-full font-bold"
+                          style={{background:t.color,color:t.text,
+                            fontSize:"clamp(11px,3vw,15px)",padding:"clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)",
+                            opacity:faded?0.5:1,
+                            textDecoration:faded?"line-through":"none",
+                            border:"2px solid rgba(255,255,255,0.2)"}}>
+                          {t.name}
+                        </span>
+                      );
+                    };
+                    return(
+                      <div className="rounded-2xl" style={{background:"#fff",border:"1px solid rgba(99,102,241,0.35)",overflow:"hidden",boxShadow:"0 2px 12px rgba(99,102,241,0.08)"}}>
+                        <div style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)",background:"linear-gradient(90deg,rgba(99,102,241,0.12),rgba(139,92,246,0.12))",borderBottom:"1px solid rgba(99,102,241,0.2)"}}>
+                          <span style={{fontSize:"clamp(10px,2.5vw,13px)",color:"#4338ca",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.08em"}}>
+                            🔁 Round Robin Started{srn>1?` after Round ${srn-1}`:""}
+                          </span>
+                        </div>
+
+                        {/* Progressing teams */}
+                        {participatingIds.length>0&&(
+                          <div style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)",borderBottom:"1px solid rgba(0,0,0,0.07)"}}>
+                            <p style={{fontSize:"clamp(9px,2vw,11px)",color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Progressed ({participatingIds.length})</p>
+                            <div className="flex flex-wrap" style={{gap:"clamp(4px,1vw,8px)"}}>
+                              {participatingIds.map(id=>chip(id,false))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Dropped-out teams */}
+                        {excludedIds.length>0&&(
+                          <div style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)",borderBottom:"1px solid rgba(0,0,0,0.07)"}}>
+                            <p style={{fontSize:"clamp(9px,2vw,11px)",color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Dropped out ({excludedIds.length})</p>
+                            <div className="flex flex-wrap" style={{gap:"clamp(4px,1vw,8px)"}}>
+                              {excludedIds.map(id=>chip(id,true))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Standings snapshot at start of RR */}
+                        {snapRanked.length>0&&(
+                          <div style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)"}}>
+                            <p style={{fontSize:"clamp(9px,2vw,11px)",color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Standings at start of Round Robin</p>
+                            <div className="rounded-xl overflow-hidden" style={{border:"1px solid rgba(0,0,0,0.08)"}}>
+                              <div className="flex items-center font-bold uppercase tracking-widest"
+                                style={{background:"rgba(15,76,117,0.08)",color:"#475569",
+                                  padding:"clamp(5px,1.2vw,8px) clamp(8px,2vw,12px)",
+                                  gap:"clamp(4px,1vw,8px)",fontSize:"clamp(8px,1.8vw,11px)"}}>
+                                <span style={{width:"clamp(20px,4.5vw,32px)"}}>#</span>
+                                <span className="flex-1">Team</span>
+                                <span style={{width:"clamp(22px,4.5vw,34px)",textAlign:"center"}}>GP</span>
+                                <span style={{width:"clamp(22px,4.5vw,34px)",textAlign:"center",color:"#16a34a"}}>W</span>
+                                <span style={{width:"clamp(22px,4.5vw,34px)",textAlign:"center",color:"#dc2626"}}>L</span>
+                                <span style={{width:"clamp(28px,5.5vw,42px)",textAlign:"center",color:"#0284c7"}}>+/−</span>
+                              </div>
+                              {snapRanked.map((team,i)=>{
+                                const dropped=excludedIds.includes(team.id);
+                                return(
+                                  <div key={team.id} className="flex items-center"
+                                    style={{padding:"clamp(5px,1.2vw,8px) clamp(8px,2vw,12px)",gap:"clamp(4px,1vw,8px)",
+                                      background:i%2===0?"#fff":"#f8fafc",borderTop:"1px solid rgba(0,0,0,0.05)",
+                                      opacity:dropped?0.5:1}}>
+                                    <span style={{width:"clamp(20px,4.5vw,32px)",fontWeight:800,color:"#64748b",fontSize:"clamp(11px,2.5vw,14px)"}}>
+                                      {i+1}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                      <span className="inline-flex items-center rounded-full font-bold"
+                                        style={{background:team.color,color:team.text,
+                                          fontSize:"clamp(10px,2.5vw,13px)",
+                                          padding:"clamp(2px,0.5vw,4px) clamp(7px,1.7vw,12px)",
+                                          textDecoration:dropped?"line-through":"none"}}>
+                                        {team.name}
+                                      </span>
+                                    </div>
+                                    <span style={{width:"clamp(22px,4.5vw,34px)",textAlign:"center",color:"#475569",fontSize:"clamp(11px,2.5vw,14px)",fontWeight:700}}>{team.played}</span>
+                                    <span style={{width:"clamp(22px,4.5vw,34px)",textAlign:"center",color:"#16a34a",fontWeight:800,fontSize:"clamp(11px,2.5vw,14px)"}}>{team.wins}</span>
+                                    <span style={{width:"clamp(22px,4.5vw,34px)",textAlign:"center",color:"#dc2626",fontWeight:800,fontSize:"clamp(11px,2.5vw,14px)"}}>{team.losses}</span>
+                                    <span style={{width:"clamp(28px,5.5vw,42px)",textAlign:"center",fontWeight:800,fontSize:"clamp(11px,2.5vw,14px)",
+                                      color:team.scoreDiff>0?"#16a34a":team.scoreDiff<0?"#dc2626":"#94a3b8"}}>
+                                      {team.scoreDiff>0?"+":""}{team.scoreDiff}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  };
+
+                  // End-snapshot card: rendered above the LAST RR round in reversed display.
+                  const renderRREndSnapshot=()=>{
+                    if(!roundRobinEndSnapshot)return null;
+                    const {endRoundNum:ern,endReason}=roundRobinEndSnapshot;
+                    return(
+                      <div className="rounded-2xl" style={{background:"#fff",border:"1px solid rgba(99,102,241,0.35)",overflow:"hidden",boxShadow:"0 2px 12px rgba(99,102,241,0.08)"}}>
+                        <div style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)",background:"linear-gradient(90deg,rgba(99,102,241,0.12),rgba(139,92,246,0.12))",borderBottom:"1px solid rgba(99,102,241,0.2)"}}>
+                          <span style={{fontSize:"clamp(10px,2.5vw,13px)",color:"#4338ca",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.08em"}}>
+                            🔁 Round Robin Ended{endReason==="completed"?" — All Games Played":" — Manual Exit"}
+                          </span>
+                        </div>
+                        <div style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)"}}>
+                          <p style={{fontSize:"clamp(11px,2.5vw,14px)",color:"#475569",margin:0}}>
+                            Ended after Round {ern}. Standings carry over from this point on.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  };
+
+                  // If no RR rounds have been committed yet but the snapshot exists, the
+                  // snapshot represents the current/most-recent state — render it at the top.
+                  const showSnapshotAtTop=!!roundRobinStartSnapshot
+                    &&history.every(h=>h.roundNum<(roundRobinStartSnapshot.startRoundNum||0));
+                  const _se=[...history].map((h,ri)=>({h,ri})).sort((a,b)=>a.h.roundNum-b.h.roundNum);
+
+                  return(
                   <div className="flex flex-col gap-3">
-                    {history.length===0&&<div className="text-center text-slate-400 py-8 text-sm">No rounds completed yet.</div>}
-                    {[...history].reverse().map((h,revI)=>{
-                      const ri=history.length-1-revI;
-                      const sbf=rebuildStandings(activeTeamIds,history.slice(0,ri)),saf=rebuildStandings(activeTeamIds,history.slice(0,ri+1));
+                    {history.length===0&&!roundRobinStartSnapshot&&<div className="text-center text-slate-400 py-8 text-sm">No rounds completed yet.</div>}
+                    {showSnapshotAtTop&&renderRRSnapshot()}
+                    {_se.slice().reverse().map(({h,ri},_i)=>{
+                      const _sfi=_se.length-1-_i;
+                      const sbf=rebuildStandings(activeTeamIds,_se.slice(0,_sfi).map(e=>e.h)),saf=rebuildStandings(activeTeamIds,_se.slice(0,_sfi+1).map(e=>e.h));
                       const rbf=rerank(sbf),raf=rerank(saf);
                       const rb=id=>rbf.findIndex(t=>t.id===id)+1, ra=id=>raf.findIndex(t=>t.id===id)+1;
                       const played=h.games.flatMap(g=>[g.winnerId,g.loserId]);
                       const hasBye=h.bye?.length>0;
+                      const isFirstRR=roundRobinStartSnapshot&&h.roundNum===roundRobinStartSnapshot.startRoundNum;
+                      const isLastRR=roundRobinEndSnapshot&&h.roundNum===roundRobinEndSnapshot.endRoundNum;
                       return(
-                        <div key={ri} className="rounded-2xl" style={{background:"#fff",border:"1px solid rgba(0,0,0,0.08)",overflow:"hidden"}}>
+                        <React.Fragment key={ri}>
+                        {isLastRR&&renderRREndSnapshot()}
+                        <div className="rounded-2xl" style={{background:"#fff",border:"1px solid rgba(0,0,0,0.08)",overflow:"hidden"}}>
                           {/* Round label */}
-                          <div style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)",background:"rgba(15,76,117,0.06)",borderBottom:"1px solid rgba(0,0,0,0.07)"}}>
+                          <div className="flex items-center justify-between" style={{padding:"clamp(8px,2vw,12px) clamp(12px,3vw,18px)",background:"rgba(15,76,117,0.06)",borderBottom:"1px solid rgba(0,0,0,0.07)"}}>
                             <span style={{fontSize:"clamp(10px,2.5vw,13px)",color:"#0f4c75",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.08em"}}>Round {h.roundNum}</span>
+                            {isAdmin&&<button onClick={()=>setShowAddGame({target:String(ri),defaultCourt:""})}
+                              style={{fontSize:"clamp(10px,2.5vw,12px)",padding:"clamp(3px,0.8vw,5px) clamp(8px,2vw,12px)",borderRadius:8,fontWeight:700,cursor:"pointer",
+                                background:"rgba(99,102,241,0.1)",color:"#4338ca",border:"1px solid rgba(99,102,241,0.3)"}}>
+                              ➕ Add Game
+                            </button>}
                           </div>
 
                           {/* Games */}
@@ -1500,9 +2674,13 @@
                                     {l?.name}
                                   </span>
                                 </div>
-                                <div>{isAdmin&&<button onClick={()=>setEditTarget({ri,gameIdx:gi})}
+                                <div className="flex gap-1">{isAdmin&&<><button onClick={()=>setEditTarget({ri,gameIdx:gi})}
                                   style={{fontSize:"clamp(10px,2.5vw,13px)",padding:"clamp(3px,0.8vw,6px) clamp(6px,1.5vw,10px)",borderRadius:8,
-                                    background:"rgba(15,76,117,0.08)",color:"#0f4c75",border:"1px solid rgba(15,76,117,0.2)",cursor:"pointer",whiteSpace:"nowrap"}}>✏️</button>}</div>
+                                    background:"rgba(15,76,117,0.08)",color:"#0f4c75",border:"1px solid rgba(15,76,117,0.2)",cursor:"pointer",whiteSpace:"nowrap"}}>✏️</button>
+                                  <button onClick={()=>{setRemoveGameTarget({ri,gameIdx:gi});setPinPurpose("removeGame");}}
+                                    style={{fontSize:"clamp(10px,2.5vw,13px)",padding:"clamp(3px,0.8vw,6px) clamp(6px,1.5vw,10px)",borderRadius:8,
+                                      background:"rgba(220,38,38,0.08)",color:"#dc2626",border:"1px solid rgba(220,38,38,0.2)",cursor:"pointer",whiteSpace:"nowrap"}}>×</button>
+                                </>}</div>
                               </div>
                             );})}
                           </div>
@@ -1553,10 +2731,13 @@
                             </div>
                           </div>
                         </div>
+                        {isFirstRR&&renderRRSnapshot()}
+                        </React.Fragment>
                       );
                     })}
                   </div>
-                )}
+                  );
+                })()}
               </>
             )}
           </div>
