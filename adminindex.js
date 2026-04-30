@@ -1094,7 +1094,7 @@
 
     // ─── Manage Teams Modal (admin, mid-tournament) ───────────────────────────
     // Allows renaming existing teams and adding new teams from unused colour slots.
-    function ManageTeamsModal({activeTeamIds,tournamentTeams,onSave,onClose}){
+    function ManageTeamsModal({activeTeamIds,tournamentTeams,pausedIds=[],onTogglePause,onSave,onClose}){
       const[localTeams,setLocalTeams]=useState(
         activeTeamIds.map(id=>{
           const t=teamById(id);
@@ -1117,8 +1117,6 @@
       };
 
       const save=()=>{
-        // Build updated registry: existing tournament teams updated with new names,
-        // plus any newly added teams
         const registry=localTeams.map(t=>{
           const orig=tournamentTeams.find(x=>x.id===t.id);
           return{id:t.id,name:t.name.trim()||t.id,color:t.color,text:t.text,...(orig?{color:orig.color,text:orig.text}:{})};
@@ -1131,17 +1129,42 @@
           <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4 modal-box"  onClick={e=>e.stopPropagation()}>
             <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">✏️ Manage Teams</div>
 
-            {/* Existing teams — rename only */}
-            <div className="flex flex-col gap-2" style={{maxHeight:260,overflowY:"auto"}}>
-              {localTeams.map(t=>(
-                <div key={t.id} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{background:t.color}}/>
-                  <input value={t.name} onChange={e=>rename(t.id,e.target.value)}
-                    style={{flex:1,padding:"6px 10px",borderRadius:8,fontSize:13,fontWeight:700,
-                      background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",
-                      color:"#e2e8f0",outline:"none"}}/>
+            {/* Team status — pause/resume */}
+            {onTogglePause&&(
+              <div>
+                <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">🩹 Team Status</p>
+                <div className="flex flex-wrap" style={{gap:"clamp(6px,1.5vw,10px)"}}>
+                  {activeTeamIds.map(id=>{
+                    const t=teamById(id),p=pausedIds.includes(id);
+                    return(<button key={id} onClick={()=>onTogglePause(id)} title={p?"Return to rotation":"Pause (injury/break)"}
+                      className="flex items-center rounded-full font-bold"
+                      style={{gap:"clamp(4px,1vw,6px)",padding:"clamp(5px,1.2vw,8px) clamp(10px,2.5vw,16px)",
+                        fontSize:"clamp(12px,3vw,16px)",
+                        background:p?"rgba(0,0,0,0.05)":t.color,color:p?"#94a3b8":t.text,
+                        border:`2px solid ${p?"rgba(0,0,0,0.08)":t.color}`,cursor:"pointer",opacity:p?0.6:1,
+                        textDecoration:p?"line-through":"none"}}>
+                      {p?"⏸ ":""}{t.name}
+                    </button>);
+                  })}
                 </div>
-              ))}
+                {pausedIds.length>0&&<p style={{fontSize:"clamp(10px,2.5vw,13px)",color:"#d97706",marginTop:"clamp(6px,1.5vw,10px)"}}>{pausedIds.map(id=>teamById(id)?.name).join(", ")} paused — excluded from rotation.</p>}
+              </div>
+            )}
+
+            {/* Existing teams — rename */}
+            <div>
+              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Rename</p>
+              <div className="flex flex-col gap-2" style={{maxHeight:200,overflowY:"auto"}}>
+                {localTeams.map(t=>(
+                  <div key={t.id} className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{background:t.color}}/>
+                    <input value={t.name} onChange={e=>rename(t.id,e.target.value)}
+                      style={{flex:1,padding:"6px 10px",borderRadius:8,fontSize:13,fontWeight:700,
+                        background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",
+                        color:"#e2e8f0",outline:"none"}}/>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Add a new team */}
@@ -1169,7 +1192,7 @@
 
             <div className="flex gap-2 pt-1">
               <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold btn-cancel">Cancel</button>
-              <button onClick={save} className="flex-1 py-2 rounded-xl text-sm font-bold btn-indigo" >Save</button>
+              <button onClick={save} className="flex-1 py-2 rounded-xl text-sm font-bold btn-indigo">Save</button>
             </div>
           </div>
         </div>
@@ -1943,7 +1966,7 @@
           {pinPurpose&&<PinModal title={pinPurpose==="reset"?"PIN required to reset":pinPurpose==="exitRR"?"PIN required to exit Round Robin":pinPurpose==="cancelRound"?"PIN required to cancel round":pinPurpose==="removeGame"?"PIN required to delete game":"Admin PIN"} correctPin={adminPin} pinLoaded={adminPinLoaded} onSuccess={handlePinSuccess} onClose={()=>{setPinPurpose(null);setRemoveGameTarget(null);}}/>}
           {showBreakModal&&<BreakModal onStart={handleBreakStart} onClose={()=>setShowBreakModal(false)}/>}
           {showTimerSettings&&<TimerSettingsModal currentMins={timerDefaultMins} onSave={m=>{setTimerDefaultMins(m);setTimerDuration(m*60);if(isAdmin)pushAtomicUpdate({timerDefaultMins:m,timerDuration:m*60});}} onClose={()=>setShowTimerSettings(false)}/>}
-          {showManageTeams&&<ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} onSave={handleManageTeamsSave} onClose={()=>setShowManageTeams(false)}/>}
+          {showManageTeams&&<ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={handleTogglePause} onSave={handleManageTeamsSave} onClose={()=>setShowManageTeams(false)}/>}
           {showManageCourts&&<ManageCourtsModal courtNumbers={courtNumbers} onSave={handleManageCourtsSave} onClose={()=>setShowManageCourts(false)}/>}
           {showSelectRRTeams&&<SelectRoundRobinTeamsModal rankedTeamIds={ranked.map(t=>t.id)} tournamentCourts={courtNumbers} onConfirm={handleStartRoundRobin} onClose={()=>setShowSelectRRTeams(false)}/>}
           {showAddGame&&(()=>{
@@ -2176,7 +2199,7 @@
                           {roundNum===0?"🏓 Ready to start":"✓ Round "+roundNum+" complete"}
                         </p>
                         <p style={{color:"#475569",fontSize:"clamp(11px,2.5vw,14px)",textAlign:"center"}}>
-                          {roundNum===0?"Adjust team statuses below, then generate Round 1.":"Adjust team statuses below, then generate the next round."}
+                          {roundNum===0?"Use ✏️ Manage teams to set team statuses, then generate Round 1.":"Use ✏️ Manage teams to adjust statuses, then generate the next round."}
                         </p>
                         {roundNum>0&&(
                           <div className="flex items-center justify-between gap-3 rounded-xl"
@@ -2236,6 +2259,11 @@
                             background:"linear-gradient(90deg,#d97706,#f59e0b)",color:"#fff",border:"none"}}>
                           🏁 Finish Tournament
                         </button>}
+                        <div className="flex flex-wrap" style={{gap:"clamp(4px,1vw,8px)",borderTop:"1px solid rgba(0,0,0,0.07)",paddingTop:"clamp(8px,2vw,12px)"}}>
+                          <button onClick={()=>setPinPurpose("reset")} style={{cursor:"pointer",background:"none",border:"none",color:"#94a3b8",fontSize:12,textDecoration:"underline"}}>↩ Back to setup</button>
+                          <button onClick={()=>setShowManageTeams(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>✏️ Manage teams</button>
+                          <button onClick={()=>setShowManageCourts(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>🏟️ Manage courts</button>
+                        </div>
                       </div>
                     ):(
                       <div className="rounded-2xl p-10 text-center flex flex-col items-center gap-3" style={{background:"rgba(0,0,0,0.03)",border:"1px solid rgba(0,0,0,0.08)"}}>
@@ -2248,10 +2276,6 @@
                         </p>
                       </div>
                     )}
-                    {isAdmin&&<PausePanel activeTeamIds={activeTeamIds} pausedIds={pausedIds} onTogglePause={handleTogglePause}/>}
-                    {isAdmin&&<button onClick={()=>setPinPurpose("reset")} style={{cursor:"pointer",background:"none",border:"none",color:"#94a3b8",fontSize:12,textDecoration:"underline"}}>↩ Back to setup (resets tournament)</button>}
-                    {isAdmin&&<button onClick={()=>setShowManageTeams(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>✏️ Manage teams (rename / add)</button>}
-                    {isAdmin&&<button onClick={()=>setShowManageCourts(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>🏟️ Manage courts (rename)</button>}
                   </div>
                 )}
 
@@ -2287,6 +2311,24 @@
                           return <CourtCard key={`live-${i}`} courtLabel={`Court ${la.courtNumber}`}
                             teams={[tA,tB]} onResult={r=>handleLiveResult(i,r)} done={!!pending[liveKey(i)]}/>;
                         })}
+                        {/* Paused / Bye row */}
+                        {(round.paused?.length>0||round.bye?.length>0)&&(
+                          <div className="flex flex-col" style={{gap:"clamp(4px,1vw,8px)"}}>
+                            {round.paused?.length>0&&(
+                              <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
+                                <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Paused:</span>
+                                {round.paused.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
+                              </div>
+                            )}
+                            {round.bye?.length>0&&(
+                              <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
+                                <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Bye:</span>
+                                {round.bye.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {/* Admin options — single section */}
                         <div className="rounded-2xl flex flex-col" style={{padding:"clamp(10px,2.5vw,16px)",gap:"clamp(8px,2vw,12px)",background:"#f8fafc",border:"1px solid rgba(0,0,0,0.08)"}}>
                           <p style={{fontSize:"clamp(9px,2vw,12px)",color:"#64748b",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em"}}>Round Options</p>
                           <div className="flex flex-wrap" style={{gap:"clamp(6px,1.5vw,10px)"}}>
@@ -2343,6 +2385,11 @@
                               </div>
                             </div>
                           )}
+                          <div className="flex flex-wrap" style={{gap:"clamp(4px,1vw,8px)",borderTop:"1px solid rgba(0,0,0,0.07)",paddingTop:"clamp(8px,2vw,12px)"}}>
+                            <button onClick={()=>setPinPurpose("reset")} style={{cursor:"pointer",background:"none",border:"none",color:"#94a3b8",fontSize:12,textDecoration:"underline"}}>↩ Back to setup</button>
+                            <button onClick={()=>setShowManageTeams(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>✏️ Manage teams</button>
+                            <button onClick={()=>setShowManageCourts(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>🏟️ Manage courts</button>
+                          </div>
                         </div>
                       </>
                     ):(
@@ -2388,31 +2435,25 @@
                             </div>
                           );
                         })}
-                      </div>
-                    )}
-
-                    {/* Paused / Bye row — shown below the courts/games */}
-                    {(round.paused?.length>0||round.bye?.length>0)&&(
-                      <div className="flex flex-col" style={{gap:"clamp(4px,1vw,8px)"}}>
-                        {round.paused?.length>0&&(
-                          <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
-                            <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Paused:</span>
-                            {round.paused.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
+                        {/* Paused / Bye row — viewer */}
+                        {(round.paused?.length>0||round.bye?.length>0)&&(
+                          <div className="flex flex-col" style={{gap:"clamp(4px,1vw,8px)"}}>
+                            {round.paused?.length>0&&(
+                              <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
+                                <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Paused:</span>
+                                {round.paused.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
+                              </div>
+                            )}
+                            {round.bye?.length>0&&(
+                              <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
+                                <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Bye:</span>
+                                {round.bye.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
+                              </div>
+                            )}
                           </div>
                         )}
-                        {round.bye?.length>0&&(
-                          <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
-                            <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Bye:</span>
-                            {round.bye.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
-                          </div>
-                        )}
                       </div>
                     )}
-
-                    {isAdmin&&<PausePanel activeTeamIds={activeTeamIds} pausedIds={pausedIds} onTogglePause={handleTogglePause}/>}
-                    {isAdmin&&<button onClick={()=>setPinPurpose("reset")} style={{cursor:"pointer",background:"none",border:"none",color:"#94a3b8",fontSize:12,textDecoration:"underline"}}>↩ Back to setup (resets tournament)</button>}
-                    {isAdmin&&<button onClick={()=>setShowManageTeams(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>✏️ Manage teams (rename / add)</button>}
-                    {isAdmin&&<button onClick={()=>setShowManageCourts(true)} style={{cursor:"pointer",background:"none",border:"none",color:"#6366f1",fontSize:12,textDecoration:"underline"}}>🏟️ Manage courts (rename)</button>}
                   </div>
                 )}
 
