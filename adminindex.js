@@ -580,7 +580,7 @@
     }
 
     // ─── CourtCard ───────────────────────────────────────────────────────────
-    function CourtCard({courtLabel,teams,onResult,done}){
+    function CourtCard({courtLabel,teams,onResult,done,onEdit}){
       const[s0,setS0]=useState(""), [s1,setS1]=useState("");
       const valid=s0!==""&&s1!==""&&Number(s0)!==Number(s1);
       const wIdx=valid?(Number(s0)>Number(s1)?0:1):null;
@@ -599,6 +599,10 @@
           <div className="flex items-center gap-2">
             <span style={{color:"#0f4c75",fontWeight:800,fontSize:"clamp(10px,2.5vw,13px)",textTransform:"uppercase",letterSpacing:"0.08em"}}>{courtLabel}</span>
             <div className="flex-1 h-px" style={{background:"rgba(0,0,0,0.08)"}}/>
+            {onEdit&&<button onClick={onEdit}
+              style={{fontSize:"clamp(10px,2vw,12px)",padding:"2px 8px",borderRadius:6,fontWeight:600,cursor:"pointer",background:"rgba(99,102,241,0.08)",color:"#6366f1",border:"1px solid rgba(99,102,241,0.25)",flexShrink:0}}>
+              ✏ Edit
+            </button>}
           </div>
           {teams.map((team,i)=>{ const iw=wIdx===i; return(
             <div key={team.id}>
@@ -732,23 +736,18 @@
     }
 
     // ─── EditActiveCourtModal — change teams and/or court for an ongoing game ──
-    function EditActiveCourtModal({courtIdx,courtNumbers,currentCourts,allTeamIds,hasPending,usedCourtNumbers=[],onSave,onClose}){
+    function EditActiveCourtModal({courtIdx,courtNumbers,currentCourts,allTeamIds,hasPending,onSave,onClose}){
       const cur=currentCourts[courtIdx]||[];
       const currentCourtNum=courtNumbers[courtIdx]??courtIdx+1;
       const[teamAId,setTeamAId]=useState(cur[0]?.id||"");
       const[teamBId,setTeamBId]=useState(cur[1]?.id||"");
-      const[selCourt,setSelCourt]=useState(currentCourtNum);
-      // Teams locked on OTHER courts (admin can still pick them to correct a mistake)
+      // Teams on OTHER courts — warn if picked (admin may still override)
       const otherIds=new Set(currentCourts.flatMap((p,i)=>i!==courtIdx?p.map(t=>t.id):[]));
-      // Courts locked by live additions — can't move a game there (would create a duplicate court label)
-      const liveCourtSet=new Set(usedCourtNumbers.map(String));
-      const eligible=allTeamIds;
       const teamsValid=teamAId&&teamBId&&teamAId!==teamBId;
-      const newCourtIdx=courtNumbers.indexOf(selCourt);
-      const save=()=>{ if(!teamsValid)return; onSave({courtIdx,teamAId,teamBId,newCourtIdx:newCourtIdx>=0?newCourtIdx:courtIdx}); };
+      const save=()=>{ if(!teamsValid)return; onSave({courtIdx,teamAId,teamBId}); };
       const chip=(id,active,onClick)=>{
         const t=teamById(id); if(!t)return null;
-        const warn=active?false:otherIds.has(id);
+        const warn=!active&&otherIds.has(id);
         return(<button key={id} onClick={onClick}
           style={{padding:"5px 10px",borderRadius:999,fontSize:12,fontWeight:700,cursor:"pointer",
             background:active?t.color+"bb":warn?"rgba(220,38,38,0.08)":"rgba(255,255,255,0.05)",
@@ -760,41 +759,24 @@
       return(
         <div className="modal-overlay" onClick={onClose}>
           <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4 modal-box"  onClick={e=>e.stopPropagation()}>
-            <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">Court {currentCourtNum} — Edit</div>
+            <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">Court {currentCourtNum} — Edit Teams</div>
             {hasPending&&<div className="notice-amber">⚠️ Entered score will be cleared.</div>}
-            <div>
-              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Court</p>
-              <div className="flex flex-wrap gap-1.5">
-                {courtNumbers.map(cn=>{
-                  const sel=selCourt===cn;
-                  const locked=liveCourtSet.has(String(cn))&&String(cn)!==String(currentCourtNum);
-                  return(<button key={cn} onClick={locked?undefined:()=>setSelCourt(cn)} disabled={locked}
-                    title={locked?"This court already has a live game added to it":undefined}
-                    style={{padding:"5px 10px",borderRadius:999,fontSize:12,fontWeight:700,cursor:locked?"not-allowed":"pointer",
-                      opacity:locked?0.4:1,
-                      background:sel?"rgba(99,102,241,0.7)":"rgba(255,255,255,0.05)",
-                      color:sel?"#fff":"#64748b",
-                      border:`2px solid ${sel?"#6366f1":"rgba(255,255,255,0.1)"}`}}>Court {cn}{locked?" 🔒":""}</button>);
-                })}
-              </div>
-            </div>
             <div>
               <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Team A</p>
               <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
-                {eligible.map(id=>chip(id,teamAId===id,()=>{setTeamAId(id);if(teamBId===id)setTeamBId(teamAId);}))}
+                {allTeamIds.map(id=>chip(id,teamAId===id,()=>{setTeamAId(id);if(teamBId===id)setTeamBId(teamAId);}))}
               </div>
             </div>
             <div>
               <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Team B</p>
               <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
-                {eligible.map(id=>chip(id,teamBId===id,()=>{setTeamBId(id);if(teamAId===id)setTeamAId(teamBId);}))}
+                {allTeamIds.map(id=>chip(id,teamBId===id,()=>{setTeamBId(id);if(teamAId===id)setTeamAId(teamBId);}))}
               </div>
             </div>
             {!teamsValid&&teamAId===teamBId&&<p className="text-xs text-amber-400 text-center">Teams must be different.</p>}
             <div className="flex gap-2">
               <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold btn-cancel">Cancel</button>
-              <button onClick={save} disabled={!teamsValid} className="flex-1 py-2 rounded-xl text-sm font-bold btn-indigo"
-                >Save</button>
+              <button onClick={save} disabled={!teamsValid} className="flex-1 py-2 rounded-xl text-sm font-bold btn-indigo">Save</button>
             </div>
           </div>
         </div>
@@ -1196,12 +1178,13 @@
 
     // ─── Add-Game Modal ──────────────────────────────────────────────────────
     // Lets admin manually add a game to a round (active or historical).
-    function AddGameModal({allTeamIds,defaultCourt,label,courtNumbers=[],usedCourtNumbers=[],onSave,onClose}){
+    function AddGameModal({allTeamIds,defaultCourt,label,courtNumbers=[],usedCourtNumbers=[],usedTeamIds=[],onSave,onClose}){
       const[teamAId,setTeamAId]=useState("");
       const[teamBId,setTeamBId]=useState("");
       const[scoreA,setScoreA]=useState("");
       const[scoreB,setScoreB]=useState("");
       const usedCourtSet=new Set(usedCourtNumbers.map(String));
+      const usedTeamSet=new Set(usedTeamIds);
       const[courtNumber,setCourtNumber]=useState(()=>{
         if(defaultCourt&&!usedCourtSet.has(String(defaultCourt)))return defaultCourt;
         return courtNumbers.find(c=>!usedCourtSet.has(String(c)))||defaultCourt||"";
@@ -1221,9 +1204,11 @@
 
       const chip=(id,active,onClick)=>{
         const t=teamById(id);if(!t)return null;
+        const inUse=!active&&usedTeamSet.has(id);
         return(
-          <button key={id} onClick={onClick}
-            style={{padding:"5px 10px",borderRadius:999,fontSize:12,fontWeight:700,cursor:"pointer",
+          <button key={id} onClick={inUse?undefined:onClick} disabled={inUse}
+            style={{padding:"5px 10px",borderRadius:999,fontSize:12,fontWeight:700,cursor:inUse?"not-allowed":"pointer",
+              opacity:inUse?0.35:1,
               background:active?t.color+"bb":"rgba(255,255,255,0.05)",
               color:active?t.text:"#64748b",
               border:`2px solid ${active?t.color:"rgba(255,255,255,0.1)"}`}}>
@@ -1885,32 +1870,19 @@
         setHistory(nh);setStandings(ns);setEditTarget(null);
       };
 
-      // Edit an ongoing court (change teams and/or move to a different court number)
-      const handleEditActiveCourt=({courtIdx,teamAId,teamBId,newCourtIdx})=>{
+      // Edit teams on an ongoing court
+      const handleEditActiveCourt=({courtIdx,teamAId,teamBId})=>{
         const tA=teamById(teamAId),tB=teamById(teamBId);
         if(!tA||!tB||!round)return;
-        const newCourts=round.courts.map(p=>[...p]);
-        if(newCourtIdx!==courtIdx){
-          // Swap: displaced pair goes to old position, new pair goes to newCourtIdx
-          const displaced=newCourts[newCourtIdx];
-          newCourts[courtIdx]=displaced;
-          newCourts[newCourtIdx]=[tA,tB];
-        }else{
-          newCourts[courtIdx]=[tA,tB];
-        }
+        const newCourts=round.courts.map((p,i)=>i===courtIdx?[tA,tB]:[...p]);
         const newRound={...round,courts:newCourts};
         setRound(newRound);
-        // Clear pending results for affected courts
         const np={...pendingRef.current};
         delete np[courtKey(courtIdx)];
-        if(newCourtIdx!==courtIdx)delete np[courtKey(newCourtIdx)];
         pendingRef.current=np;setPending(np);
         if(isAdmin){
           const rd={courtTeamIds:newCourts.map(p=>p.map(t=>t.id)),byeIds:(round.bye||[]).map(t=>t.id),pausedTeamIds:(round.paused||[]).map(t=>t.id)};
-          const clr={};
-          clr[`pendingResults/${courtKey(courtIdx)}`]=null;
-          if(newCourtIdx!==courtIdx)clr[`pendingResults/${courtKey(newCourtIdx)}`]=null;
-          pushAtomicUpdate({roundData:rd,...clr});
+          pushAtomicUpdate({roundData:rd,[`pendingResults/${courtKey(courtIdx)}`]:null});
         }
         setEditActiveCourt(null);
       };
@@ -1974,16 +1946,24 @@
           {showManageTeams&&<ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} onSave={handleManageTeamsSave} onClose={()=>setShowManageTeams(false)}/>}
           {showManageCourts&&<ManageCourtsModal courtNumbers={courtNumbers} onSave={handleManageCourtsSave} onClose={()=>setShowManageCourts(false)}/>}
           {showSelectRRTeams&&<SelectRoundRobinTeamsModal rankedTeamIds={ranked.map(t=>t.id)} tournamentCourts={courtNumbers} onConfirm={handleStartRoundRobin} onClose={()=>setShowSelectRRTeams(false)}/>}
-          {showAddGame&&<AddGameModal
-            allTeamIds={activeTeamIds}
-            defaultCourt={showAddGame.defaultCourt||""}
-            courtNumbers={courtNumbers}
-            usedCourtNumbers={showAddGame.target==="active"
+          {showAddGame&&(()=>{
+            const isActive=showAddGame.target==="active";
+            const ri=Number(showAddGame.target);
+            const histEntry=!isActive&&!isNaN(ri)?history[ri]:null;
+            const usedCourts=isActive
               ?[...(round?.courts.map((_,i)=>String(courtNumbers[i]??i+1))||[]),...liveAdditions.map(la=>String(la.courtNumber)),...activeRoundExtras.map(g=>String(g.courtNumber))]
-              :(()=>{const ri=Number(showAddGame.target);return(!isNaN(ri)&&history[ri])?history[ri].games.map(g=>String(g.courtNumber)):[];})()}
-            label={showAddGame.target==="active"?(round?`Round ${roundNum}`:(history.length>0?`Round ${history[history.length-1].roundNum}`:"")):`Round ${history[Number(showAddGame.target)]?.roundNum||""}`}
-            onSave={g=>handleAddGameSave(showAddGame.target,g)}
-            onClose={()=>setShowAddGame(null)}/>}
+              :(histEntry?histEntry.games.map(g=>String(g.courtNumber)):[]);
+            const usedTeams=histEntry?histEntry.games.flatMap(g=>[g.winnerId,g.loserId]):[];
+            return(<AddGameModal
+              allTeamIds={activeTeamIds}
+              defaultCourt={showAddGame.defaultCourt||""}
+              courtNumbers={courtNumbers}
+              usedCourtNumbers={usedCourts}
+              usedTeamIds={usedTeams}
+              label={isActive?(round?`Round ${roundNum}`:(history.length>0?`Round ${history[history.length-1].roundNum}`:"")):`Round ${histEntry?.roundNum||""}`}
+              onSave={g=>handleAddGameSave(showAddGame.target,g)}
+              onClose={()=>setShowAddGame(null)}/>);
+          })()}
           {showPresetMatch&&<PresetMatchModal
             allTeamIds={activeTeamIds}
             courtNumbers={courtNumbers}
@@ -2014,7 +1994,6 @@
               currentCourts={round.courts}
               allTeamIds={activeTeamIds}
               hasPending={!!pending[courtKey(editActiveCourt)]}
-              usedCourtNumbers={liveAdditions.map(la=>String(la.courtNumber))}
               onSave={handleEditActiveCourt}
               onClose={()=>setEditActiveCourt(null)}/>
           )}
@@ -2298,14 +2277,9 @@
                       /* Active round — admin */
                       <>
                         {round.courts.map((teams,idx)=>(
-                          <div key={`${roundKey}-court-${idx}`} className="flex flex-col" style={{gap:4}}>
-                            <CourtCard courtLabel={`Court ${courtNumbers[idx]??idx+1}`}
-                              teams={teams} onResult={r=>handleResult(idx,r)} done={!!pending[courtKey(idx)]}/>
-                            <button onClick={()=>setEditActiveCourt(idx)}
-                              style={{alignSelf:"flex-end",fontSize:"clamp(10px,2vw,12px)",padding:"3px 10px",borderRadius:6,fontWeight:600,cursor:"pointer",background:"rgba(99,102,241,0.08)",color:"#6366f1",border:"1px solid rgba(99,102,241,0.25)"}}>
-                              ✏ Edit
-                            </button>
-                          </div>
+                          <CourtCard key={`${roundKey}-court-${idx}`} courtLabel={`Court ${courtNumbers[idx]??idx+1}`}
+                            teams={teams} onResult={r=>handleResult(idx,r)} done={!!pending[courtKey(idx)]}
+                            onEdit={()=>setEditActiveCourt(idx)}/>
                         ))}
                         {liveAdditions.map((la,i)=>{
                           const tA=teamById(la.teamId1),tB=teamById(la.teamId2);
