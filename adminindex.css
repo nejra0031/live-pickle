@@ -1,0 +1,99 @@
+/* ── Modal overlay ─────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50; padding: 1rem;
+  background: rgba(0,0,0,0.88);
+  overflow-y: auto;
+}
+
+/* ── Modal box (dark container, indigo border) ────────────────────────────── */
+/* Applied in addition to Tailwind layout classes — adds only the colours.    */
+.modal-box {
+  background: #1e293b;
+  border: 1px solid rgba(99,102,241,0.4);
+}
+
+/* ── Action buttons ──────────────────────────────────────────────────────── */
+.btn-cancel {
+  background: rgba(255,255,255,0.06);
+  color: #94a3b8;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-indigo {
+  background: linear-gradient(90deg,#6366f1,#8b5cf6);
+  color: #fff;
+  cursor: pointer;
+  border: none;
+}
+.btn-indigo:disabled {
+  background: rgba(255,255,255,0.04);
+  color: #475569;
+  cursor: not-allowed;
+}
+
+.btn-blue {
+  background: linear-gradient(90deg,#0f4c75,#1a6fa8);
+  color: #fff;
+  cursor: pointer;
+  border: none;
+}
+.btn-blue:disabled {
+  background: rgba(0,0,0,0.10);
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.btn-amber {
+  background: linear-gradient(90deg,#d97706,#f59e0b);
+  color: #fff;
+  cursor: pointer;
+  border: none;
+}
+.btn-amber:disabled {
+  background: rgba(255,255,255,0.04);
+  color: #475569;
+  cursor: not-allowed;
+}
+
+/* ── Form controls (dark theme, used inside modals) ───────────────────────── */
+.input-dark {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #e2e8f0;
+  outline: none;
+}
+
+.select-dark {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #e2e8f0;
+  outline: none;
+}
+
+/* ── Inline notices ───────────────────────────────────────────────────────── */
+.notice-amber {
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: #fbbf24;
+  background: rgba(251,191,36,0.07);
+  border: 1px solid rgba(251,191,36,0.2);
+}
+
+/* ── Court card: result logged state ──────────────────────────────────────── */
+.card-done {
+  background: #f0fdf4;
+  border: 1px solid rgba(34,197,94,0.3);
+}
