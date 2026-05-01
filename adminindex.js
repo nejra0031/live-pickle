@@ -647,6 +647,7 @@
       const[teamBId,setTeamBId]=useState(game.loserId);
       const[scoreA,setScoreA]=useState(game.winnerScore);
       const[scoreB,setScoreB]=useState(game.loserScore);
+      const[courtNum,setCourtNum]=useState(String(game.courtNumber??""));
 
       const teamA=teamById(teamAId), teamB=teamById(teamBId);
       const scoresValid=scoreA!==""&&scoreB!==""&&Number(scoreA)!==Number(scoreB);
@@ -671,7 +672,7 @@
         const playingAfter=new Set([...lockedIds,teamAId,teamBId]);
         const pausedInRound=new Set(toArr(roundEntry.paused||[]));
         const newBye=allTeamIds.filter(id=>!playingAfter.has(id)&&!pausedInRound.has(id));
-        onSave({game:{winnerId:newWinnerId,loserId:newLoserId,winnerScore:newWinnerScore,loserScore:newLoserScore,courtNumber:game.courtNumber},newBye});
+        onSave({game:{winnerId:newWinnerId,loserId:newLoserId,winnerScore:newWinnerScore,loserScore:newLoserScore,courtNumber:courtNum.trim()||game.courtNumber},newBye});
       };
 
       const chipBtn=(id,active,onClick)=>{
@@ -691,6 +692,12 @@
         <div className="modal-overlay" onClick={onClose}>
           <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4 modal-box"  onClick={e=>e.stopPropagation()}>
             <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">{label} — Edit</div>
+
+            <div>
+              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Court</p>
+              <input value={courtNum} onChange={e=>setCourtNum(e.target.value)}
+                className="input-dark w-full" style={{fontSize:14,padding:"6px 10px"}}/>
+            </div>
 
             {/* Team A */}
             <div>
@@ -749,26 +756,30 @@
       const currentCourtNum=courtNumbers[courtIdx]??courtIdx+1;
       const[teamAId,setTeamAId]=useState(cur[0]?.id||"");
       const[teamBId,setTeamBId]=useState(cur[1]?.id||"");
-      // Teams on OTHER courts — warn if picked (admin may still override)
-      const otherIds=new Set(currentCourts.flatMap((p,i)=>i!==courtIdx?p.map(t=>t.id):[]));
+      const[courtNum,setCourtNum]=useState(String(currentCourtNum));
       const teamsValid=teamAId&&teamBId&&teamAId!==teamBId;
-      const save=()=>{ if(!teamsValid)return; onSave({courtIdx,teamAId,teamBId}); };
+      const courtValid=courtNum.trim()!=="";
+      const save=()=>{ if(!teamsValid||!courtValid)return; onSave({courtIdx,teamAId,teamBId,newCourtNumber:courtNum.trim()}); };
       const chip=(id,active,onClick)=>{
         const t=teamById(id); if(!t)return null;
-        const warn=!active&&otherIds.has(id);
         return(<button key={id} onClick={onClick}
           style={{padding:"5px 10px",borderRadius:999,fontSize:12,fontWeight:700,cursor:"pointer",
-            background:active?t.color+"bb":warn?"rgba(220,38,38,0.08)":"rgba(255,255,255,0.05)",
-            color:active?t.text:warn?"#dc2626":"#64748b",
-            border:`2px solid ${active?t.color:warn?"rgba(220,38,38,0.3)":"rgba(255,255,255,0.1)"}`}}>
-          {t.name}{warn?" ⚠":""}
+            background:active?t.color+"bb":"rgba(255,255,255,0.05)",
+            color:active?t.text:"#64748b",
+            border:`2px solid ${active?t.color:"rgba(255,255,255,0.1)"}`}}>
+          {t.name}
         </button>);
       };
       return(
         <div className="modal-overlay" onClick={onClose}>
           <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4 modal-box"  onClick={e=>e.stopPropagation()}>
-            <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">Court {currentCourtNum} — Edit Teams</div>
+            <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">Court {currentCourtNum} — Edit Game</div>
             {hasPending&&<div className="notice-amber">⚠️ Entered score will be cleared.</div>}
+            <div>
+              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Court</p>
+              <input value={courtNum} onChange={e=>setCourtNum(e.target.value)}
+                className="input-dark w-full" style={{fontSize:14,padding:"6px 10px"}}/>
+            </div>
             <div>
               <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Team A</p>
               <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
@@ -784,7 +795,7 @@
             {!teamsValid&&teamAId===teamBId&&<p className="text-xs text-amber-400 text-center">Teams must be different.</p>}
             <div className="flex gap-2">
               <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold btn-cancel">Cancel</button>
-              <button onClick={save} disabled={!teamsValid} className="flex-1 py-2 rounded-xl text-sm font-bold btn-indigo">Save</button>
+              <button onClick={save} disabled={!teamsValid||!courtValid} className="flex-1 py-2 rounded-xl text-sm font-bold btn-indigo">Save</button>
             </div>
           </div>
         </div>
@@ -1942,26 +1953,31 @@
       };
 
       // Edit teams on an ongoing court
-      const handleEditActiveCourt=({courtIdx,teamAId,teamBId})=>{
+      const handleEditActiveCourt=({courtIdx,teamAId,teamBId,newCourtNumber})=>{
         const tA=teamById(teamAId),tB=teamById(teamBId);
         if(!tA||!tB||!round)return;
         const newCourts=round.courts.map((p,i)=>i===courtIdx?[tA,tB]:[...p]);
         const newRound={...round,courts:newCourts};
         setRound(newRound);
+        if(newCourtNumber!==undefined){
+          const newCourtNums=courtNumbers.map((n,i)=>i===courtIdx?newCourtNumber:n);
+          setCourtNumbers(newCourtNums);
+        }
         const np={...pendingRef.current};
         delete np[courtKey(courtIdx)];
         pendingRef.current=np;setPending(np);
         if(isAdmin){
+          const newCourtNums=newCourtNumber!==undefined?courtNumbers.map((n,i)=>i===courtIdx?newCourtNumber:n):courtNumbers;
           const rd={courtTeamIds:newCourts.map(p=>p.map(t=>t.id)),byeIds:(round.bye||[]).map(t=>t.id),pausedTeamIds:(round.paused||[]).map(t=>t.id)};
-          pushAtomicUpdate({roundData:rd,[`pendingResults/${courtKey(courtIdx)}`]:null});
+          pushAtomicUpdate({roundData:rd,courtNumbers:newCourtNums,[`pendingResults/${courtKey(courtIdx)}`]:null});
         }
         setEditActiveCourt(null);
       };
 
-      const handleEditLiveAddition=({teamAId,teamBId})=>{
+      const handleEditLiveAddition=({teamAId,teamBId,newCourtNumber})=>{
         const i=editLiveIdx;
         if(i===null||!liveAdditions[i])return;
-        const nl=liveAdditions.map((x,j)=>j===i?{...x,teamId1:teamAId,teamId2:teamBId}:x);
+        const nl=liveAdditions.map((x,j)=>j===i?{...x,teamId1:teamAId,teamId2:teamBId,courtNumber:newCourtNumber??x.courtNumber}:x);
         setLiveAdditions(nl);
         const np={...pendingRef.current};
         delete np[liveKey(i)];
@@ -2386,18 +2402,18 @@
                         })}
                         {/* Paused / Bye row */}
                         {(round.paused?.length>0||round.bye?.length>0)&&(
-                          <div className="flex flex-col" style={{gap:"clamp(4px,1vw,8px)"}}>
+                          <div className="flex items-center flex-wrap" style={{gap:"clamp(6px,1.5vw,10px)"}}>
                             {round.paused?.length>0&&(
-                              <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
+                              <>
                                 <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Paused:</span>
                                 {round.paused.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
-                              </div>
+                              </>
                             )}
                             {round.bye?.length>0&&(
-                              <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
-                                <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Bye:</span>
+                              <>
+                                <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0,marginLeft:round.paused?.length>0?"clamp(6px,1.5vw,10px)":0}}>Bye:</span>
                                 {round.bye.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
-                              </div>
+                              </>
                             )}
                           </div>
                         )}
@@ -2510,18 +2526,18 @@
                         })}
                         {/* Paused / Bye row — viewer */}
                         {(round.paused?.length>0||round.bye?.length>0)&&(
-                          <div className="flex flex-col" style={{gap:"clamp(4px,1vw,8px)"}}>
+                          <div className="flex items-center flex-wrap" style={{gap:"clamp(6px,1.5vw,10px)"}}>
                             {round.paused?.length>0&&(
-                              <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
+                              <>
                                 <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Paused:</span>
                                 {round.paused.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
-                              </div>
+                              </>
                             )}
                             {round.bye?.length>0&&(
-                              <div className="flex items-center flex-wrap" style={{gap:"clamp(4px,1vw,6px)"}}>
-                                <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0}}>Bye:</span>
+                              <>
+                                <span style={{color:"#64748b",fontSize:"clamp(10px,2.5vw,13px)",fontWeight:700,flexShrink:0,marginLeft:round.paused?.length>0?"clamp(6px,1.5vw,10px)":0}}>Bye:</span>
                                 {round.bye.map(t=><TeamChip key={t.id} teamId={t.id}/>)}
-                              </div>
+                              </>
                             )}
                           </div>
                         )}
