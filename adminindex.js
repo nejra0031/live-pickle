@@ -264,6 +264,8 @@
         const need=active.filter(t=>t.played===minP);
         if(need.length<active.length){ ec=Math.min(numCourts,Math.floor(need.length/2)); if(ec===0)ec=1; }
       }
+      // Never schedule more courts than active teams can fill — surplus teams would silently vanish
+      ec=Math.min(ec,Math.floor(active.length/2));
 
       // ── STEP 1: Byes ─────────────────────────────────────────────────────────
       const numBye=active.length-ec*2;
