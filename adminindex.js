@@ -580,7 +580,7 @@
     }
 
     // ─── CourtCard ───────────────────────────────────────────────────────────
-    function CourtCard({courtLabel,teams,onResult,done,onEdit}){
+    function CourtCard({courtLabel,teams,onResult,done,onEdit,onRemove}){
       const[s0,setS0]=useState(""), [s1,setS1]=useState("");
       const valid=s0!==""&&s1!==""&&Number(s0)!==Number(s1);
       const wIdx=valid?(Number(s0)>Number(s1)?0:1):null;
@@ -590,7 +590,11 @@
         <div className="rounded-2xl flex items-center gap-3"
           style={{padding:"clamp(10px,2.5vw,16px)",background:"#f0fdf4",border:"1px solid rgba(34,197,94,0.3)"}}>
           <span style={{color:"#16a34a",fontSize:"clamp(16px,4vw,22px)"}}>✓</span>
-          <span style={{color:"#475569",fontSize:"clamp(12px,3vw,15px)"}}>{courtLabel} result logged</span>
+          <span style={{color:"#475569",fontSize:"clamp(12px,3vw,15px)",flex:1}}>{courtLabel} result logged</span>
+          {onRemove&&<button onClick={onRemove}
+            style={{fontSize:"clamp(10px,2vw,12px)",padding:"2px 8px",borderRadius:6,fontWeight:600,cursor:"pointer",background:"rgba(220,38,38,0.08)",color:"#dc2626",border:"1px solid rgba(220,38,38,0.2)",flexShrink:0}}>
+            ✕
+          </button>}
         </div>
       );
       return(
@@ -602,6 +606,10 @@
             {onEdit&&<button onClick={onEdit}
               style={{fontSize:"clamp(10px,2vw,12px)",padding:"2px 8px",borderRadius:6,fontWeight:600,cursor:"pointer",background:"rgba(99,102,241,0.08)",color:"#6366f1",border:"1px solid rgba(99,102,241,0.25)",flexShrink:0}}>
               ✏ Edit
+            </button>}
+            {onRemove&&<button onClick={onRemove}
+              style={{fontSize:"clamp(10px,2vw,12px)",padding:"2px 8px",borderRadius:6,fontWeight:600,cursor:"pointer",background:"rgba(220,38,38,0.08)",color:"#dc2626",border:"1px solid rgba(220,38,38,0.2)",flexShrink:0}}>
+              ✕
             </button>}
           </div>
           {teams.map((team,i)=>{ const iw=wIdx===i; return(
@@ -1390,6 +1398,10 @@
       };
       const[editTarget,setEditTarget]=useState(null);
       const[editActiveCourt,setEditActiveCourt]=useState(null);
+      const[editLiveIdx,setEditLiveIdx]=useState(null);
+      const[removeActiveCourtIdx,setRemoveActiveCourtIdx]=useState(null);
+      const[removeLiveIdx,setRemoveLiveIdx]=useState(null);
+      const[removeActiveRoundExtraIdx,setRemoveActiveRoundExtraIdx]=useState(null);
       const[pausedIds,setPausedIds]=useState([]);
       const[isAdmin,setIsAdmin]=useState(false);
       const isAdminRef=useRef(false);
@@ -1642,6 +1654,42 @@
           const ns=rebuildStandings(activeTeamIds,nh);
           if(isAdmin)pushAtomicUpdate({history:nh});
           setHistory(nh);setStandings(ns);setRemoveGameTarget(null);
+        }
+        else if(pinPurpose==="removeActiveCourt"&&removeActiveCourtIdx!==null&&round){
+          const idx=removeActiveCourtIdx;
+          const teamsRemoved=round.courts[idx]||[];
+          const newCourts=round.courts.filter((_,i)=>i!==idx);
+          const newBye=[...(round.bye||[]),...teamsRemoved];
+          const newCourtNums=courtNumbers.filter((_,i)=>i!==idx);
+          const newRound={...round,courts:newCourts,bye:newBye};
+          setRound(newRound);setCourtNumbers(newCourtNums);
+          const np={};
+          Object.keys(pendingRef.current).forEach(k=>{
+            if(k.startsWith('court_')){const ki=parseInt(k.replace('court_',''));if(ki<idx)np[k]=pendingRef.current[k];else if(ki>idx)np[`court_${ki-1}`]=pendingRef.current[k];}
+            else{np[k]=pendingRef.current[k];}
+          });
+          pendingRef.current=np;setPending(np);
+          if(isAdmin){const rd={courtTeamIds:newCourts.map(p=>p.map(t=>t.id)),byeIds:newBye.map(t=>t.id),pausedTeamIds:(round.paused||[]).map(t=>t.id)};pushAtomicUpdate({roundData:rd,courtNumbers:newCourtNums,pendingResults:np});}
+          setRemoveActiveCourtIdx(null);
+        }
+        else if(pinPurpose==="removeLiveAddition"&&removeLiveIdx!==null){
+          const i=removeLiveIdx;
+          const nl=liveAdditions.filter((_,j)=>j!==i);
+          setLiveAdditions(nl);
+          const np={};
+          Object.keys(pendingRef.current).forEach(k=>{
+            if(k.startsWith('live_')){const ki=parseInt(k.replace('live_',''));if(ki<i)np[k]=pendingRef.current[k];else if(ki>i)np[`live_${ki-1}`]=pendingRef.current[k];}
+            else{np[k]=pendingRef.current[k];}
+          });
+          pendingRef.current=np;setPending(np);
+          if(isAdmin)pushAtomicUpdate({liveAdditions:nl,pendingResults:np});
+          setRemoveLiveIdx(null);
+        }
+        else if(pinPurpose==="removeActiveRoundExtra"&&removeActiveRoundExtraIdx!==null){
+          const ne=activeRoundExtras.filter((_,i)=>i!==removeActiveRoundExtraIdx);
+          setActiveRoundExtras(ne);
+          if(isAdmin)pushAtomicUpdate({activeRoundExtras:ne});
+          setRemoveActiveRoundExtraIdx(null);
         }
         setPinPurpose(null);
       };
@@ -1910,6 +1958,18 @@
         setEditActiveCourt(null);
       };
 
+      const handleEditLiveAddition=({teamAId,teamBId})=>{
+        const i=editLiveIdx;
+        if(i===null||!liveAdditions[i])return;
+        const nl=liveAdditions.map((x,j)=>j===i?{...x,teamId1:teamAId,teamId2:teamBId}:x);
+        setLiveAdditions(nl);
+        const np={...pendingRef.current};
+        delete np[liveKey(i)];
+        pendingRef.current=np;setPending(np);
+        if(isAdmin)pushAtomicUpdate({liveAdditions:nl,[`pendingResults/${liveKey(i)}`]:null});
+        setEditLiveIdx(null);
+      };
+
       // ── Manually add a game ─────────────────────────────────────────────────
       // target: "active" → adds to the currently-active round's extras (committed when round commits)
       //         number  → history index — modifies that history entry directly
@@ -1963,7 +2023,7 @@
         <div className="min-h-screen" onClick={warmUpAudio}
           style={{background:"#fff",fontFamily:"'Trebuchet MS',sans-serif",color:"#1e293b"}}>
 
-          {pinPurpose&&<PinModal title={pinPurpose==="reset"?"PIN required to reset":pinPurpose==="exitRR"?"PIN required to exit Round Robin":pinPurpose==="cancelRound"?"PIN required to cancel round":pinPurpose==="removeGame"?"PIN required to delete game":"Admin PIN"} correctPin={adminPin} pinLoaded={adminPinLoaded} onSuccess={handlePinSuccess} onClose={()=>{setPinPurpose(null);setRemoveGameTarget(null);}}/>}
+          {pinPurpose&&<PinModal title={pinPurpose==="reset"?"PIN required to reset":pinPurpose==="exitRR"?"PIN required to exit Round Robin":pinPurpose==="cancelRound"?"PIN required to cancel round":pinPurpose==="removeGame"?"PIN required to delete game":pinPurpose==="removeActiveCourt"?"PIN required to remove game":pinPurpose==="removeLiveAddition"?"PIN required to remove game":pinPurpose==="removeActiveRoundExtra"?"PIN required to remove game":"Admin PIN"} correctPin={adminPin} pinLoaded={adminPinLoaded} onSuccess={handlePinSuccess} onClose={()=>{setPinPurpose(null);setRemoveGameTarget(null);setRemoveActiveCourtIdx(null);setRemoveLiveIdx(null);setRemoveActiveRoundExtraIdx(null);}}/>}
           {showBreakModal&&<BreakModal onStart={handleBreakStart} onClose={()=>setShowBreakModal(false)}/>}
           {showTimerSettings&&<TimerSettingsModal currentMins={timerDefaultMins} onSave={m=>{setTimerDefaultMins(m);setTimerDuration(m*60);if(isAdmin)pushAtomicUpdate({timerDefaultMins:m,timerDuration:m*60});}} onClose={()=>setShowTimerSettings(false)}/>}
           {showManageTeams&&<ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={handleTogglePause} onSave={handleManageTeamsSave} onClose={()=>setShowManageTeams(false)}/>}
@@ -2019,6 +2079,16 @@
               hasPending={!!pending[courtKey(editActiveCourt)]}
               onSave={handleEditActiveCourt}
               onClose={()=>setEditActiveCourt(null)}/>
+          )}
+          {editLiveIdx!==null&&liveAdditions[editLiveIdx]&&(
+            <EditActiveCourtModal
+              courtIdx={0}
+              courtNumbers={[liveAdditions[editLiveIdx].courtNumber]}
+              currentCourts={[[teamById(liveAdditions[editLiveIdx].teamId1),teamById(liveAdditions[editLiveIdx].teamId2)]]}
+              allTeamIds={activeTeamIds}
+              hasPending={!!pending[liveKey(editLiveIdx)]}
+              onSave={handleEditLiveAddition}
+              onClose={()=>setEditLiveIdx(null)}/>
           )}
 
           {/* Floating "show header" pill — only when header is hidden */}
@@ -2303,13 +2373,16 @@
                         {round.courts.map((teams,idx)=>(
                           <CourtCard key={`${roundKey}-court-${idx}`} courtLabel={`Court ${courtNumbers[idx]??idx+1}`}
                             teams={teams} onResult={r=>handleResult(idx,r)} done={!!pending[courtKey(idx)]}
-                            onEdit={()=>setEditActiveCourt(idx)}/>
+                            onEdit={()=>setEditActiveCourt(idx)}
+                            onRemove={()=>{setRemoveActiveCourtIdx(idx);setPinPurpose("removeActiveCourt");}}/>
                         ))}
                         {liveAdditions.map((la,i)=>{
                           const tA=teamById(la.teamId1),tB=teamById(la.teamId2);
                           if(!tA||!tB)return null;
                           return <CourtCard key={`live-${i}`} courtLabel={`Court ${la.courtNumber}`}
-                            teams={[tA,tB]} onResult={r=>handleLiveResult(i,r)} done={!!pending[liveKey(i)]}/>;
+                            teams={[tA,tB]} onResult={r=>handleLiveResult(i,r)} done={!!pending[liveKey(i)]}
+                            onEdit={()=>setEditLiveIdx(i)}
+                            onRemove={()=>{setRemoveLiveIdx(i);setPinPurpose("removeLiveAddition");}}/>;
                         })}
                         {/* Paused / Bye row */}
                         {(round.paused?.length>0||round.bye?.length>0)&&(
@@ -2378,7 +2451,7 @@
                                     <span style={{color:"#cbd5e1"}}>–</span>
                                     <span style={{color:l?.color,fontWeight:800}}>{g.loserScore}</span>
                                     <span style={{color:l?.color,fontWeight:700}}>{l?.name}</span>
-                                    <button onClick={()=>{const ne=activeRoundExtras.filter((_,i)=>i!==gi);setActiveRoundExtras(ne);if(isAdmin)pushAtomicUpdate({activeRoundExtras:ne});}}
+                                    <button onClick={()=>{setRemoveActiveRoundExtraIdx(gi);setPinPurpose("removeActiveRoundExtra");}}
                                       style={{marginLeft:"auto",fontSize:11,padding:"2px 8px",borderRadius:6,background:"rgba(220,38,38,0.1)",color:"#dc2626",border:"1px solid rgba(220,38,38,0.2)",cursor:"pointer"}}>×</button>
                                   </div>
                                 );})}
