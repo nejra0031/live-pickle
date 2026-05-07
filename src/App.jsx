@@ -415,16 +415,15 @@ export default function App({ viewerOnly = false }) {
       const teamsRemoved = round.courts[idx] || [];
       const newCourts = round.courts.filter((_, i) => i !== idx);
       const newBye = [...(round.bye || []), ...teamsRemoved];
-      const newCourtNums = courtNumbers.filter((_, i) => i !== idx);
       const newRound = { ...round, courts: newCourts, bye: newBye };
-      setRound(newRound); setCourtNumbers(newCourtNums);
+      setRound(newRound);
       const np = {};
       Object.keys(pendingRef.current).forEach(k => {
         if (k.startsWith('court_')) { const ki = parseInt(k.replace('court_', '')); if (ki < idx) np[k] = pendingRef.current[k]; else if (ki > idx) np[`court_${ki - 1}`] = pendingRef.current[k]; }
         else { np[k] = pendingRef.current[k]; }
       });
       pendingRef.current = np; setPending(np);
-      if (isAdminRef.current) { const rd = { courtTeamIds: newCourts.map(p => p.map(t => t.id)), byeIds: newBye.map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id) }; pushAtomicUpdate({ roundData: rd, courtNumbers: newCourtNums, pendingResults: np }, err => setFirebaseError(err)); }
+      if (isAdminRef.current) { const rd = { courtTeamIds: newCourts.map(p => p.map(t => t.id)), byeIds: newBye.map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id) }; pushAtomicUpdate({ roundData: rd, pendingResults: np }, err => setFirebaseError(err)); }
       setRemoveActiveCourtIdx(null);
     }
     else if (purpose === 'removeLiveAddition' && removeLiveIdx !== null) {
