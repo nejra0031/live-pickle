@@ -469,13 +469,46 @@ export default function App({ viewerOnly = false }) {
 
   const handleManageCourtsSave = useCallback((newCourts, newSocialCourts) => {
     const upd = { courtNumbers: newCourts, socialCourts: newSocialCourts };
+
+    // Move teams to bye if their court just became social mid-round
+    if (round) {
+      const prevSocialSet = new Set(socialCourts.map(String));
+      const newlySocial = new Set(newSocialCourts.filter(c => !prevSocialSet.has(String(c))).map(String));
+      if (newlySocial.size > 0) {
+        const currentNums = round.courtNums || courtNumbers;
+        const newRoundCourts = [], newRoundNums = [], extraBye = [];
+        const removedIndices = new Set();
+        currentNums.forEach((cn, i) => {
+          if (newlySocial.has(String(cn))) { extraBye.push(...(round.courts[i] || [])); removedIndices.add(i); }
+          else { newRoundCourts.push(round.courts[i]); newRoundNums.push(cn); }
+        });
+        if (removedIndices.size > 0) {
+          const newBye = [...(round.bye || []), ...extraBye];
+          setRound({ ...round, courts: newRoundCourts, courtNums: newRoundNums, bye: newBye });
+          const sortedRemoved = [...removedIndices].sort((a, b) => a - b);
+          const np = {};
+          Object.keys(pendingRef.current).forEach(k => {
+            if (k.startsWith('court_')) {
+              const ki = parseInt(k.replace('court_', ''));
+              if (!removedIndices.has(ki)) { const shift = sortedRemoved.filter(r => r < ki).length; np[`court_${ki - shift}`] = pendingRef.current[k]; }
+            } else { np[k] = pendingRef.current[k]; }
+          });
+          pendingRef.current = np; setPending(np);
+          if (isAdminRef.current) {
+            upd.roundData = { courtTeamIds: newRoundCourts.map(p => p.map(t => t.id)), byeIds: newBye.map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id), courtNums: newRoundNums };
+            upd.pendingResults = np;
+          }
+        }
+      }
+    }
+
     if (tournamentMode === 'roundrobin' && roundRobinCourts) {
-      const mapped = roundRobinCourts.map((old, idx) => { const i = courtNumbers.indexOf(old); return i >= 0 && i < newCourts.length ? newCourts[i] : old; });
+      const mapped = roundRobinCourts.map((old) => { const i = courtNumbers.indexOf(old); return i >= 0 && i < newCourts.length ? newCourts[i] : old; });
       setRoundRobinCourts(mapped); upd.roundRobinCourts = mapped;
     }
     setCourtNumbers(newCourts); setSocialCourts(newSocialCourts); setShowManageCourts(false);
     if (isAdminRef.current) pushAtomicUpdate(upd, err => setFirebaseError(err));
-  }, [tournamentMode, roundRobinCourts, courtNumbers]);
+  }, [round, socialCourts, courtNumbers, tournamentMode, roundRobinCourts]);
 
   const handleTogglePause = useCallback(id => {
     setPausedIds(prev => {
