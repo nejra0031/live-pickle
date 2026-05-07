@@ -1,2 +1,3 @@
-old/
-new/
+node_modules/
+dist/
+archive/old/
