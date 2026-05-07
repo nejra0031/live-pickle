@@ -14,9 +14,12 @@ const renameOutputHtml = () => ({
   },
 });
 
-export default defineConfig({
-  plugins: [react(), renameOutputHtml()],
-  base: '/live-pickle/v2/',
+export default defineConfig(({ command }) => ({
+  plugins: [react(), ...(command === 'build' ? [renameOutputHtml()] : [])],
+  base: command === 'build' ? '/live-pickle/v2/' : '/',
+  server: {
+    open: '/_admin.html',
+  },
   build: {
     outDir: 'v2',
     rollupOptions: {
@@ -26,4 +29,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

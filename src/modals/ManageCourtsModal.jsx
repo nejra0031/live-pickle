@@ -44,8 +44,8 @@ export default function ManageCourtsModal({ courtNumbers, socialCourts = [], rrC
                 <input value={c} onChange={e => rename(i, e.target.value)}
                   style={{ flex: 1, padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: `1px solid ${invalid ? '#ef4444' : 'rgba(255,255,255,0.15)'}`, color: '#e2e8f0', outline: 'none' }} />
                 <button onClick={() => toggleSocial(i)} title={isSocial ? 'Mark as competitive' : 'Mark as social'}
-                  style={{ padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: isSocial ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.06)', color: isSocial ? '#a5b4fc' : '#64748b', border: `1px solid ${isSocial ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.1)'}` }}>
-                  {isSocial ? '🎉 Social' : 'Social'}
+                  style={{ flexShrink: 0, width: 52, padding: '4px 0', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', background: isSocial ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.06)', color: isSocial ? '#a5b4fc' : '#64748b', border: `1px solid ${isSocial ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.1)'}` }}>
+                  Social
                 </button>
                 <button onClick={() => remove(i)} disabled={local.length <= 1}
                   style={{ padding: '4px 8px', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: local.length <= 1 ? 'not-allowed' : 'pointer', background: 'rgba(220,38,38,0.15)', color: local.length <= 1 ? '#475569' : '#f87171', border: '1px solid rgba(220,38,38,0.3)' }}>×</button>

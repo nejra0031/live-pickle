@@ -67,7 +67,7 @@ export default function EditGameModal({ game, roundEntry, allTeamIds, label, onS
             <div className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2.5"
               style={{ background: teamA ? `${teamA.color}22` : 'rgba(255,255,255,0.04)', border: `1.5px solid ${teamA ? teamA.color : 'rgba(255,255,255,0.1)'}` }}>
               {teamA && <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: teamA.color }} />}
-              <span className="font-bold text-sm flex-1">{teamA?.name || '—'}</span>
+              <span className="font-bold text-sm flex-1" style={{ color: '#e2e8f0' }}>{teamA?.name || '—'}</span>
             </div>
             <NumInput value={scoreA} onChange={setScoreA} />
           </div>

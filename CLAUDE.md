@@ -5,10 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev      # Vite dev server (hot reload, serves _viewer.html and _admin.html)
+npm run dev      # Vite dev server — auto-opens /_admin.html; viewer at /_viewer.html
 npm run build    # Production build → outputs to v2/ (renames _viewer→index.html, _admin→adm.html)
 npm run preview  # Preview the v2/ build locally
 ```
+
+Dev base is `/`; production base is `/live-pickle/v2/` (GitHub Pages). The `base` is set conditionally in `vite.config.js` via the `command` argument — do not hardcode it.
 
 After build, commit and push `v2/` to deploy to GitHub Pages at `/live-pickle/v2/`.
 

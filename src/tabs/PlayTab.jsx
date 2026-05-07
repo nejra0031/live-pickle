@@ -302,9 +302,12 @@ export default function PlayTab({
             {/* 3-column action grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'clamp(6px,1.5vw,8px)' }}>
               {[
-                { label: '🔀', sub: 'Regenerate', onClick: onRegenerateRound, bg: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: 'rgba(15,76,117,0.2)' },
-                { label: '➕', sub: 'Add Game',   onClick: onLiveAddGame,     bg: 'rgba(99,102,241,0.08)', color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
-                { label: '☕', sub: 'Break',       onClick: onBreakStart,      bg: 'rgba(217,119,6,0.08)', color: '#92400e', border: 'rgba(217,119,6,0.25)' },
+                { label: '🔀', sub: 'Regenerate',  onClick: onRegenerateRound, bg: 'rgba(15,76,117,0.08)',   color: '#0f4c75', border: 'rgba(15,76,117,0.2)' },
+                { label: '➕', sub: 'Add Game',    onClick: onLiveAddGame,     bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
+                { label: '☕', sub: 'Break',        onClick: onBreakStart,      bg: 'rgba(217,119,6,0.08)',   color: '#92400e', border: 'rgba(217,119,6,0.25)' },
+                { label: '✏️', sub: 'Teams',        onClick: onManageTeams,     bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
+                { label: '🏟️', sub: 'Courts',       onClick: onManageCourts,    bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
+                { label: '✕',  sub: 'Cancel Round', onClick: onCancelRound,     bg: 'rgba(220,38,38,0.07)',   color: '#dc2626', border: 'rgba(220,38,38,0.2)' },
               ].map(({ label, sub, onClick, bg, color, border }) => (
                 <button key={sub} onClick={onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: 'clamp(8px,2vw,12px) 4px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', background: bg, color, border: `1px solid ${border}` }}>
                   <span style={{ fontSize: 'clamp(18px,4.5vw,26px)', lineHeight: 1 }}>{label}</span>
@@ -353,17 +356,7 @@ export default function PlayTab({
             {/* Finish Tournament */}
             <button onClick={onFinishTournament} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: 'linear-gradient(90deg,#d97706,#f59e0b)', color: '#fff', border: 'none' }}>🏁 Finish Tournament</button>
 
-            {/* Manage links */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'clamp(6px,1.5vw,10px)', paddingTop: 2, borderTop: '1px solid rgba(0,0,0,0.07)' }}>
-              <button onClick={onManageTeams} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#6366f1', fontSize: 'clamp(11px,2.5vw,13px)', fontWeight: 600, padding: 0 }}>✏️ Manage teams</button>
-              <button onClick={onManageCourts} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#6366f1', fontSize: 'clamp(11px,2.5vw,13px)', fontWeight: 600, padding: 0 }}>🏟️ Manage courts</button>
-            </div>
-
-            {/* Destructive actions */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'clamp(6px,1.5vw,10px)', alignItems: 'center', paddingTop: 2, borderTop: '1px solid rgba(220,38,38,0.12)' }}>
-              <button onClick={onCancelRound} style={{ fontSize: 'clamp(11px,2.5vw,12px)', padding: 'clamp(4px,1vw,6px) clamp(10px,2.5vw,14px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(220,38,38,0.07)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)' }}>✕ Cancel Round</button>
-              <button onClick={onReset} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 'clamp(11px,2.5vw,12px)', fontWeight: 600, padding: 0 }}>↩ Reset tournament…</button>
-            </div>
+            <button onClick={onReset} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>↩ Reset tournament…</button>
           </div>
         </>
       ) : (

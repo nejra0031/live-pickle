@@ -85,9 +85,11 @@ export function generateRound(allSt, numCourts, roundIdx, history = [], pausedId
 
   let ec = numCourts;
   if (finalRound && active.length > 0) {
-    const minP = Math.min(...active.map(t => t.played));
-    const need = active.filter(t => t.played === minP);
-    if (need.length < active.length) { ec = Math.min(numCourts, Math.floor(need.length / 2)); if (ec === 0) ec = 1; }
+    const maxP = Math.max(...active.map(t => t.played));
+    const need = active.filter(t => t.played < maxP);
+    // Schedule just enough courts for below-max teams; teams already at max sit out via byes.
+    // If fewer than 2 below-max teams, play normally — the bye system will prioritise them.
+    if (need.length >= 2) { ec = Math.min(numCourts, Math.floor(need.length / 2)); }
   }
 
   // Seeded pairs from registration order (use fullSt when available to get correct seeds)
