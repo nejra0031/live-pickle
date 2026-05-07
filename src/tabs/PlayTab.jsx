@@ -6,7 +6,7 @@ import { courtKey, liveKey } from '../constants';
 export default function PlayTab({
   tournamentFinished, breakMode, round, roundNum, tournamentMode,
   roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum,
-  courtNumbers, liveAdditions, pending, isAdmin, finalRound, setFinalRound,
+  courtNumbers, socialCourts = [], liveAdditions, pending, isAdmin, finalRound, setFinalRound,
   history, ranked, activeRoundExtras, nextRoundPresets, roundKey,
   onResult, onLiveResult, onRRMatchResult,
   onGenerateRound, onRegenerateRound, onFinishTournament, onResumeTournament,
@@ -241,6 +241,19 @@ export default function PlayTab({
     );
   }
 
+  const socialSection = socialCourts.length > 0 ? (
+    <div className="flex flex-col" style={{ gap: 'clamp(8px,2vw,12px)' }}>
+      <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>— social play —</div>
+      {socialCourts.map(c => (
+        <div key={c} className="rounded-2xl flex flex-col items-center" style={{ padding: 'clamp(14px,3.5vw,22px)', background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.2)' }}>
+          <p style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#6366f1', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Court {c}</p>
+          <p className="font-black" style={{ fontSize: 'clamp(28px,7vw,44px)', color: '#6366f1', letterSpacing: '0.05em', margin: 0 }}>SOCIAL</p>
+          <p style={{ fontSize: 'clamp(10px,2.5vw,12px)', color: '#94a3b8', marginTop: 4 }}>Open play — not counted in standings</p>
+        </div>
+      ))}
+    </div>
+  ) : null;
+
   /* ── Active Swiss round ── */
   return (
     <div className="flex flex-col gap-4">
@@ -252,7 +265,7 @@ export default function PlayTab({
       {isAdmin ? (
         <>
           {round.courts.map((teams, idx) => (
-            <CourtCard key={`${roundKey}-court-${idx}`} courtLabel={`Court ${courtNumbers[idx] ?? idx + 1}`}
+            <CourtCard key={`${roundKey}-court-${idx}`} courtLabel={`Court ${round.courtNums?.[idx] ?? courtNumbers[idx] ?? idx + 1}`}
               teams={teams} onResult={r => onResult(idx, r)} pendingResult={pending[courtKey(idx)]}
               onEdit={() => onEditActiveCourt(idx)}
               onRemove={() => onRemoveActiveCourt(idx)}
@@ -282,6 +295,7 @@ export default function PlayTab({
               )}
             </div>
           )}
+          {socialSection}
           <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(8px,2vw,12px)', background: '#f8fafc', border: '1px solid rgba(0,0,0,0.08)' }}>
             <p style={{ fontSize: 'clamp(9px,2vw,12px)', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Round Options</p>
             <div className="flex flex-wrap" style={{ gap: 'clamp(6px,1.5vw,10px)' }}>
@@ -328,7 +342,7 @@ export default function PlayTab({
         <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
           {round.courts.map((teams, idx) => (
             <div key={idx} className="rounded-2xl" style={{ padding: 'clamp(12px,3vw,20px)', background: '#fff', border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-              <p style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#0f4c75', fontWeight: 800, marginBottom: 'clamp(8px,2vw,14px)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Court {courtNumbers[idx] ?? idx + 1}</p>
+              <p style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#0f4c75', fontWeight: 800, marginBottom: 'clamp(8px,2vw,14px)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Court {round.courtNums?.[idx] ?? courtNumbers[idx] ?? idx + 1}</p>
               <div className="flex items-stretch" style={{ gap: 'clamp(8px,2vw,14px)' }}>
                 <div className="flex-1 flex items-center justify-center rounded-2xl" style={{ padding: 'clamp(14px,3.5vw,24px) clamp(10px,2.5vw,16px)', background: teams[0].color, border: `2px solid ${teams[0].color}` }}>
                   <span className="font-black text-center leading-tight" style={{ fontSize: 'clamp(18px,5vw,36px)', color: teams[0].text }}>{teams[0].name}</span>
@@ -378,6 +392,7 @@ export default function PlayTab({
               )}
             </div>
           )}
+          {socialSection}
         </div>
       )}
     </div>
