@@ -9,19 +9,19 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const renameOutputHtml = () => ({
   name: 'rename-output-html',
   closeBundle() {
-    renameSync('v2/_viewer.html', 'v2/index.html');
-    renameSync('v2/_admin.html', 'v2/adm.html');
+    renameSync('dist/_viewer.html', 'dist/index.html');
+    renameSync('dist/_admin.html', 'dist/adm.html');
   },
 });
 
 export default defineConfig(({ command }) => ({
   plugins: [react(), ...(command === 'build' ? [renameOutputHtml()] : [])],
-  base: command === 'build' ? '/live-pickle/v2/' : '/',
+  base: command === 'build' ? '/live-pickle/' : '/',
   server: {
     open: '/_admin.html',
   },
   build: {
-    outDir: 'v2',
+    outDir: 'dist',
     rollupOptions: {
       input: {
         main: resolve(__dirname, '_admin.html'),
