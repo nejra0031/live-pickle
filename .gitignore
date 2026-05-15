@@ -1,2 +1,5 @@
 node_modules/
-archive/old/
+archive/
+.claude/
+*.md
+*.md.bak
