@@ -40,6 +40,19 @@ export default function PlayTab({
     </div>
   ) : null;
 
+  const socialSection = socialCourts.length > 0 ? (
+    <div className="flex flex-col" style={{ gap: 'clamp(8px,2vw,12px)' }}>
+      <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>— social play —</div>
+      {socialCourts.map(c => (
+        <div key={c} className="rounded-2xl flex flex-col items-center" style={{ padding: 'clamp(14px,3.5vw,22px)', background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.2)' }}>
+          <p style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#6366f1', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Court {c}</p>
+          <p className="font-black" style={{ fontSize: 'clamp(28px,7vw,44px)', color: '#6366f1', letterSpacing: '0.05em', margin: 0 }}>SOCIAL</p>
+          <p style={{ fontSize: 'clamp(10px,2.5vw,12px)', color: '#94a3b8', marginTop: 4 }}>Open play — not counted in standings</p>
+        </div>
+      ))}
+    </div>
+  ) : null;
+
   /* ── Tournament finished — podium ── */
   if (tournamentFinished) {
     const top = ranked.slice(0, 3);
@@ -88,6 +101,7 @@ export default function PlayTab({
     return (
       <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
         {breakBanner}
+        {socialSection}
         <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(4px,1vw,8px)', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.25)' }}>
           <p className="font-bold" style={{ color: '#4338ca', fontSize: 'clamp(13px,3.5vw,17px)' }}>🔁 Round Robin</p>
           <p style={{ color: '#64748b', fontSize: 'clamp(10px,2.5vw,13px)' }}>
@@ -241,23 +255,11 @@ export default function PlayTab({
     );
   }
 
-  const socialSection = socialCourts.length > 0 ? (
-    <div className="flex flex-col" style={{ gap: 'clamp(8px,2vw,12px)' }}>
-      <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>— social play —</div>
-      {socialCourts.map(c => (
-        <div key={c} className="rounded-2xl flex flex-col items-center" style={{ padding: 'clamp(14px,3.5vw,22px)', background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.2)' }}>
-          <p style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#6366f1', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Court {c}</p>
-          <p className="font-black" style={{ fontSize: 'clamp(28px,7vw,44px)', color: '#6366f1', letterSpacing: '0.05em', margin: 0 }}>SOCIAL</p>
-          <p style={{ fontSize: 'clamp(10px,2.5vw,12px)', color: '#94a3b8', marginTop: 4 }}>Open play — not counted in standings</p>
-        </div>
-      ))}
-    </div>
-  ) : null;
-
   /* ── Active Swiss round ── */
   return (
     <div className="flex flex-col gap-4">
       {breakBanner}
+      {socialSection}
       <div style={{ textAlign: 'center' }}>
         <span className="text-blue-900 font-black" style={{ fontSize: 'clamp(22px,6vw,32px)' }}>Round {roundNum}</span>
       </div>
@@ -295,7 +297,6 @@ export default function PlayTab({
               )}
             </div>
           )}
-          {socialSection}
           <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(12px,3vw,18px)', gap: 'clamp(12px,3vw,16px)', background: '#f8fafc', border: '1px solid rgba(0,0,0,0.08)' }}>
             <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Admin Options</p>
 
@@ -414,7 +415,6 @@ export default function PlayTab({
               )}
             </div>
           )}
-          {socialSection}
         </div>
       )}
     </div>
