@@ -76,20 +76,27 @@ function selectByes(didnt, hadBye, numBye, byeCounts) {
 // fullSt: standings for ALL teams in registration order, used to compute seeded pairs.
 // allSt may be a subset of fullSt when preset courts have removed some teams.
 export function generateRound(allSt, numCourts, roundIdx, history = [], pausedIds = [], finalRound = false, fullSt = null) {
-  const pSet       = new Set(pausedIds);
-  const active     = allSt.filter(t => !pSet.has(t.id));
-  const mc         = buildMatchupCounts(history);
-  const lrm        = getLastRoundMatchups(history);
-  const lastByeSet = history.length > 0 ? new Set(history[history.length - 1].bye || []) : new Set();
-  const paused     = allSt.filter(t => pSet.has(t.id));
+  const pSet        = new Set(pausedIds);
+  const allActive   = allSt.filter(t => !pSet.has(t.id));
+  const mc          = buildMatchupCounts(history);
+  const lrm         = getLastRoundMatchups(history);
+  const lastByeSet  = history.length > 0 ? new Set(history[history.length - 1].bye || []) : new Set();
+  const paused      = allSt.filter(t => pSet.has(t.id));
 
+  // In final round mode, remove teams at max GP from the active pool and force them to bye.
+  // This guarantees they always sit out regardless of the normal bye-selection heuristics.
+  let active = allActive;
+  let forcedFinalByes = [];
   let ec = numCourts;
-  if (finalRound && active.length > 0) {
-    const maxP = Math.max(...active.map(t => t.played));
-    const need = active.filter(t => t.played < maxP);
-    // Schedule just enough courts for below-max teams; teams already at max sit out via byes.
-    // If fewer than 2 below-max teams, play normally — the bye system will prioritise them.
-    if (need.length >= 2) { ec = Math.min(numCourts, Math.floor(need.length / 2)); }
+
+  if (finalRound && allActive.length > 0) {
+    const maxP = Math.max(...allActive.map(t => t.played));
+    const belowMax = allActive.filter(t => t.played < maxP);
+    if (belowMax.length >= 2) {
+      forcedFinalByes = allActive.filter(t => t.played === maxP);
+      active = belowMax;
+      ec = Math.min(numCourts, Math.floor(belowMax.length / 2));
+    }
   }
 
   // Seeded pairs from registration order (use fullSt when available to get correct seeds)
@@ -122,7 +129,7 @@ export function generateRound(allSt, numCourts, roundIdx, history = [], pausedId
   if (!active.some(t => t.played === 0)) {
     // Pure Swiss — all teams have played at least once
     const numBye = active.length - ec * 2;
-    if (numBye <= 0) return { courts: pairSwiss(active, allSt, mc, lrm), bye: [], paused };
+    if (numBye <= 0) return { courts: pairSwiss(active, allSt, mc, lrm), bye: forcedFinalByes, paused };
     const byeCounts = buildByeCounts(history);
     const byeGroup = selectByes(
       active.filter(t => !lastByeSet.has(t.id)),
@@ -130,7 +137,7 @@ export function generateRound(allSt, numCourts, roundIdx, history = [], pausedId
       numBye, byeCounts
     );
     const byeSet = new Set(byeGroup.map(t => t.id));
-    return { courts: pairSwiss(active.filter(t => !byeSet.has(t.id)), allSt, mc, lrm), bye: byeGroup, paused };
+    return { courts: pairSwiss(active.filter(t => !byeSet.has(t.id)), allSt, mc, lrm), bye: [...byeGroup, ...forcedFinalByes], paused };
   }
 
   // Seeded phase: schedule ready pairs in seed order, fill remaining courts with Swiss
@@ -164,7 +171,7 @@ export function generateRound(allSt, numCourts, roundIdx, history = [], pausedId
       ...seededToPlay.map(([aId, bId]) => [activeById[aId], activeById[bId]]),
       ...swissCourts,
     ],
-    bye: [...loneUnseeded, ...waitingUnseededTeams, ...swissByeTeams],
+    bye: [...loneUnseeded, ...waitingUnseededTeams, ...swissByeTeams, ...forcedFinalByes],
     paused,
   };
 }
