@@ -3,14 +3,12 @@ import { TeamRegistryContext } from './context/TeamRegistryContext';
 import { setModuleRegistry } from './constants';
 import { courtKey, liveKey } from './constants';
 import { db, ref, set as fbSet, update as fbUpdate, onValue, off, push, get, onDisconnect, remove, pushSnapshot, pushAtomicUpdate, isOwnToken, writeBackup, fetchBackup, fetchBackupIndex, clearBackups } from './firebase';
-import { saveState, loadState, clearSave } from './storage';
 import { warmUpAudio, playAlarm, playWarningBeep } from './audio';
 import { normaliseSnapshot, validateSnapshot } from './normalise';
 import { mkStandings, rerank, rebuildStandings } from './algorithms/standings';
 import { generateRound } from './algorithms/pairing';
 import { generateRoundRobinSchedule } from './algorithms/roundRobin';
 import useOnline from './hooks/useOnline';
-import RestoreBanner from './components/RestoreBanner';
 import RoundTimer from './components/RoundTimer';
 import SetupScreen from './setup/SetupScreen';
 import StandingsTab from './tabs/StandingsTab';
@@ -115,7 +113,6 @@ export default function App({ viewerOnly = false }) {
     pushSnapshot(snap, err => { if (err) setCriticalError('Retry failed — check your connection.', snap); else dismissError(); });
   }, [dismissError, setCriticalError]);
 
-  const [savedState, setSavedState] = useState(null);
   const [headerHidden, setHeaderHidden] = useState(false);
   const headerRef = useRef(null);
   const [headerHeight, setHeaderHeight] = useState(140);
@@ -311,7 +308,6 @@ export default function App({ viewerOnly = false }) {
   }, []);
 
   useEffect(() => {
-    const saved = loadState(); if (saved && saved.phase === 'play') setSavedState(saved);
     const t = setTimeout(() => { if (!initialLoadDone.current) { initialLoadDone.current = true; setPhase('waiting'); } }, 6000);
     return () => clearTimeout(t);
   }, []);
@@ -338,21 +334,6 @@ export default function App({ viewerOnly = false }) {
     if (myPresRef.current) fbUpdate(myPresRef.current, { role: isAdmin ? 'admin' : 'viewer' }).catch(() => {});
   }, [isAdmin]);
 
-  // ── Local auto-save ───────────────────────────────────────────────────────
-  useEffect(() => {
-    if (phase !== 'play') return;
-    const rd = (round && round.courts && round.courts.length > 0) ? {
-      courtTeamIds: round.courts.map(p => p.map(t => t?.id).filter(Boolean)),
-      byeIds: (round.bye || []).map(t => t?.id).filter(Boolean),
-      pausedTeamIds: (round.paused || []).map(t => t?.id).filter(Boolean),
-    } : null;
-    const savedSecsLeft = timerRunningRef.current && timerStartedAtRef.current
-      ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000))
-      : timerPausedSecsRef.current;
-    saveState({ phase, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins, history, roundNum, pausedIds, roundData: rd, teamRegistry: tournamentTeams, tournamentTitle, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras, liveAdditions, nextRoundPresets, tournamentFinished, breakMode, cancelledRoundNums, finalRound, timerRunning: timerRunningRef.current, timerStartedAt: timerStartedAtRef.current, timerPausedSecsLeft: savedSecsLeft, savedAt: Date.now() });
-  }, [phase, history, roundNum, pausedIds, activeTeamIds, courtNumbers, timerDuration, tournamentMode, tournamentTeams, tournamentTitle, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras, liveAdditions, nextRoundPresets, tournamentFinished, breakMode, cancelledRoundNums, round, timerDefaultMins]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleRestore = () => { const s = savedState; setSavedState(null); updateAllStates(normaliseSnapshot(s)); setActiveTab('play'); };
 
   // ── Per-round backup ──────────────────────────────────────────────────────
   // Fires whenever a new round is committed to history. The historyLengthRef
@@ -404,7 +385,7 @@ export default function App({ viewerOnly = false }) {
     const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     tournamentIdRef.current = tid;
     const snap = { phase: 'play', _tournamentId: tid, activeTeamIds: teamIds, courtNumbers: courts, socialCourts: [], teamRegistry: allTeams, tournamentTitle: resolvedTitle, timerDuration: durSecs, timerDefaultMins: durSecs > 0 ? Math.round(durSecs / 60) : 12, history: [], roundNum: 0, pausedIds: [], timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: durSecs, roundData: null, roundComplete: false, tournamentMode: 'swiss', roundRobinSchedule: null, roundRobinCourts: null, roundRobinStartRoundNum: null, roundRobinStartSnapshot: null, roundRobinEndSnapshot: null, activeRoundExtras: [], tournamentFinished: false, savedAt: Date.now() };
-    saveState(snap); pushSnapshot(snap, err => setFirebaseError(err)); setIsAdmin(true);
+    pushSnapshot(snap, err => setFirebaseError(err)); setIsAdmin(true);
     setActiveTeamIds(teamIds); setCourtNumbers(courts); setTimerDuration(durSecs);
     setStandings(s); setRound(null); setRoundNum(0); setHistory([]);
     lastSeenRoundNum.current = 0; pendingRef.current = {}; setPending({}); setPausedIds([]); setRoundKey(0); setRoundComplete(false);
@@ -442,7 +423,7 @@ export default function App({ viewerOnly = false }) {
   }, []);
 
   const doReset = useCallback(() => {
-    clearSave(); pushSnapshot(null, err => setFirebaseError(err)); clearBackups();
+    pushSnapshot(null, err => setFirebaseError(err)); clearBackups();
     setBackupRoundNums(new Set()); historyLengthRef.current = 0;
     lastSeenRoundNum.current = -1; setPhase('setup'); setIsAdmin(false);
     setHistory([]); setStandings([]); setRound(null); setPausedIds([]);
@@ -471,7 +452,7 @@ export default function App({ viewerOnly = false }) {
     const bm = breakModeRef.current;
     const cancelSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
     const snap = { phase: 'play', activeTeamIds, courtNumbers, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history, roundNum: prevRN, pausedIds, roundComplete: prevRC, timerRunning: bm ? timerRunningRef.current : false, timerStartedAt: bm ? timerStartedAtRef.current : null, timerPausedSecsLeft: bm ? cancelSecs : timerDuration, roundData: null, breakMode: bm, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras: [], liveAdditions: [], nextRoundPresets, tournamentFinished, cancelledRoundNums: newCancelled, savedAt: Date.now() };
-    lastSeenRoundNum.current = prevRN; saveState(snap); pushSnapshot(snap, err => setFirebaseError(err));
+    lastSeenRoundNum.current = prevRN; pushSnapshot(snap, err => setFirebaseError(err));
     setCancelledRoundNums(newCancelled); setRound(null); setRoundNum(prevRN); setRoundComplete(prevRC);
     pendingRef.current = {}; setPending({}); setActiveRoundExtras([]); setRoundKey(k => k + 1);
     alarmFiredRef.current = false; warningsFiredRef.current = new Set(); setTimerAlarmed(false);
@@ -635,7 +616,7 @@ export default function App({ viewerOnly = false }) {
           const bm = breakModeRef.current;
           const completeSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
           const snap = { phase: 'play', activeTeamIds, courtNumbers, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history: nh, roundNum, pausedIds, roundComplete: true, timerRunning: bm ? timerRunningRef.current : false, timerStartedAt: bm ? timerStartedAtRef.current : null, timerPausedSecsLeft: bm ? completeSecs : timerDuration, roundData: null, breakMode: bm, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras: [], liveAdditions: [], nextRoundPresets, tournamentFinished, savedAt: Date.now() };
-          saveState(snap); pushSnapshot(snap, err => err && setCriticalError('Round result failed to save — tap Retry.', snap));
+          pushSnapshot(snap, err => err && setCriticalError('Round result failed to save — tap Retry.', snap));
         }
         setHistory(nh); setStandings(ns); setRound(null); setRoundComplete(true); setActiveRoundExtras([]); setLiveAdditions([]);
         alarmFiredRef.current = false; setTimerAlarmed(false); if (!breakModeRef.current) applyTimerState(false, null, timerDuration);
@@ -661,7 +642,7 @@ export default function App({ viewerOnly = false }) {
           const bm = breakModeRef.current;
           const completeSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
           const snap = { phase: 'play', activeTeamIds, courtNumbers, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history: nh, roundNum, pausedIds, roundComplete: true, timerRunning: bm ? timerRunningRef.current : false, timerStartedAt: bm ? timerStartedAtRef.current : null, timerPausedSecsLeft: bm ? completeSecs : timerDuration, roundData: null, breakMode: bm, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras: [], liveAdditions: [], nextRoundPresets, tournamentFinished, savedAt: Date.now() };
-          saveState(snap); pushSnapshot(snap, err => err && setCriticalError('Round result failed to save — tap Retry.', snap));
+          pushSnapshot(snap, err => err && setCriticalError('Round result failed to save — tap Retry.', snap));
         }
         setHistory(nh); setStandings(ns); setRound(null); setRoundComplete(true); setActiveRoundExtras([]); setLiveAdditions([]);
         alarmFiredRef.current = false; setTimerAlarmed(false); if (!breakModeRef.current) applyTimerState(false, null, timerDuration);
@@ -700,7 +681,7 @@ export default function App({ viewerOnly = false }) {
       const genSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
       const sa = bm ? timerStartedAtRef.current : (timerDuration > 0 ? Date.now() : null);
       const snap = { phase: 'play', activeTeamIds, courtNumbers, socialCourts, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history, roundNum: newRN, pausedIds, roundComplete: false, timerRunning: bm ? timerRunningRef.current : timerDuration > 0, timerStartedAt: sa, timerPausedSecsLeft: bm ? genSecs : timerDuration, roundData: rd, breakMode: bm, finalRound: false, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras, liveAdditions: [], nextRoundPresets: [], tournamentFinished, savedAt: Date.now() };
-      lastSeenRoundNum.current = newRN; saveState(snap); pushSnapshot(snap, err => setFirebaseError(err));
+      lastSeenRoundNum.current = newRN; pushSnapshot(snap, err => setFirebaseError(err));
     }
     setRound(mergedNr); setRoundNum(newRN); pendingRef.current = {}; setPending({}); setRoundKey(k => k + 1); setRoundComplete(false); setFinalRound(false); setActiveRoundExtras([]); setNextRoundPresets([]);
     alarmFiredRef.current = false; warningsFiredRef.current = new Set();
@@ -956,10 +937,13 @@ export default function App({ viewerOnly = false }) {
           </div>
         )}
         {firebaseError && (
-          <div style={{ position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 100, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: '#dc2626', color: '#fff', fontWeight: 700, fontSize: 13, boxShadow: '0 2px 16px rgba(0,0,0,0.3)', maxWidth: 'calc(100vw - 32px)' }}>
-            <span>⚠️ {firebaseError}</span>
-            {firebaseErrorPersist && retrySnapshotRef.current && <button onClick={retryWrite} style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', color: '#fff', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Retry</button>}
-            <button onClick={dismissError} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 16, lineHeight: 1 }}>×</button>
+          <div style={{ position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 100, display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 16px', borderRadius: 10, background: '#dc2626', color: '#fff', fontWeight: 700, fontSize: 13, boxShadow: '0 2px 16px rgba(0,0,0,0.3)', maxWidth: 'calc(100vw - 32px)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>⚠️ {firebaseError}</span>
+              {firebaseErrorPersist && retrySnapshotRef.current && <button onClick={retryWrite} style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', color: '#fff', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Retry</button>}
+              <button onClick={dismissError} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 16, lineHeight: 1 }}>×</button>
+            </div>
+            {firebaseErrorPersist && <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.9 }}>Do not refresh — tournament data is held in memory and will sync when connection is restored.</span>}
           </div>
         )}
 
@@ -971,14 +955,13 @@ export default function App({ viewerOnly = false }) {
             <div className="rounded-2xl p-10 text-center flex flex-col items-center gap-4" style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)' }}>
               {phase === 'loading'
                 ? (<><div className="text-3xl">🔄</div><p className="text-slate-500 text-sm">Connecting to tournament…</p></>)
-                : (<><div className="text-3xl">🏓</div><p className="text-slate-700 font-bold">No active tournament</p><p className="text-slate-500 text-sm">Waiting for the admin to start a game.</p>{savedState && <RestoreBanner saved={savedState} onRestore={handleRestore} onDiscard={() => { setSavedState(null); clearSave(); }} />}</>)
+                : (<><div className="text-3xl">🏓</div><p className="text-slate-700 font-bold">No active tournament</p><p className="text-slate-500 text-sm">Waiting for the admin to start a game.</p></>)
               }
             </div>
           )}
 
           {(phase === 'loading' || phase === 'waiting' || phase === 'setup') && isAdmin && (
             <>
-              {savedState && <RestoreBanner saved={savedState} onRestore={handleRestore} onDiscard={() => { setSavedState(null); clearSave(); }} />}
               <SetupScreen onStart={handleStart} />
             </>
           )}
