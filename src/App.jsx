@@ -747,18 +747,28 @@ export default function App({ viewerOnly = false }) {
     const tA = tournamentTeams.find(t => t.id === teamAId), tB = tournamentTeams.find(t => t.id === teamBId);
     if (!tA || !tB) return;
     const newCourts = round.courts.map((p, i) => i === courtIdx ? [tA, tB] : [...p]);
+
+    // Recalculate byes: active teams not on any court (including live additions) and not paused
+    const onCourt = new Set(newCourts.flat().map(t => t.id));
+    liveAdditions.forEach(la => { onCourt.add(la.teamId1); onCourt.add(la.teamId2); });
+    const paused = new Set((round.paused || []).map(t => t.id));
+    const newByeTeams = activeTeamIds
+      .filter(id => !onCourt.has(id) && !paused.has(id))
+      .map(id => tournamentTeams.find(t => t.id === id))
+      .filter(Boolean);
+
     const oldName = (round.courtNums || courtNumbers)[courtIdx];
     const newCourtNums = round.courtNums ? round.courtNums.map((n, i) => i === courtIdx ? (courtNum ?? n) : n) : undefined;
     const newCourtNumbers = courtNum !== undefined ? courtNumbers.map(n => n === oldName ? courtNum : n) : courtNumbers;
-    const newRound = { ...round, courts: newCourts, ...(newCourtNums ? { courtNums: newCourtNums } : {}) };
+    const newRound = { ...round, courts: newCourts, bye: newByeTeams, ...(newCourtNums ? { courtNums: newCourtNums } : {}) };
     setRound(newRound);
     if (courtNum !== undefined) setCourtNumbers(newCourtNumbers);
     const np = { ...pendingRef.current };
     delete np[courtKey(courtIdx)];
     pendingRef.current = np; setPending(np);
-    if (isAdminRef.current) { const rd = { courtTeamIds: newCourts.map(p => p.map(t => t.id)), byeIds: (round.bye || []).map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id), ...(newCourtNums ? { courtNums: newCourtNums } : {}) }; pushAtomicUpdate({ roundData: rd, courtNumbers: newCourtNumbers, [`pendingResults/${courtKey(courtIdx)}`]: null }, err => setFirebaseError(err)); }
+    if (isAdminRef.current) { const rd = { courtTeamIds: newCourts.map(p => p.map(t => t.id)), byeIds: newByeTeams.map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id), ...(newCourtNums ? { courtNums: newCourtNums } : {}) }; pushAtomicUpdate({ roundData: rd, courtNumbers: newCourtNumbers, [`pendingResults/${courtKey(courtIdx)}`]: null }, err => setFirebaseError(err)); }
     setEditActiveCourt(null);
-  }, [round, tournamentTeams, courtNumbers]);
+  }, [round, tournamentTeams, courtNumbers, activeTeamIds, liveAdditions]);
 
   const handleUndoResult = useCallback((idx) => {
     const k = courtKey(idx);
