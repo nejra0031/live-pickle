@@ -111,6 +111,8 @@ export default function HistoryTab({
   const sortedEntries = [...history].map((h, ri) => ({ type: 'round', h, ri })).sort((a, b) => a.h.roundNum - b.h.roundNum);
   const committedNums = new Set(history.map(h => h.roundNum));
   const effectiveCancelled = cancelledRoundNums.filter(n => !committedNums.has(n));
+  // Backups for rounds no longer in history — available after a partial revert
+  const futureBackups = [...backupRoundNums].filter(n => !committedNums.has(n)).sort((a, b) => a - b);
   const allEntries = [
     ...sortedEntries,
     ...effectiveCancelled.map(n => ({ type: 'cancelled', roundNum: n }))
@@ -137,6 +139,21 @@ export default function HistoryTab({
       </div>
 
       {isEmpty && <div className="text-center text-slate-400 py-8 text-sm">No rounds completed yet.</div>}
+
+      {isAdmin && futureBackups.length > 0 && (
+        <div className="rounded-2xl flex flex-col gap-2" style={{ padding: 'clamp(10px,2.5vw,14px) clamp(12px,3vw,18px)', background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.3)' }}>
+          <p style={{ fontSize: 'clamp(10px,2.5vw,13px)', fontWeight: 800, color: '#92400e', margin: 0 }}>⏩ Snapshots from reverted rounds</p>
+          <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#b45309', margin: 0 }}>These rounds existed before your last revert. You can restore any of them.</p>
+          <div className="flex flex-wrap gap-2">
+            {futureBackups.map(rn => (
+              <button key={rn} onClick={() => onRevertToRound(rn)}
+                style={{ fontSize: 'clamp(11px,2.5vw,13px)', padding: 'clamp(4px,1vw,6px) clamp(10px,2.5vw,14px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(217,119,6,0.12)', color: '#92400e', border: '1px solid rgba(217,119,6,0.35)' }}>
+                ↩ Round {rn}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {newestFirst && showEndAtTop && renderRREndSnapshot()}
       {newestFirst && showSnapshotAtTop && renderRRSnapshot()}
