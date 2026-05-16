@@ -12,22 +12,30 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db  = getDatabase(app);
+export const db = getDatabase(app);
 export { ref, set, update, onValue, off, push, get, onDisconnect, remove };
 
+// ── Path constants (test-isolated) ────────────────────────────────────────
+const TEST_MODE = import.meta.env.VITE_TEST_MODE === 'true';
+const TOURNAMENT_PATH  = TEST_MODE ? 'current_tournament_e2e' : 'current_tournament';
+const BACKUPS_PATH     = TEST_MODE ? 'tournament_backups_e2e' : 'tournament_backups';
+const ADMIN_PIN_PATH   = TEST_MODE ? 'config/adminPin_test'   : 'config/adminPin';
+const PRESENCE_PATH    = TEST_MODE ? 'presence_e2e'           : 'presence';
+
+// Exported so App.jsx can use the correct path for presence push/listen
+export const tournamentRef     = () => ref(db, TOURNAMENT_PATH);
+export const pendingResultsRef = () => ref(db, `${TOURNAMENT_PATH}/pendingResults`);
+export const adminPinRef       = () => ref(db, ADMIN_PIN_PATH);
+export const presenceRef       = () => ref(db, PRESENCE_PATH);
+
 // ── Write-token helpers ────────────────────────────────────────────────────
-// Tokens suppress echo updates from our own writes.
-// Each entry is { ts: Date.now() }. Tokens older than TOKEN_TTL_MS are expired
-// on every write so the map stays small even under sustained high-frequency writes.
 const TOKEN_TTL_MS = 30_000;
 const _tokens = new Map();
 
 export function addWriteToken(tok) {
   const now = Date.now();
-  // Evict expired tokens
   for (const [k, v] of _tokens) { if (now - v.ts > TOKEN_TTL_MS) _tokens.delete(k); }
   _tokens.set(tok, { ts: now });
-  // Hard cap at 100 entries as a safety net
   if (_tokens.size > 100) _tokens.delete(_tokens.keys().next().value);
 }
 export function isOwnToken(tok) {
@@ -39,30 +47,26 @@ export function isOwnToken(tok) {
 
 // ── Backup helpers ─────────────────────────────────────────────────────────
 export function writeBackup(roundNum, snap) {
-  return set(ref(db, `tournament_backups/round_${roundNum}`), { ...snap, _backupAt: Date.now() }).catch(err => {
+  return set(ref(db, `${BACKUPS_PATH}/round_${roundNum}`), { ...snap, _backupAt: Date.now() }).catch(err => {
     console.error('Backup write failed', err);
   });
 }
 export function fetchBackup(roundNum) {
-  return get(ref(db, `tournament_backups/round_${roundNum}`));
+  return get(ref(db, `${BACKUPS_PATH}/round_${roundNum}`));
 }
 export function fetchBackupIndex() {
-  return get(ref(db, 'tournament_backups'));
+  return get(ref(db, BACKUPS_PATH));
 }
 export function clearBackups() {
-  return remove(ref(db, 'tournament_backups')).catch(err => console.error('Backup clear failed', err));
+  return remove(ref(db, BACKUPS_PATH)).catch(err => console.error('Backup clear failed', err));
 }
 
 // ── Atomic helpers ─────────────────────────────────────────────────────────
-// pushSnapshot: full replace — only called by the admin who generated the round.
-// NOTE: set() is not atomic with concurrent update() calls from other clients;
-// the round-start admin is the only writer at that moment so races are minimal.
 export function pushSnapshot(snapshot, onError) {
   const tok = Math.random().toString(36).slice(2);
   addWriteToken(tok);
-  const r = ref(db, 'current_tournament');
   const data = snapshot ? { ...snapshot, _writeToken: tok } : { phase: 'ended', _writeToken: tok };
-  return set(r, data).catch(err => {
+  return set(tournamentRef(), data).catch(err => {
     console.error('Firebase pushSnapshot failed', err);
     onError?.('Write failed — check your connection');
   });
@@ -71,7 +75,7 @@ export function pushSnapshot(snapshot, onError) {
 export function pushAtomicUpdate(fields, onError) {
   const tok = Math.random().toString(36).slice(2);
   addWriteToken(tok);
-  return update(ref(db, 'current_tournament'), { ...fields, _writeToken: tok }).catch(err => {
+  return update(tournamentRef(), { ...fields, _writeToken: tok }).catch(err => {
     console.error('Firebase pushAtomicUpdate failed', err);
     onError?.('Write failed — check your connection');
   });

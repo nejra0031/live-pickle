@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { TeamRegistryContext } from './context/TeamRegistryContext';
 import { setModuleRegistry } from './constants';
 import { courtKey, liveKey } from './constants';
-import { db, ref, set as fbSet, update as fbUpdate, onValue, off, push, get, onDisconnect, remove, pushSnapshot, pushAtomicUpdate, isOwnToken, writeBackup, fetchBackup, fetchBackupIndex, clearBackups } from './firebase';
+import { db, ref, set as fbSet, update as fbUpdate, onValue, off, push, get, onDisconnect, remove, pushSnapshot, pushAtomicUpdate, isOwnToken, writeBackup, fetchBackup, fetchBackupIndex, clearBackups, tournamentRef, pendingResultsRef, adminPinRef, presenceRef } from './firebase';
 import { warmUpAudio, playAlarm, playWarningBeep } from './audio';
 import { normaliseSnapshot, validateSnapshot } from './normalise';
 import { mkStandings, rerank, rebuildStandings } from './algorithms/standings';
@@ -212,7 +212,7 @@ export default function App({ viewerOnly = false }) {
 
   // ── Firebase admin PIN ────────────────────────────────────────────────────
   useEffect(() => {
-    get(ref(db, 'config/adminPin')).then(snap => {
+    get(adminPinRef()).then(snap => {
       const val = snap.val();
       if (val) setAdminPin(String(val));
       setAdminPinLoaded(true);
@@ -276,7 +276,7 @@ export default function App({ viewerOnly = false }) {
   }, [applyTimerState]);
 
   useEffect(() => {
-    const r = ref(db, 'current_tournament');
+    const r = tournamentRef();
     onValue(r, snap => {
       const data = snap.val();
       if (!initialLoadDone.current) initialLoadDone.current = true;
@@ -295,7 +295,7 @@ export default function App({ viewerOnly = false }) {
   }, [updateAllStates]);
 
   useEffect(() => {
-    const r = ref(db, 'current_tournament/pendingResults');
+    const r = pendingResultsRef();
     onValue(r, snap => {
       const d = snap.val(); if (!d) return;
       setPending(prev => {
@@ -316,13 +316,12 @@ export default function App({ viewerOnly = false }) {
   const myPresRef = useRef(null);
   useEffect(() => {
     const presenceDebounceRef = { t: null };
-    const r = push(ref(db, 'presence')); myPresRef.current = r;
+    const r = push(presenceRef()); myPresRef.current = r;
     onDisconnect(r).remove();
-    // Delay initial write by 2 s to debounce rapid open/close
     presenceDebounceRef.t = setTimeout(() => {
       fbSet(r, { role: 'viewer', joinedAt: Date.now() }).catch(() => {});
     }, 2000);
-    const presRef = ref(db, 'presence');
+    const presRef = presenceRef();
     onValue(presRef, snap => {
       const d = snap.val() || {}, e = Object.values(d);
       setPresence({ viewers: e.filter(x => x?.role === 'viewer').length, admins: e.filter(x => x?.role === 'admin').length });
