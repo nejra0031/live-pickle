@@ -9,6 +9,7 @@ export default function RestoreBanner({ saved, onRestore, onDiscard }) {
           Round {saved.roundNum} · {saved.activeTeamIds?.length} teams · Courts {saved.courtNumbers?.join(', ')}<br />
           Saved at {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} on {d.toLocaleDateString([], { month: 'short', day: 'numeric' })}
         </p>
+        <p className="text-xs text-slate-400 mt-1">If the live connection is restored, it will take priority over this saved data.</p>
       </div>
       <div className="flex gap-2">
         <button onClick={onDiscard} className="flex-1 py-2 rounded-xl text-sm font-bold"

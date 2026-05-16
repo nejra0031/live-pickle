@@ -84,6 +84,8 @@ export default function App({ viewerOnly = false }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmRemoveGame, setConfirmRemoveGame] = useState(false);
   const [confirmRevert, setConfirmRevert] = useState(false);
+  const [tournamentSwapped, setTournamentSwapped] = useState(false);
+  const tournamentIdRef = useRef(null); // ID of the tournament this session started/joined
   const [revertTarget, setRevertTarget] = useState(null);
   const [backupRoundNums, setBackupRoundNums] = useState(new Set());
   const historyLengthRef = useRef(0);
@@ -264,6 +266,7 @@ export default function App({ viewerOnly = false }) {
     setSocialCourts(validSocial);
     setFinalRound(!!s.finalRound);
     historyLengthRef.current = s.history.length; // sync so backup useEffect ignores initial load
+    if (s._tournamentId) tournamentIdRef.current = s._tournamentId;
     const isNew = s.roundNum !== lastSeenRoundNum.current;
     if (isNew) { lastSeenRoundNum.current = s.roundNum; pendingRef.current = {}; setPending({}); setRoundKey(k => k + 1); }
     alarmFiredRef.current = false;
@@ -285,6 +288,10 @@ export default function App({ viewerOnly = false }) {
       if (data.phase !== 'play') { setPhase('waiting'); return; }
       const validationError = validateSnapshot(data);
       if (validationError) { setFirebaseError(`Data integrity error: ${validationError}. Do not enter results — contact the organiser.`); return; }
+      // Detect tournament swap: a different _tournamentId means another device started a new tournament
+      if (data._tournamentId && tournamentIdRef.current && data._tournamentId !== tournamentIdRef.current && initialLoadDone.current) {
+        setTournamentSwapped(true);
+      }
       updateAllStates(normaliseSnapshot(data));
     });
     return () => off(r);
@@ -394,7 +401,9 @@ export default function App({ viewerOnly = false }) {
     const resolvedTitle = title || 'Tournament';
     setTournamentTitle(resolvedTitle);
     const s = mkStandings(teamIds);
-    const snap = { phase: 'play', activeTeamIds: teamIds, courtNumbers: courts, socialCourts: [], teamRegistry: allTeams, tournamentTitle: resolvedTitle, timerDuration: durSecs, timerDefaultMins: durSecs > 0 ? Math.round(durSecs / 60) : 12, history: [], roundNum: 0, pausedIds: [], timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: durSecs, roundData: null, roundComplete: false, tournamentMode: 'swiss', roundRobinSchedule: null, roundRobinCourts: null, roundRobinStartRoundNum: null, roundRobinStartSnapshot: null, roundRobinEndSnapshot: null, activeRoundExtras: [], tournamentFinished: false, savedAt: Date.now() };
+    const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    tournamentIdRef.current = tid;
+    const snap = { phase: 'play', _tournamentId: tid, activeTeamIds: teamIds, courtNumbers: courts, socialCourts: [], teamRegistry: allTeams, tournamentTitle: resolvedTitle, timerDuration: durSecs, timerDefaultMins: durSecs > 0 ? Math.round(durSecs / 60) : 12, history: [], roundNum: 0, pausedIds: [], timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: durSecs, roundData: null, roundComplete: false, tournamentMode: 'swiss', roundRobinSchedule: null, roundRobinCourts: null, roundRobinStartRoundNum: null, roundRobinStartSnapshot: null, roundRobinEndSnapshot: null, activeRoundExtras: [], tournamentFinished: false, savedAt: Date.now() };
     saveState(snap); pushSnapshot(snap, err => setFirebaseError(err)); setIsAdmin(true);
     setActiveTeamIds(teamIds); setCourtNumbers(courts); setTimerDuration(durSecs);
     setStandings(s); setRound(null); setRoundNum(0); setHistory([]);
@@ -879,6 +888,7 @@ export default function App({ viewerOnly = false }) {
 
         {/* ── Modals ── */}
         {pinPurpose && <PinModal title={pinTitle} correctPin={adminPin} pinLoaded={adminPinLoaded} pinLoadError={adminPinLoadError} onSuccess={handlePinSuccess} onClose={() => { setPinPurpose(null); setRemoveGameTarget(null); setRemoveActiveCourtIdx(null); setRemoveLiveIdx(null); setRemoveActiveRoundExtraIdx(null); }} />}
+        {tournamentSwapped && <ConfirmModal title="Tournament changed" message="A new tournament was started from another device. This tab is now showing the new tournament. Reload the page to ensure everything is in sync." confirmLabel="Reload" onConfirm={() => window.location.reload()} onClose={() => setTournamentSwapped(false)} />}
         {confirmReset && <ConfirmModal title="Back to Setup" message="This will end the current tournament and reset all data. Are you sure?" confirmLabel="Reset" onConfirm={() => { setConfirmReset(false); setPinPurpose('reset'); }} onClose={() => setConfirmReset(false)} />}
         {confirmRemoveGame && removeGameTarget && <ConfirmModal title="Remove game?" message="This will permanently delete this game from history and recalculate standings. Cannot be undone." confirmLabel="Delete" onConfirm={() => { setConfirmRemoveGame(false); const { ri, gameIdx } = removeGameTarget; setHistory(prev => { const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: h.games.filter((_, gi) => gi !== gameIdx) }); const ns = rebuildStandings(activeTeamIds, nh); setStandings(ns); if (isAdminRef.current) pushAtomicUpdate({ history: nh }, err => setFirebaseError(err)); return nh; }); setRemoveGameTarget(null); }} onClose={() => { setConfirmRemoveGame(false); setRemoveGameTarget(null); }} />}
         {confirmRevert && revertTarget != null && <ConfirmModal title={`Revert to Round ${revertTarget}?`} message={`This will restore the tournament to the state it was in right after Round ${revertTarget} completed. All rounds played after that will be lost. This cannot be undone.`} confirmLabel="Revert" onConfirm={() => { setConfirmRevert(false); doRevertToRound(); }} onClose={() => { setConfirmRevert(false); setRevertTarget(null); }} />}
@@ -909,7 +919,7 @@ export default function App({ viewerOnly = false }) {
                   {phase === 'setup' && <p className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>Setup</p>}
                   {(phase === 'waiting' || phase === 'loading') && !isAdmin && <p className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>🔵 Live Viewer</p>}
                   {!online && <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#dc2626', fontWeight: 700 }}>● Offline</span>}
-                  {(presence.admins > 0 || presence.viewers > 0) && <span className="text-slate-400" style={{ fontSize: 'clamp(9px,2vw,11px)' }}>{(presence.admins - (isAdmin ? 1 : 0)) > 0 && `🟢${presence.admins - (isAdmin ? 1 : 0)} `}{(presence.viewers - (isAdmin ? 0 : 1)) > 0 && `🔵${presence.viewers - (isAdmin ? 0 : 1)}`}</span>}
+                  {(presence.admins > 0 || presence.viewers > 0) && <span className="text-slate-400" title="Approximate — count may lag by up to 60s" style={{ fontSize: 'clamp(9px,2vw,11px)' }}>{(presence.admins - (isAdmin ? 1 : 0)) > 0 && `🟢~${presence.admins - (isAdmin ? 1 : 0)} `}{(presence.viewers - (isAdmin ? 0 : 1)) > 0 && `🔵~${presence.viewers - (isAdmin ? 0 : 1)}`}</span>}
                 </div>
               </div>
               {!viewerOnly && (
@@ -940,6 +950,11 @@ export default function App({ viewerOnly = false }) {
         </div>
 
         {/* ── Firebase error toast ── */}
+        {isAdmin && (presence.admins - 1) > 0 && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99, padding: '6px 16px', background: '#d97706', color: '#fff', fontWeight: 700, fontSize: 13, textAlign: 'center' }}>
+            ⚠️ {presence.admins - 1} other admin session{presence.admins - 1 > 1 ? 's' : ''} active — only one admin should write at a time.
+          </div>
+        )}
         {firebaseError && (
           <div style={{ position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 100, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: '#dc2626', color: '#fff', fontWeight: 700, fontSize: 13, boxShadow: '0 2px 16px rgba(0,0,0,0.3)', maxWidth: 'calc(100vw - 32px)' }}>
             <span>⚠️ {firebaseError}</span>
@@ -974,7 +989,7 @@ export default function App({ viewerOnly = false }) {
                 <PlayTab
                   tournamentFinished={tournamentFinished} breakMode={activeTab === 'play' ? breakMode : null} round={round} roundNum={roundNum} tournamentMode={tournamentMode}
                   roundRobinSchedule={roundRobinSchedule} roundRobinCourts={roundRobinCourts} roundRobinStartRoundNum={roundRobinStartRoundNum}
-                  courtNumbers={courtNumbers} socialCourts={socialCourts} liveAdditions={liveAdditions} pending={pending} isAdmin={isAdmin} finalRound={finalRound} setFinalRound={v => { setFinalRound(v); if (isAdminRef.current) pushAtomicUpdate({ finalRound: v }, err => setFirebaseError(err)); }}
+                  courtNumbers={courtNumbers} socialCourts={socialCourts} liveAdditions={liveAdditions} pending={pending} isAdmin={isAdmin} finalRound={finalRound} pausedIds={pausedIds} setFinalRound={v => { setFinalRound(v); if (isAdminRef.current) pushAtomicUpdate({ finalRound: v }, err => setFirebaseError(err)); }}
                   history={history} ranked={ranked} activeRoundExtras={activeRoundExtras} nextRoundPresets={nextRoundPresets} roundKey={roundKey}
                   onResult={handleResult} onLiveResult={handleLiveResult} onRRMatchResult={handleRRMatchResult}
                   onGenerateRound={handleGenerateRound} onRegenerateRound={handleRegenerateRound} onFinishTournament={handleFinishTournament} onResumeTournament={handleResumeTournament}
