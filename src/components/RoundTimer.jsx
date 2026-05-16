@@ -35,15 +35,15 @@ export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning
 
   const mins = Math.floor(secsLeft / 60), secs = secsLeft % 60;
   const pct = totalSecs > 0 ? secsLeft / totalSecs : 1;
-  const expired = secsLeft === 0, urgent = pct < 0.2 && !expired;
-  const color = expired ? '#ef4444' : urgent ? '#f97316' : '#6366f1';
+  const elapsed = 1 - pct;
+  const expired = secsLeft === 0;
 
   return (
     <div style={{
       position: 'relative',
       borderRadius: 12,
       overflow: 'hidden',
-      background: '#94a3b8',
+      background: '#6366f1',
       display: 'flex',
       alignItems: 'center',
       padding: 'clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)',
@@ -51,12 +51,12 @@ export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning
       marginBottom: 'clamp(6px,1.5vw,10px)',
     }}>
 
-      {/* Colored fill — shrinks from the right as time passes */}
+      {/* Red fill — grows from the right as time passes; 0% at start, 100% when expired */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, bottom: 0,
-        width: `${(expired ? 1 : pct) * 100}%`,
-        background: color,
-        transition: expired ? 'background 0.3s' : 'width 1s linear, background 0.3s',
+        position: 'absolute', top: 0, right: 0, bottom: 0,
+        width: `${elapsed * 100}%`,
+        background: '#ef4444',
+        transition: 'width 1s linear',
         pointerEvents: 'none',
       }} />
 
@@ -86,8 +86,9 @@ export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning
             strokeDasharray={`${2 * Math.PI * 13}`}
             strokeDashoffset={`${-2 * Math.PI * 13 * (1 - pct)}`}
             strokeLinecap="round" transform="rotate(-90 17 17)"
-            style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }} />
+            style={{ transition: 'stroke-dashoffset 1s linear' }} />
           {expired && <text x={17} y={21} textAnchor="middle" fontSize={9} fill="white" fontWeight="bold">!</text>}
+
         </svg>
         <span style={{
           fontSize: 'clamp(14px,3.5vw,20px)',
