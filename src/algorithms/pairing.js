@@ -117,14 +117,18 @@ export function generateRound(allSt, numCourts, roundIdx, history = [], pausedId
   // Unseeded teams not in a ready pair
   const unseededNotReady = active.filter(t => t.played === 0 && !inReadyPair.has(t.id));
 
-  // Teams whose seeded partner is paused — they wait this round
-  const loneUnseeded = unseededNotReady.filter(t =>
+  // Teams whose seeded partner is paused — ideally wait, but pair them together if courts are free
+  const loneUnseededAll = unseededNotReady.filter(t =>
     seededPartner[t.id] !== undefined && pSet.has(seededPartner[t.id])
   );
   // Teams with no seeded partner (odd-team-out) or whose partner already played — enter Swiss pool
   const partnerlessUnseeded = unseededNotReady.filter(t =>
     seededPartner[t.id] === undefined || !pSet.has(seededPartner[t.id])
   );
+  // Pair lone-unseeded teams together when >= 2 exist (rather than leaving courts empty)
+  const lonePairCount = Math.floor(loneUnseededAll.length / 2);
+  const loneSwiss = lonePairCount > 0 ? loneUnseededAll.slice(0, lonePairCount * 2) : [];
+  const loneUnseeded = loneUnseededAll.slice(lonePairCount * 2); // odd one out still sits
 
   if (!active.some(t => t.played === 0)) {
     // Pure Swiss — all teams have played at least once
@@ -146,8 +150,8 @@ export function generateRound(allSt, numCourts, roundIdx, history = [], pausedId
     .flatMap(([aId, bId]) => [activeById[aId], activeById[bId]]);
   const remainingCourts = ec - seededToPlay.length;
 
-  // Swiss pool: already-played teams + partnerless unseeded
-  const swissPool = [...active.filter(t => t.played > 0), ...partnerlessUnseeded];
+  // Swiss pool: already-played teams + partnerless unseeded + paired lone-unseeded
+  const swissPool = [...active.filter(t => t.played > 0), ...partnerlessUnseeded, ...loneSwiss];
 
   let swissCourts = [], swissByeTeams = [];
   if (remainingCourts > 0 && swissPool.length >= 2) {

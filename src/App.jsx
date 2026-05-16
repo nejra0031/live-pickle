@@ -5,7 +5,7 @@ import { courtKey, liveKey } from './constants';
 import { db, ref, set as fbSet, update as fbUpdate, onValue, off, push, get, onDisconnect, remove, pushSnapshot, pushAtomicUpdate, isOwnToken } from './firebase';
 import { saveState, loadState, clearSave } from './storage';
 import { warmUpAudio, playAlarm, playWarningBeep } from './audio';
-import { normaliseSnapshot } from './normalise';
+import { normaliseSnapshot, validateSnapshot } from './normalise';
 import { mkStandings, rerank, rebuildStandings } from './algorithms/standings';
 import { generateRound } from './algorithms/pairing';
 import { generateRoundRobinSchedule } from './algorithms/roundRobin';
@@ -82,14 +82,32 @@ export default function App({ viewerOnly = false }) {
   const [adminPinLoadError, setAdminPinLoadError] = useState(false);
   const [pinPurpose, setPinPurpose] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmRemoveGame, setConfirmRemoveGame] = useState(false);
 
   const [presence, setPresence] = useState({ viewers: 0, admins: 0 });
   const [firebaseError, setFirebaseError] = useState(null);
+  const [firebaseErrorPersist, setFirebaseErrorPersist] = useState(false);
+  const retrySnapshotRef = useRef(null); // stores last failed critical snapshot for retry
   useEffect(() => {
-    if (!firebaseError) return;
+    if (!firebaseError || firebaseErrorPersist) return;
     const t = setTimeout(() => setFirebaseError(null), 5000);
     return () => clearTimeout(t);
-  }, [firebaseError]);
+  }, [firebaseError, firebaseErrorPersist]);
+  const setCriticalError = useCallback((msg, retrySnap) => {
+    retrySnapshotRef.current = retrySnap || null;
+    setFirebaseErrorPersist(true);
+    setFirebaseError(msg);
+  }, []);
+  const dismissError = useCallback(() => {
+    setFirebaseError(null);
+    setFirebaseErrorPersist(false);
+    retrySnapshotRef.current = null;
+  }, []);
+  const retryWrite = useCallback(() => {
+    const snap = retrySnapshotRef.current;
+    if (!snap) { dismissError(); return; }
+    pushSnapshot(snap, err => { if (err) setCriticalError('Retry failed — check your connection.', snap); else dismissError(); });
+  }, [dismissError, setCriticalError]);
 
   const [savedState, setSavedState] = useState(null);
   const [headerHidden, setHeaderHidden] = useState(false);
@@ -230,7 +248,9 @@ export default function App({ viewerOnly = false }) {
     setTournamentFinished(!!s.tournamentFinished);
     setBreakMode(s.breakMode || null);
     setCancelledRoundNums(s.cancelledRoundNums || []);
-    setSocialCourts(s.socialCourts || []);
+    const validSocial = (s.socialCourts || []).filter(c => (s.courtNumbers || []).includes(c));
+    setSocialCourts(validSocial);
+    setFinalRound(!!s.finalRound);
     const isNew = s.roundNum !== lastSeenRoundNum.current;
     if (isNew) { lastSeenRoundNum.current = s.roundNum; pendingRef.current = {}; setPending({}); setRoundKey(k => k + 1); }
     alarmFiredRef.current = false;
@@ -250,6 +270,8 @@ export default function App({ viewerOnly = false }) {
       if (!data) { setPhase(p => p === 'play' ? 'waiting' : p); return; }
       if (data._writeToken && isOwnToken(data._writeToken)) return;
       if (data.phase !== 'play') { setPhase('waiting'); return; }
+      const validationError = validateSnapshot(data);
+      if (validationError) { setFirebaseError(`Data integrity error: ${validationError}. Do not enter results — contact the organiser.`); return; }
       updateAllStates(normaliseSnapshot(data));
     });
     return () => off(r);
@@ -277,15 +299,19 @@ export default function App({ viewerOnly = false }) {
   // ── Presence ──────────────────────────────────────────────────────────────
   const myPresRef = useRef(null);
   useEffect(() => {
+    const presenceDebounceRef = { t: null };
     const r = push(ref(db, 'presence')); myPresRef.current = r;
     onDisconnect(r).remove();
-    fbSet(r, { role: 'viewer', joinedAt: Date.now() }).catch(() => {});
+    // Delay initial write by 2 s to debounce rapid open/close
+    presenceDebounceRef.t = setTimeout(() => {
+      fbSet(r, { role: 'viewer', joinedAt: Date.now() }).catch(() => {});
+    }, 2000);
     const presRef = ref(db, 'presence');
     onValue(presRef, snap => {
       const d = snap.val() || {}, e = Object.values(d);
       setPresence({ viewers: e.filter(x => x?.role === 'viewer').length, admins: e.filter(x => x?.role === 'admin').length });
     });
-    return () => { remove(r); off(presRef); };
+    return () => { clearTimeout(presenceDebounceRef.t); remove(r); off(presRef); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -303,7 +329,7 @@ export default function App({ viewerOnly = false }) {
     const savedSecsLeft = timerRunningRef.current && timerStartedAtRef.current
       ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000))
       : timerPausedSecsRef.current;
-    saveState({ phase, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins, history, roundNum, pausedIds, roundData: rd, teamRegistry: tournamentTeams, tournamentTitle, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras, liveAdditions, nextRoundPresets, tournamentFinished, breakMode, cancelledRoundNums, timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: savedSecsLeft, savedAt: Date.now() });
+    saveState({ phase, activeTeamIds, courtNumbers, timerDuration, timerDefaultMins, history, roundNum, pausedIds, roundData: rd, teamRegistry: tournamentTeams, tournamentTitle, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras, liveAdditions, nextRoundPresets, tournamentFinished, breakMode, cancelledRoundNums, finalRound, timerRunning: timerRunningRef.current, timerStartedAt: timerStartedAtRef.current, timerPausedSecsLeft: savedSecsLeft, savedAt: Date.now() });
   }, [phase, history, roundNum, pausedIds, activeTeamIds, courtNumbers, timerDuration, tournamentMode, tournamentTeams, tournamentTitle, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras, liveAdditions, nextRoundPresets, tournamentFinished, breakMode, cancelledRoundNums, round, timerDefaultMins]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRestore = () => { const s = savedState; setSavedState(null); updateAllStates(normaliseSnapshot(s)); setActiveTab('play'); };
@@ -413,18 +439,13 @@ export default function App({ viewerOnly = false }) {
     else if (purpose === 'exitRR') { doExitRoundRobin(); }
     else if (purpose === 'cancelRound') { doCancelRound(); }
     else if (purpose === 'removeGame' && removeGameTarget) {
-      const { ri, gameIdx } = removeGameTarget;
-      setHistory(prev => {
-        const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: h.games.filter((_, gi) => gi !== gameIdx) });
-        const ns = rebuildStandings(activeTeamIds, nh);
-        setStandings(ns);
-        if (isAdminRef.current) pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
-        return nh;
-      });
-      setRemoveGameTarget(null);
+      setConfirmRemoveGame(true);
+      setPinPurpose(null);
+      return;
     }
     else if (purpose === 'removeActiveCourt' && removeActiveCourtIdx !== null && round) {
       const idx = removeActiveCourtIdx;
+      if (idx >= round.courts.length) { setFirebaseError('Court index is stale — refresh and try again.'); setRemoveActiveCourtIdx(null); setPinPurpose(null); return; }
       const teamsRemoved = round.courts[idx] || [];
       const newCourts = round.courts.filter((_, i) => i !== idx);
       const newBye = [...(round.bye || []), ...teamsRemoved];
@@ -464,7 +485,7 @@ export default function App({ viewerOnly = false }) {
       setRemoveActiveRoundExtraIdx(null);
     }
     setPinPurpose(null);
-  }, [pinPurpose, removeGameTarget, removeActiveCourtIdx, removeLiveIdx, removeActiveRoundExtraIdx, round, courtNumbers, activeTeamIds, doReset, doRegenerateRound, doCancelRound, doExitRoundRobin]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pinPurpose, removeGameTarget, removeActiveCourtIdx, removeLiveIdx, removeActiveRoundExtraIdx, round, courtNumbers, activeTeamIds, history, pausedIds, doReset, doRegenerateRound, doCancelRound, doExitRoundRobin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleManageTeamsSave = useCallback((newRegistry, newActiveIds) => {
     setTournamentTeams(newRegistry);
@@ -511,7 +532,10 @@ export default function App({ viewerOnly = false }) {
     }
 
     if (tournamentMode === 'roundrobin' && roundRobinCourts) {
-      const mapped = roundRobinCourts.map((old) => { const i = courtNumbers.indexOf(old); return i >= 0 && i < newCourts.length ? newCourts[i] : old; });
+      const newCourtsSet = new Set(newCourts);
+      const mapped = roundRobinCourts
+        .map((old) => { const i = courtNumbers.indexOf(old); return i >= 0 && i < newCourts.length ? newCourts[i] : old; })
+        .filter(c => newCourtsSet.has(c)); // drop any mapped value that no longer exists
       setRoundRobinCourts(mapped); upd.roundRobinCourts = mapped;
     }
     setCourtNumbers(newCourts); setSocialCourts(newSocialCourts); setShowManageCourts(false);
@@ -543,14 +567,14 @@ export default function App({ viewerOnly = false }) {
           const bm = breakModeRef.current;
           const completeSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
           const snap = { phase: 'play', activeTeamIds, courtNumbers, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history: nh, roundNum, pausedIds, roundComplete: true, timerRunning: bm ? timerRunningRef.current : false, timerStartedAt: bm ? timerStartedAtRef.current : null, timerPausedSecsLeft: bm ? completeSecs : timerDuration, roundData: null, breakMode: bm, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras: [], liveAdditions: [], nextRoundPresets, tournamentFinished, savedAt: Date.now() };
-          saveState(snap); pushSnapshot(snap, err => setFirebaseError(err));
+          saveState(snap); pushSnapshot(snap, err => err && setCriticalError('Round result failed to save — tap Retry.', snap));
         }
         setHistory(nh); setStandings(ns); setRound(null); setRoundComplete(true); setActiveRoundExtras([]); setLiveAdditions([]);
         alarmFiredRef.current = false; setTimerAlarmed(false); if (!breakModeRef.current) applyTimerState(false, null, timerDuration);
       }
       return np;
     });
-  }, [round, liveAdditions, activeRoundExtras, roundNum, history, activeTeamIds, courtNumbers, tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, pausedIds, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, nextRoundPresets, tournamentFinished, applyTimerState]);
+  }, [round, liveAdditions, activeRoundExtras, roundNum, history, activeTeamIds, courtNumbers, tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, pausedIds, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, nextRoundPresets, tournamentFinished, applyTimerState, setCriticalError]);
 
   const handleLiveResult = useCallback((i, result) => {
     warmUpAudio();
@@ -569,14 +593,14 @@ export default function App({ viewerOnly = false }) {
           const bm = breakModeRef.current;
           const completeSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
           const snap = { phase: 'play', activeTeamIds, courtNumbers, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history: nh, roundNum, pausedIds, roundComplete: true, timerRunning: bm ? timerRunningRef.current : false, timerStartedAt: bm ? timerStartedAtRef.current : null, timerPausedSecsLeft: bm ? completeSecs : timerDuration, roundData: null, breakMode: bm, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras: [], liveAdditions: [], nextRoundPresets, tournamentFinished, savedAt: Date.now() };
-          saveState(snap); pushSnapshot(snap, err => setFirebaseError(err));
+          saveState(snap); pushSnapshot(snap, err => err && setCriticalError('Round result failed to save — tap Retry.', snap));
         }
         setHistory(nh); setStandings(ns); setRound(null); setRoundComplete(true); setActiveRoundExtras([]); setLiveAdditions([]);
         alarmFiredRef.current = false; setTimerAlarmed(false); if (!breakModeRef.current) applyTimerState(false, null, timerDuration);
       }
       return np;
     });
-  }, [round, liveAdditions, activeRoundExtras, roundNum, history, activeTeamIds, courtNumbers, tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, pausedIds, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, nextRoundPresets, tournamentFinished, applyTimerState]);
+  }, [round, liveAdditions, activeRoundExtras, roundNum, history, activeTeamIds, courtNumbers, tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, pausedIds, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, nextRoundPresets, tournamentFinished, applyTimerState, setCriticalError]);
 
   const handleRegenerateRound = useCallback(() => {
     if (Object.keys(pending).length > 0) { setPinPurpose('regenerate'); return; }
@@ -607,7 +631,7 @@ export default function App({ viewerOnly = false }) {
       const rd = { courtTeamIds: mergedNr.courts.map(p => p.map(t => t.id)), byeIds: nr.bye.map(t => t.id), pausedTeamIds: (nr.paused || []).map(t => t.id), courtNums: roundCourtNums };
       const genSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
       const sa = bm ? timerStartedAtRef.current : (timerDuration > 0 ? Date.now() : null);
-      const snap = { phase: 'play', activeTeamIds, courtNumbers, socialCourts, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history, roundNum: newRN, pausedIds, roundComplete: false, timerRunning: bm ? timerRunningRef.current : timerDuration > 0, timerStartedAt: sa, timerPausedSecsLeft: bm ? genSecs : timerDuration, roundData: rd, breakMode: bm, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras, liveAdditions: [], nextRoundPresets: [], tournamentFinished, savedAt: Date.now() };
+      const snap = { phase: 'play', activeTeamIds, courtNumbers, socialCourts, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history, roundNum: newRN, pausedIds, roundComplete: false, timerRunning: bm ? timerRunningRef.current : timerDuration > 0, timerStartedAt: sa, timerPausedSecsLeft: bm ? genSecs : timerDuration, roundData: rd, breakMode: bm, finalRound: false, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras, liveAdditions: [], nextRoundPresets: [], tournamentFinished, savedAt: Date.now() };
       lastSeenRoundNum.current = newRN; saveState(snap); pushSnapshot(snap, err => setFirebaseError(err));
     }
     setRound(mergedNr); setRoundNum(newRN); pendingRef.current = {}; setPending({}); setRoundKey(k => k + 1); setRoundComplete(false); setFinalRound(false); setActiveRoundExtras([]); setNextRoundPresets([]);
@@ -646,6 +670,8 @@ export default function App({ viewerOnly = false }) {
       if (allFilled) {
         const targetRoundNum = (roundRobinStartRoundNum || 1) + srIdx;
         if (history.some(h => h.roundNum === targetRoundNum)) return np;
+        // Enforce ordering: don't commit srIdx N unless N-1 is already in history
+        if (srIdx > 0 && !history.some(h => h.roundNum === (roundRobinStartRoundNum || 1) + srIdx - 1)) return np;
         const rrCourts = (roundRobinCourts && roundRobinCourts.length > 0) ? roundRobinCourts : courtNumbers;
         const games = schedRound.map((_, mi) => ({ ...np[rrMatchKey(srIdx, mi)], courtNumber: rrCourts[mi] ?? mi + 1 }));
         const entry = { roundNum: targetRoundNum, games, bye: [], paused: [] };
@@ -795,6 +821,7 @@ export default function App({ viewerOnly = false }) {
         {/* ── Modals ── */}
         {pinPurpose && <PinModal title={pinTitle} correctPin={adminPin} pinLoaded={adminPinLoaded} pinLoadError={adminPinLoadError} onSuccess={handlePinSuccess} onClose={() => { setPinPurpose(null); setRemoveGameTarget(null); setRemoveActiveCourtIdx(null); setRemoveLiveIdx(null); setRemoveActiveRoundExtraIdx(null); }} />}
         {confirmReset && <ConfirmModal title="Back to Setup" message="This will end the current tournament and reset all data. Are you sure?" confirmLabel="Reset" onConfirm={() => { setConfirmReset(false); setPinPurpose('reset'); }} onClose={() => setConfirmReset(false)} />}
+        {confirmRemoveGame && removeGameTarget && <ConfirmModal title="Remove game?" message="This will permanently delete this game from history and recalculate standings. Cannot be undone." confirmLabel="Delete" onConfirm={() => { setConfirmRemoveGame(false); const { ri, gameIdx } = removeGameTarget; setHistory(prev => { const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: h.games.filter((_, gi) => gi !== gameIdx) }); const ns = rebuildStandings(activeTeamIds, nh); setStandings(ns); if (isAdminRef.current) pushAtomicUpdate({ history: nh }, err => setFirebaseError(err)); return nh; }); setRemoveGameTarget(null); }} onClose={() => { setConfirmRemoveGame(false); setRemoveGameTarget(null); }} />}
         {showBreakModal && <BreakModal onStart={handleBreakStart} onClose={() => setShowBreakModal(false)} />}
         {showTimerSettings && <TimerSettingsModal currentMins={timerDefaultMins} onSave={m => { setTimerDefaultMins(m); setTimerDuration(m * 60); if (isAdminRef.current) pushAtomicUpdate({ timerDefaultMins: m, timerDuration: m * 60 }, err => setFirebaseError(err)); }} onClose={() => setShowTimerSettings(false)} />}
         {showManageTeams && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={handleTogglePause} onSave={handleManageTeamsSave} onClose={() => setShowManageTeams(false)} />}
@@ -854,9 +881,10 @@ export default function App({ viewerOnly = false }) {
 
         {/* ── Firebase error toast ── */}
         {firebaseError && (
-          <div style={{ position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 100, padding: '8px 16px', borderRadius: 8, background: '#dc2626', color: '#fff', fontWeight: 700, fontSize: 13, boxShadow: '0 2px 12px rgba(0,0,0,0.2)' }}>
-            ⚠️ {firebaseError}
-            <button onClick={() => setFirebaseError(null)} style={{ marginLeft: 10, background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 900 }}>×</button>
+          <div style={{ position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 100, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: '#dc2626', color: '#fff', fontWeight: 700, fontSize: 13, boxShadow: '0 2px 16px rgba(0,0,0,0.3)', maxWidth: 'calc(100vw - 32px)' }}>
+            <span>⚠️ {firebaseError}</span>
+            {firebaseErrorPersist && retrySnapshotRef.current && <button onClick={retryWrite} style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', color: '#fff', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Retry</button>}
+            <button onClick={dismissError} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 16, lineHeight: 1 }}>×</button>
           </div>
         )}
 
@@ -886,7 +914,7 @@ export default function App({ viewerOnly = false }) {
                 <PlayTab
                   tournamentFinished={tournamentFinished} breakMode={activeTab === 'play' ? breakMode : null} round={round} roundNum={roundNum} tournamentMode={tournamentMode}
                   roundRobinSchedule={roundRobinSchedule} roundRobinCourts={roundRobinCourts} roundRobinStartRoundNum={roundRobinStartRoundNum}
-                  courtNumbers={courtNumbers} socialCourts={socialCourts} liveAdditions={liveAdditions} pending={pending} isAdmin={isAdmin} finalRound={finalRound} setFinalRound={setFinalRound}
+                  courtNumbers={courtNumbers} socialCourts={socialCourts} liveAdditions={liveAdditions} pending={pending} isAdmin={isAdmin} finalRound={finalRound} setFinalRound={v => { setFinalRound(v); if (isAdminRef.current) pushAtomicUpdate({ finalRound: v }, err => setFirebaseError(err)); }}
                   history={history} ranked={ranked} activeRoundExtras={activeRoundExtras} nextRoundPresets={nextRoundPresets} roundKey={roundKey}
                   onResult={handleResult} onLiveResult={handleLiveResult} onRRMatchResult={handleRRMatchResult}
                   onGenerateRound={handleGenerateRound} onRegenerateRound={handleRegenerateRound} onFinishTournament={handleFinishTournament} onResumeTournament={handleResumeTournament}

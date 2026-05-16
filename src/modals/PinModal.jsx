@@ -35,7 +35,7 @@ export default function PinModal({ title = 'Admin PIN', correctPin, pinLoaded, p
         )}
         {!pinLoaded
           ? <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, padding: '8px 0' }}>Loading…</div>
-          : <input type="password" inputMode="numeric" maxLength={4} value={pin} placeholder="••••"
+          : <input type="password" inputMode="numeric" value={pin} placeholder="PIN"
               onChange={e => setPin(e.target.value)} onKeyDown={e => e.key === 'Enter' && check()} autoFocus
               style={{ textAlign: 'center', padding: '10px', borderRadius: 10, fontSize: 20, letterSpacing: 6, background: 'rgba(255,255,255,0.07)', border: `1px solid ${hasErr ? '#ef4444' : 'rgba(255,255,255,0.15)'}`, color: '#e2e8f0', outline: 'none' }} />
         }

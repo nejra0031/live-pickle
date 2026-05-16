@@ -16,15 +16,26 @@ export const db  = getDatabase(app);
 export { ref, set, update, onValue, off, push, get, onDisconnect, remove };
 
 // ── Write-token helpers ────────────────────────────────────────────────────
-// Tokens are used to suppress echo updates from our own writes.
-// Bounded to 50 entries to prevent unbounded growth.
-const _tokens = new Set();
+// Tokens suppress echo updates from our own writes.
+// Each entry is { ts: Date.now() }. Tokens older than TOKEN_TTL_MS are expired
+// on every write so the map stays small even under sustained high-frequency writes.
+const TOKEN_TTL_MS = 30_000;
+const _tokens = new Map();
 
 export function addWriteToken(tok) {
-  _tokens.add(tok);
-  if (_tokens.size > 50) _tokens.delete(_tokens.values().next().value);
+  const now = Date.now();
+  // Evict expired tokens
+  for (const [k, v] of _tokens) { if (now - v.ts > TOKEN_TTL_MS) _tokens.delete(k); }
+  _tokens.set(tok, { ts: now });
+  // Hard cap at 100 entries as a safety net
+  if (_tokens.size > 100) _tokens.delete(_tokens.keys().next().value);
 }
-export function isOwnToken(tok) { return _tokens.has(tok); }
+export function isOwnToken(tok) {
+  const entry = _tokens.get(tok);
+  if (!entry) return false;
+  if (Date.now() - entry.ts > TOKEN_TTL_MS) { _tokens.delete(tok); return false; }
+  return true;
+}
 
 // ── Atomic helpers ─────────────────────────────────────────────────────────
 // pushSnapshot: full replace — only called by the admin who generated the round.

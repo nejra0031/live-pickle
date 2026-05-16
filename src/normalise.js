@@ -10,6 +10,16 @@ export function toArr(val) {
   return Object.keys(val).sort((a, b) => Number(a) - Number(b)).map(k => val[k]);
 }
 
+// Returns a string describing what's wrong, or null if the snapshot looks valid.
+export function validateSnapshot(s) {
+  if (!s || typeof s !== 'object') return 'Snapshot is not an object';
+  if (s.phase !== 'play') return null; // non-play phases don't have data to validate
+  if (s.history !== undefined && typeof s.history !== 'object') return `history field is corrupted (got ${typeof s.history})`;
+  if (s.activeTeamIds !== undefined && typeof s.activeTeamIds !== 'object') return `activeTeamIds field is corrupted`;
+  if (s.courtNumbers !== undefined && typeof s.courtNumbers !== 'object') return `courtNumbers field is corrupted`;
+  return null;
+}
+
 export function normaliseSnapshot(s) {
   if (!s) return s;
 
