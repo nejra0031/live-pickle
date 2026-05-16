@@ -394,11 +394,15 @@ export default function App({ viewerOnly = false }) {
     const rrRoundsInHistory = history.filter(h => h.roundNum >= srn);
     const lastRRNum = rrRoundsInHistory.length > 0 ? rrRoundsInHistory.reduce((m, h) => Math.max(m, h.roundNum), 0) : null;
     const endSnap = { endRoundNum: lastRRNum, endReason: reason };
+    // Restore roundNum to before the RR started if no RR rounds were committed,
+    // otherwise keep it at the last committed RR round so the next Swiss round is numbered correctly.
+    const restoredRoundNum = lastRRNum != null ? lastRRNum : Math.max(0, (roundRobinStartRoundNum || 1) - 1);
     setTournamentMode('swiss'); setRoundRobinSchedule(null); setRoundRobinCourts(null); setRoundRobinStartRoundNum(null); setRoundRobinEndSnapshot(endSnap);
+    setRoundNum(restoredRoundNum); lastSeenRoundNum.current = restoredRoundNum;
     const cleared = {};
     Object.keys(pendingRef.current).forEach(k => { if (!k.startsWith('rr_')) cleared[k] = pendingRef.current[k]; });
     pendingRef.current = cleared; setPending(cleared);
-    if (isAdminRef.current) { pushAtomicUpdate({ tournamentMode: 'swiss', roundRobinSchedule: null, roundRobinCourts: null, roundRobinStartRoundNum: null, roundRobinEndSnapshot: endSnap, pendingResults: null }, err => setFirebaseError(err)); }
+    if (isAdminRef.current) { pushAtomicUpdate({ tournamentMode: 'swiss', roundRobinSchedule: null, roundRobinCourts: null, roundRobinStartRoundNum: null, roundRobinEndSnapshot: endSnap, roundNum: restoredRoundNum, pendingResults: null }, err => setFirebaseError(err)); }
   }, [roundRobinStartRoundNum, history]);
 
   const handlePinSuccess = useCallback(() => {
