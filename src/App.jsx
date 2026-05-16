@@ -654,17 +654,23 @@ export default function App({ viewerOnly = false }) {
         schedRound.forEach((_, mi) => { delete cleared[rrMatchKey(srIdx, mi)]; });
         pendingRef.current = cleared; setPending(cleared);
         setHistory(nh); setStandings(ns);
-        const newRoundNum = Math.max(roundNum || 0, targetRoundNum);
         const totalSched = roundRobinSchedule?.length || 0;
         const allDone = roundRobinSchedule?.every((_, i) => nh.some(hh => hh.roundNum === (roundRobinStartRoundNum || 1) + i));
         let endSnap = null;
         if (allDone && totalSched > 0) { const lastRRNum = (roundRobinStartRoundNum || 1) + totalSched - 1; endSnap = { endRoundNum: lastRRNum, endReason: 'completed' }; setRoundRobinEndSnapshot(endSnap); }
+        // Advance roundNum to the next playing round so the timer label stays current.
+        // When all RR rounds are done, stay at the last committed round number.
+        const newRoundNum = allDone ? targetRoundNum : Math.max(roundNum || 0, targetRoundNum + 1);
         if (isAdminRef.current) {
+          const bm = breakModeRef.current;
+          const rrSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
           const pendingClear = {};
           schedRound.forEach((_, mi) => { pendingClear[`pendingResults/${rrMatchKey(srIdx, mi)}`] = null; });
-          pushAtomicUpdate({ history: nh, roundNum: newRoundNum, ...pendingClear, ...(endSnap ? { roundRobinEndSnapshot: endSnap } : {}) }, err => setFirebaseError(err));
+          pushAtomicUpdate({ history: nh, roundNum: newRoundNum, timerRunning: bm ? timerRunningRef.current : false, timerStartedAt: bm ? timerStartedAtRef.current : null, timerPausedSecsLeft: bm ? rrSecs : timerDurationRef.current, ...pendingClear, ...(endSnap ? { roundRobinEndSnapshot: endSnap } : {}) }, err => setFirebaseError(err));
         }
         setRoundNum(newRoundNum); lastSeenRoundNum.current = newRoundNum;
+        alarmFiredRef.current = false; warningsFiredRef.current = new Set(); setTimerAlarmed(false);
+        if (!breakModeRef.current) applyTimerState(false, null, timerDurationRef.current);
         return cleared;
       }
       return np;
