@@ -1,13 +1,12 @@
-// Firebase REST helpers for test setup — runs in Node.js (no import.meta.env)
-import { createHash } from 'crypto';
+const { createHash } = require('crypto');
 
-export const DB_URL = 'https://live-pickle-default-rtdb.asia-southeast1.firebasedatabase.app';
-export const TEST_PIN = 'test1234';
-export const TEST_PIN_HASH = createHash('sha256').update(TEST_PIN).digest('hex');
+const DB_URL = 'https://live-pickle-default-rtdb.asia-southeast1.firebasedatabase.app';
+const TEST_PIN = 'test1234';
+const TEST_PIN_HASH = createHash('sha256').update(TEST_PIN).digest('hex');
 
-export const E2E_TOURNAMENT_PATH = 'current_tournament_e2e';
-export const E2E_BACKUPS_PATH    = 'tournament_backups_e2e';
-export const E2E_PRESENCE_PATH   = 'presence_e2e';
+const E2E_TOURNAMENT_PATH = 'current_tournament_e2e';
+const E2E_BACKUPS_PATH    = 'tournament_backups_e2e';
+const E2E_PRESENCE_PATH   = 'presence_e2e';
 
 async function fbReq(path, method, body) {
   const res = await fetch(`${DB_URL}/${path}.json`, {
@@ -19,12 +18,11 @@ async function fbReq(path, method, body) {
   return res.json();
 }
 
-export const fbSet    = (path, data) => fbReq(path, 'PUT', data);
-export const fbDelete = (path)       => fbReq(path, 'DELETE');
-export const fbGet    = (path)       => fbReq(path, 'GET');
+const fbSet    = (path, data) => fbReq(path, 'PUT', data);
+const fbDelete = (path)       => fbReq(path, 'DELETE');
+const fbGet    = (path)       => fbReq(path, 'GET');
 
-// Write the initial tournament state used by most tests
-export async function seedTournament(overrides = {}) {
+async function seedTournament(overrides = {}) {
   const base = {
     phase: 'play',
     _tournamentId: 'test-tournament-001',
@@ -67,10 +65,16 @@ export async function seedTournament(overrides = {}) {
   await fbSet(E2E_TOURNAMENT_PATH, base);
 }
 
-export async function clearE2EData() {
+async function clearE2EData() {
   await Promise.all([
     fbDelete(E2E_TOURNAMENT_PATH).catch(() => {}),
     fbDelete(E2E_BACKUPS_PATH).catch(() => {}),
     fbDelete(E2E_PRESENCE_PATH).catch(() => {}),
   ]);
 }
+
+module.exports = {
+  DB_URL, TEST_PIN, TEST_PIN_HASH,
+  E2E_TOURNAMENT_PATH, E2E_BACKUPS_PATH, E2E_PRESENCE_PATH,
+  fbSet, fbDelete, fbGet, seedTournament, clearE2EData,
+};

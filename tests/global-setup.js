@@ -1,9 +1,7 @@
-import { fbSet, clearE2EData, TEST_PIN_HASH } from './helpers/firebase.js';
+const { fbSet, clearE2EData, TEST_PIN_HASH } = require('./helpers/firebase.js');
 
-export default async function globalSetup() {
-  // Write test admin PIN to the test-specific path
+module.exports = async function globalSetup() {
   await fbSet('config/adminPin_test', TEST_PIN_HASH);
-  // Clear any leftover e2e data from a previous run
   await clearE2EData();
   console.log('  [setup] Test PIN set, e2e data cleared');
-}
+};

@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
-import { seedTournament, clearE2EData } from './helpers/firebase.js';
-import { loginAsAdmin, waitForPlayTab, generateRound, enterScore } from './helpers/app.js';
+const { test, expect } = require('@playwright/test');
+const { seedTournament, clearE2EData } = require('./helpers/firebase.js');
+const { loginAsAdmin, waitForPlayTab, generateRound } = require('./helpers/app.js');
 
 test.describe('Round management', () => {
   test.beforeEach(async () => {
@@ -16,7 +16,6 @@ test.describe('Round management', () => {
     await expect(page.locator('button').filter({ hasText: /Generate Round 1/ })).toBeVisible();
     await generateRound(page);
     await expect(page.locator('text=Round 1')).toBeVisible();
-    // Both courts should be visible
     await expect(page.locator('text=Court 1')).toBeVisible();
     await expect(page.locator('text=Court 2')).toBeVisible();
   });
@@ -27,13 +26,11 @@ test.describe('Round management', () => {
     await loginAsAdmin(page);
     await generateRound(page);
 
-    // Fill first court: 11-5
     const inputs = page.locator('input[type="number"]');
     await inputs.nth(0).fill('11');
     await inputs.nth(1).fill('5');
     await page.locator('button:has-text("Confirm")').first().click();
 
-    // Court 1 should show the ✓ pending result
     await expect(page.locator('text=✓').first()).toBeVisible({ timeout: 3000 });
   });
 
@@ -43,18 +40,15 @@ test.describe('Round management', () => {
     await loginAsAdmin(page);
     await generateRound(page);
 
-    // Enter scores for both courts
     const inputs = page.locator('input[type="number"]');
     await inputs.nth(0).fill('11');
     await inputs.nth(1).fill('3');
     await page.locator('button:has-text("Confirm")').first().click();
     await page.waitForTimeout(400);
-
     await inputs.nth(0).fill('7');
     await inputs.nth(1).fill('11');
     await page.locator('button:has-text("Confirm")').first().click();
 
-    // Round should auto-complete — "Generate Round 2" button appears
     await expect(page.locator('button').filter({ hasText: /Generate Round 2/ })).toBeVisible({ timeout: 5000 });
   });
 
@@ -65,7 +59,6 @@ test.describe('Round management', () => {
     await generateRound(page);
 
     await page.click('button:has-text("Cancel Round")');
-    // PIN modal
     await page.fill('input[type="password"]', 'test1234');
     await page.click('button:has-text("Unlock")');
 
@@ -88,7 +81,6 @@ test.describe('Round management', () => {
     await page.locator('button:has-text("Confirm")').first().click();
 
     await page.waitForSelector('button:has-text("Generate Round 2")', { timeout: 5000 });
-
     await page.click('button:has-text("History")');
     await expect(page.locator('text=Round 1')).toBeVisible();
   });

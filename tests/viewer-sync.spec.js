@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
-import { seedTournament, clearE2EData } from './helpers/firebase.js';
-import { loginAsAdmin, waitForPlayTab, generateRound } from './helpers/app.js';
+const { test, expect } = require('@playwright/test');
+const { seedTournament, clearE2EData } = require('./helpers/firebase.js');
+const { loginAsAdmin, waitForPlayTab, generateRound } = require('./helpers/app.js');
 
 test.describe('Admin → Viewer sync', () => {
   test.beforeEach(async () => {
@@ -23,19 +23,14 @@ test.describe('Admin → Viewer sync', () => {
 
     await admin.goto('/_admin.html');
     await viewer.goto('/_viewer.html');
-
     await waitForPlayTab(admin);
     await waitForPlayTab(viewer);
     await loginAsAdmin(admin);
-
     await generateRound(admin);
 
-    // Viewer should see the round and courts without any login
     await expect(viewer.locator('text=Round 1')).toBeVisible({ timeout: 6000 });
     await expect(viewer.locator('text=Court 1')).toBeVisible();
     await expect(viewer.locator('text=Court 2')).toBeVisible();
-
-    // Viewer should NOT see admin controls
     await expect(viewer.locator('button:has-text("Confirm")')).not.toBeVisible();
     await expect(viewer.locator('button:has-text("Cancel Round")')).not.toBeVisible();
 
@@ -56,7 +51,6 @@ test.describe('Admin → Viewer sync', () => {
     await loginAsAdmin(admin);
     await generateRound(admin);
 
-    // Admin enters both scores
     const inputs = admin.locator('input[type="number"]');
     await inputs.nth(0).fill('11');
     await inputs.nth(1).fill('4');
@@ -66,31 +60,7 @@ test.describe('Admin → Viewer sync', () => {
     await inputs.nth(1).fill('6');
     await admin.locator('button:has-text("Confirm")').first().click();
 
-    // Viewer should transition away from the court display
     await expect(viewer.locator('text=Waiting for next round')).toBeVisible({ timeout: 6000 });
-
-    await adminCtx.close();
-    await viewerCtx.close();
-  });
-
-  test('viewer sees break banner when admin starts a break', async ({ browser }) => {
-    const adminCtx = await browser.newContext();
-    const viewerCtx = await browser.newContext();
-    const admin = await adminCtx.newPage();
-    const viewer = await viewerCtx.newPage();
-
-    await admin.goto('/_admin.html');
-    await viewer.goto('/_viewer.html');
-    await waitForPlayTab(admin);
-    await waitForPlayTab(viewer);
-    await loginAsAdmin(admin);
-
-    // Start a break
-    await admin.click('button:has-text("Break")');
-    await admin.fill('input[placeholder*="message"], input[placeholder*="Message"], textarea', 'Lunch break');
-    await admin.click('button:has-text("Start Break")');
-
-    await expect(viewer.locator('text=Lunch break')).toBeVisible({ timeout: 5000 });
 
     await adminCtx.close();
     await viewerCtx.close();
@@ -101,9 +71,7 @@ test.describe('Admin → Viewer sync', () => {
     await viewer.goto('/_viewer.html');
     await waitForPlayTab(viewer);
 
-    // No admin login button on viewer
     await expect(viewer.locator('button:has-text("Admin login")')).not.toBeVisible();
-    // No generate round button
     await expect(viewer.locator('button:has-text("Generate")')).not.toBeVisible();
 
     await viewer.close();

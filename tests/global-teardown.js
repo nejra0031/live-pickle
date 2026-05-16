@@ -1,6 +1,6 @@
-import { clearE2EData } from './helpers/firebase.js';
+const { clearE2EData } = require('./helpers/firebase.js');
 
-export default async function globalTeardown() {
+module.exports = async function globalTeardown() {
   await clearE2EData();
   console.log('  [teardown] e2e data cleared');
-}
+};
