@@ -19,10 +19,6 @@ module.exports = defineConfig({
   ],
   globalSetup:    './tests/global-setup.js',
   globalTeardown: './tests/global-teardown.js',
-  webServer: {
-    command: 'npm run dev:test',
-    url: 'http://localhost:5173',
-    reuseExistingServer: true,
-    timeout: 60000,
-  },
+  // Start the dev server manually before running tests: npm run dev:test
+  // Then run: npm run test:ui (or npm test)
 });
