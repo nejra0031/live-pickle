@@ -7,8 +7,8 @@
     "dev:test": "vite --mode test",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "playwright test",
-    "test:ui": "playwright test --ui"
+    "test": "node node_modules/@playwright/test/cli.js test",
+    "test:ui": "node node_modules/@playwright/test/cli.js test --ui"
   },
   "dependencies": {
     "firebase": "^9.23.0",
