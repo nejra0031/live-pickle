@@ -15,7 +15,7 @@ export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning
     const bm = Math.floor(breakSecsLeft / 60), bs = breakSecsLeft % 60, over = breakSecsLeft === 0;
     return (
       <div className="flex items-center rounded-xl"
-        style={{ padding: 'clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)', gap: 'clamp(8px,2vw,14px)', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.5)', marginBottom: 'clamp(6px,1.5vw,10px)' }}>
+        style={{ padding: 'clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)', gap: 'clamp(8px,2vw,14px)', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.5)',  }}>
         <div style={{ fontSize: 'clamp(20px,5vw,28px)', flexShrink: 0 }}>☕</div>
         <div className="flex-1">
           <div style={{ fontSize: 'clamp(9px,2vw,12px)', color: '#d97706', lineHeight: 1, marginBottom: 2, fontWeight: 800, letterSpacing: '0.08em' }}>BREAK</div>
@@ -49,7 +49,6 @@ export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning
       alignItems: 'center',
       padding: 'clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)',
       gap: 'clamp(8px,2vw,14px)',
-      marginBottom: 'clamp(6px,1.5vw,10px)',
       position: 'relative',
     }}>
 

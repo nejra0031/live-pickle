@@ -8,7 +8,6 @@ import { mkStandings, rerank, rebuildStandings } from './algorithms/standings';
 import { generateRound } from './algorithms/pairing';
 import { generateRoundRobinSchedule } from './algorithms/roundRobin';
 import useOnline from './hooks/useOnline';
-import RoundTimer from './components/RoundTimer';
 import SetupScreen from './setup/SetupScreen';
 import StandingsTab from './tabs/StandingsTab';
 import HistoryTab from './tabs/HistoryTab';
@@ -902,11 +901,6 @@ export default function App({ viewerOnly = false }) {
                 ))}
               </div>
             )}
-            {phase === 'play' && (timerDuration > 0 || breakMode) && (
-              <div className="pb-2">
-                <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning} isAdmin={isAdmin} onToggle={timerToggle} onRestart={() => resetTimer(timerDuration)} onOpenSettings={() => setShowTimerSettings(true)} breakInfo={breakMode} onEndBreak={handleBreakEnd} />
-              </div>
-            )}
           </div>
         </div>
 
@@ -954,6 +948,8 @@ export default function App({ viewerOnly = false }) {
                   roundRobinSchedule={roundRobinSchedule} roundRobinCourts={roundRobinCourts} roundRobinStartRoundNum={roundRobinStartRoundNum}
                   courtNumbers={courtNumbers} socialCourts={socialCourts} liveAdditions={liveAdditions} pending={pending} isAdmin={isAdmin} finalRound={finalRound} pausedIds={pausedIds} setFinalRound={v => { setFinalRound(v); if (isAdminRef.current) pushAtomicUpdate({ finalRound: v }, err => setFirebaseError(err)); }}
                   history={history} ranked={ranked} activeRoundExtras={activeRoundExtras} nextRoundPresets={nextRoundPresets} roundKey={roundKey}
+                  timerSecsLeft={timerSecsLeft} timerDuration={timerDuration} timerRunning={timerRunning}
+                  onTimerToggle={timerToggle} onTimerRestart={() => resetTimer(timerDuration)} onTimerSettings={() => setShowTimerSettings(true)}
                   onResult={handleResult} onLiveResult={handleLiveResult} onRRMatchResult={handleRRMatchResult}
                   onGenerateRound={handleGenerateRound} onRegenerateRound={handleRegenerateRound} onFinishTournament={handleFinishTournament} onResumeTournament={handleResumeTournament}
                   onBreakStart={() => setShowBreakModal(true)} onBreakEnd={handleBreakEnd}

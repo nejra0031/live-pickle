@@ -1,6 +1,7 @@
 import { useTeamById } from '../context/TeamRegistryContext';
 import CourtCard from '../components/CourtCard';
 import TeamChip from '../components/TeamChip';
+import RoundTimer from '../components/RoundTimer';
 import { courtKey, liveKey } from '../constants';
 
 export default function PlayTab({
@@ -8,6 +9,7 @@ export default function PlayTab({
   roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum,
   courtNumbers, socialCourts = [], liveAdditions, pending, isAdmin, finalRound, setFinalRound, pausedIds = [],
   history, ranked, activeRoundExtras, nextRoundPresets, roundKey,
+  timerSecsLeft, timerDuration, timerRunning, onTimerToggle, onTimerRestart, onTimerSettings,
   onResult, onLiveResult, onRRMatchResult,
   onGenerateRound, onRegenerateRound, onFinishTournament, onResumeTournament,
   onBreakStart, onBreakEnd,
@@ -285,13 +287,17 @@ export default function PlayTab({
   }
 
   /* ── Active Swiss round ── */
+  const showTimer = timerDuration > 0 || breakMode;
   return (
     <div className="flex flex-col gap-4">
-      {breakBanner}
       {socialSection}
-      <div style={{ textAlign: 'center' }}>
-        <span className="text-blue-900 font-black" style={{ fontSize: 'clamp(22px,6vw,32px)' }}>Round {roundNum}</span>
-      </div>
+      {showTimer ? (
+        <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning} isAdmin={isAdmin} onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} breakInfo={breakMode} onEndBreak={onBreakEnd} />
+      ) : (
+        <div style={{ textAlign: 'center' }}>
+          <span className="text-blue-900 font-black" style={{ fontSize: 'clamp(22px,6vw,32px)' }}>Round {roundNum}</span>
+        </div>
+      )}
 
       {isAdmin ? (
         <>
