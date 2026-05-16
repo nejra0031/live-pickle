@@ -23,6 +23,6 @@ module.exports = defineConfig({
     command: 'npm run dev:test',
     url: 'http://localhost:5173',
     reuseExistingServer: true,
-    timeout: 15000,
+    timeout: 60000,
   },
 });
