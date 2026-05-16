@@ -34,35 +34,91 @@ export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning
   }
 
   const mins = Math.floor(secsLeft / 60), secs = secsLeft % 60;
-  const pct  = totalSecs > 0 ? secsLeft / totalSecs : 1;
+  const pct = totalSecs > 0 ? secsLeft / totalSecs : 1;
   const expired = secsLeft === 0, urgent = pct < 0.2 && !expired;
   const color = expired ? '#ef4444' : urgent ? '#f97316' : '#6366f1';
 
   return (
-    <div className="flex items-center rounded-xl"
-      style={{ padding: 'clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)', gap: 'clamp(8px,2vw,14px)', background: 'rgba(0,0,0,0.03)', border: `1px solid ${color}66`, marginBottom: 'clamp(6px,1.5vw,10px)' }}>
-      <svg style={{ width: 'clamp(28px,7vw,38px)', height: 'clamp(28px,7vw,38px)', flexShrink: 0 }} viewBox="0 0 34 34">
-        <circle cx={17} cy={17} r={13} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={3} />
-        <circle cx={17} cy={17} r={13} fill="none" stroke={color} strokeWidth={3}
-          strokeDasharray={`${2 * Math.PI * 13}`} strokeDashoffset={`${-2 * Math.PI * 13 * (1 - pct)}`}
-          strokeLinecap="round" transform="rotate(-90 17 17)"
-          style={{ transition: 'stroke-dashoffset 1s linear,stroke 0.3s' }} />
-        {expired && <text x={17} y={21} textAnchor="middle" fontSize={9} fill="#dc2626" fontWeight="bold">!</text>}
-      </svg>
-      <div className="flex-1">
-        <div style={{ fontSize: 'clamp(9px,2vw,12px)', color: '#94a3b8', lineHeight: 1, marginBottom: 2 }}>Round {roundNum}</div>
-        <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 'clamp(13px,3.5vw,18px)', lineHeight: 1, color: expired ? '#dc2626' : urgent ? '#ea580c' : '#1e293b' }}>
-          {expired ? "TIME'S UP" : `${mins}:${String(secs).padStart(2, '0')}`}
-        </div>
+    <div style={{
+      position: 'relative',
+      borderRadius: 12,
+      overflow: 'hidden',
+      background: '#94a3b8',
+      display: 'flex',
+      alignItems: 'center',
+      padding: 'clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)',
+      gap: 'clamp(8px,2vw,14px)',
+      marginBottom: 'clamp(6px,1.5vw,10px)',
+    }}>
+
+      {/* Colored fill — shrinks from the right as time passes */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, bottom: 0,
+        width: `${(expired ? 1 : pct) * 100}%`,
+        background: color,
+        transition: expired ? 'background 0.3s' : 'width 1s linear, background 0.3s',
+        pointerEvents: 'none',
+      }} />
+
+      {/* Time — absolutely centered in the full bar */}
+      <div style={{
+        position: 'absolute',
+        left: 0, right: 0,
+        top: '50%', transform: 'translateY(-50%)',
+        textAlign: 'center',
+        fontFamily: 'monospace',
+        fontWeight: 800,
+        fontSize: 'clamp(24px,6vw,36px)',
+        color: 'white',
+        textShadow: '0 1px 5px rgba(0,0,0,0.3)',
+        pointerEvents: 'none',
+        lineHeight: 1,
+        zIndex: 1,
+      }}>
+        {expired ? "TIME'S UP" : `${mins}:${String(secs).padStart(2, '0')}`}
       </div>
+
+      {/* Left: circle + Round label */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(4px,1vw,8px)', flexShrink: 0, position: 'relative', zIndex: 2 }}>
+        <svg style={{ width: 'clamp(28px,7vw,38px)', height: 'clamp(28px,7vw,38px)', flexShrink: 0 }} viewBox="0 0 34 34">
+          <circle cx={17} cy={17} r={13} fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth={3} />
+          <circle cx={17} cy={17} r={13} fill="none" stroke="white" strokeWidth={3}
+            strokeDasharray={`${2 * Math.PI * 13}`}
+            strokeDashoffset={`${-2 * Math.PI * 13 * (1 - pct)}`}
+            strokeLinecap="round" transform="rotate(-90 17 17)"
+            style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }} />
+          {expired && <text x={17} y={21} textAnchor="middle" fontSize={9} fill="white" fontWeight="bold">!</text>}
+        </svg>
+        <span style={{
+          fontSize: 'clamp(14px,3.5vw,20px)',
+          fontWeight: 800,
+          color: 'white',
+          textShadow: '0 1px 3px rgba(0,0,0,0.25)',
+          whiteSpace: 'nowrap',
+          lineHeight: 1,
+        }}>
+          Round {roundNum}
+        </span>
+      </div>
+
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Right: admin buttons */}
       {isAdmin && (
-        <div className="flex" style={{ gap: 'clamp(4px,1vw,8px)' }}>
+        <div style={{ display: 'flex', gap: 'clamp(4px,1vw,8px)', position: 'relative', zIndex: 2 }}>
           <button onClick={onToggle}
-            style={{ fontSize: 'clamp(11px,2.5vw,14px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: timerRunning ? 'rgba(220,38,38,0.1)' : 'rgba(15,76,117,0.1)', color: timerRunning ? '#dc2626' : '#0f4c75', border: `1px solid ${timerRunning ? 'rgba(220,38,38,0.25)' : 'rgba(15,76,117,0.25)'}` }}>
+            style={{ fontSize: 'clamp(11px,2.5vw,14px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.35)' }}>
             {timerRunning ? '⏸' : '▶'}
           </button>
-          <button onClick={onRestart} style={{ fontSize: 'clamp(11px,2.5vw,14px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(0,0,0,0.05)', color: '#64748b', border: '1px solid rgba(0,0,0,0.1)' }}>↺</button>
-          <button onClick={onOpenSettings} style={{ fontSize: 'clamp(11px,2.5vw,14px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(0,0,0,0.05)', color: '#64748b', border: '1px solid rgba(0,0,0,0.1)' }}>⚙</button>
+          <button onClick={onRestart}
+            style={{ fontSize: 'clamp(11px,2.5vw,14px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)' }}>
+            ↺
+          </button>
+          <button onClick={onOpenSettings}
+            style={{ fontSize: 'clamp(11px,2.5vw,14px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)' }}>
+            ⚙
+          </button>
         </div>
       )}
     </div>
