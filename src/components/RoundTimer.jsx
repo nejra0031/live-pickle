@@ -38,27 +38,20 @@ export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning
   const elapsed = 1 - pct;
   const expired = secsLeft === 0;
 
+  // Gradient: indigo on the left (remaining), red on the right (elapsed)
+  const barBg = `linear-gradient(to right, #6366f1 ${pct * 100}%, #ef4444 ${pct * 100}%)`;
+
   return (
     <div style={{
-      position: 'relative',
       borderRadius: 12,
-      overflow: 'hidden',
-      background: '#6366f1',
+      background: barBg,
       display: 'flex',
       alignItems: 'center',
       padding: 'clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)',
       gap: 'clamp(8px,2vw,14px)',
       marginBottom: 'clamp(6px,1.5vw,10px)',
+      position: 'relative',
     }}>
-
-      {/* Red fill — grows from the right as time passes; 0% at start, 100% when expired */}
-      <div style={{
-        position: 'absolute', top: 0, right: 0, bottom: 0,
-        width: `${elapsed * 100}%`,
-        background: '#ef4444',
-        transition: 'width 1s linear',
-        pointerEvents: 'none',
-      }} />
 
       {/* Time — absolutely centered in the full bar */}
       <div style={{
