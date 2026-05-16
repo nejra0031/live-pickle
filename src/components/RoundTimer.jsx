@@ -38,8 +38,8 @@ export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning
   const elapsed = 1 - pct;
   const expired = secsLeft === 0;
 
-  // Gradient: indigo on the left (remaining), red on the right (elapsed)
-  const barBg = `linear-gradient(to right, #6366f1 ${pct * 100}%, #ef4444 ${pct * 100}%)`;
+  // Gradient: red grows left→right as time elapses; 0% red at start, 100% at expiry
+  const barBg = `linear-gradient(to right, #ef4444 ${elapsed * 100}%, #6366f1 ${elapsed * 100}%)`;
 
   return (
     <div style={{

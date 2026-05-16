@@ -3,7 +3,6 @@ import { TeamRegistryContext } from './context/TeamRegistryContext';
 import { setModuleRegistry } from './constants';
 import { courtKey, liveKey } from './constants';
 import { db, ref, set as fbSet, update as fbUpdate, onValue, off, push, get, onDisconnect, remove, pushSnapshot, pushAtomicUpdate, isOwnToken, writeBackup, fetchBackup, fetchBackupIndex, clearBackups, tournamentRef, pendingResultsRef, adminPinRef, presenceRef } from './firebase';
-import { warmUpAudio, playAlarm, playWarningBeep } from './audio';
 import { normaliseSnapshot, validateSnapshot } from './normalise';
 import { mkStandings, rerank, rebuildStandings } from './algorithms/standings';
 import { generateRound } from './algorithms/pairing';
@@ -141,8 +140,7 @@ export default function App({ viewerOnly = false }) {
 
   // ── Timer ─────────────────────────────────────────────────────────────────
   const timerRunningRef = useRef(false), timerStartedAtRef = useRef(null), timerPausedSecsRef = useRef(0);
-  const timerDurationRef = useRef(0), alarmFiredRef = useRef(false), timerTickRef = useRef(null);
-  const warningsFiredRef = useRef(new Set());
+  const timerDurationRef = useRef(0), timerTickRef = useRef(null);
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerSecsLeft, setTimerSecsLeft] = useState(0);
   const [timerAlarmed, setTimerAlarmed] = useState(false);
@@ -165,15 +163,9 @@ export default function App({ viewerOnly = false }) {
     if (running && startedAt && secs > 0) {
       timerTickRef.current = setInterval(() => {
         const s = computeSecsLeft(); setTimerSecsLeft(s);
-        [180, 60].forEach(thresh => {
-          if (s <= thresh && !warningsFiredRef.current.has(thresh) && timerDurationRef.current > thresh) {
-            warningsFiredRef.current.add(thresh); playWarningBeep();
-          }
-        });
         if (s <= 0) {
           clearInterval(timerTickRef.current);
-          if (!alarmFiredRef.current && timerDurationRef.current > 0) {
-            alarmFiredRef.current = true; playAlarm();
+          if (timerDurationRef.current > 0) {
             timerRunningRef.current = false; setTimerRunning(false); setTimerAlarmed(true);
           }
         }
@@ -186,15 +178,12 @@ export default function App({ viewerOnly = false }) {
       if (document.visibilityState !== 'visible') return;
       if (!timerRunningRef.current || !timerStartedAtRef.current) return;
       const s = computeSecsLeft();
-      [180, 60].forEach(thresh => { if (s <= thresh) warningsFiredRef.current.add(thresh); });
-      if (s <= 0 && !alarmFiredRef.current) alarmFiredRef.current = true;
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [computeSecsLeft]);
 
   const resetTimer = useCallback((ns) => {
-    alarmFiredRef.current = false; warningsFiredRef.current = new Set();
     const s = ns ?? timerDurationRef.current;
     setTimerAlarmed(false); applyTimerState(false, null, s);
     if (isAdminRef.current) pushAtomicUpdate({ timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s }, err => setFirebaseError(err));
@@ -266,11 +255,7 @@ export default function App({ viewerOnly = false }) {
     if (s._tournamentId) tournamentIdRef.current = s._tournamentId;
     const isNew = s.roundNum !== lastSeenRoundNum.current;
     if (isNew) { lastSeenRoundNum.current = s.roundNum; pendingRef.current = {}; setPending({}); setRoundKey(k => k + 1); }
-    alarmFiredRef.current = false;
-    const tRun = s.timerRunning || false, tSA = s.timerStartedAt || null, tPS = s.timerPausedSecsLeft ?? s.timerDuration ?? 0, tDur = s.timerDuration || 0;
-    const curSecs = tRun && tSA ? Math.max(0, tPS - Math.floor((Date.now() - tSA) / 1000)) : tPS;
-    [180, 60].forEach(thresh => { if (tDur > thresh && curSecs <= thresh) warningsFiredRef.current.add(thresh); });
-    if (curSecs <= 0 && tDur > 0) alarmFiredRef.current = true;
+    const tRun = s.timerRunning || false, tSA = s.timerStartedAt || null, tPS = s.timerPausedSecsLeft ?? s.timerDuration ?? 0;
     applyTimerState(tRun, tSA, tPS);
     setPhase('play');
   }, [applyTimerState]);
@@ -389,7 +374,7 @@ export default function App({ viewerOnly = false }) {
     setStandings(s); setRound(null); setRoundNum(0); setHistory([]);
     lastSeenRoundNum.current = 0; pendingRef.current = {}; setPending({}); setPausedIds([]); setRoundKey(0); setRoundComplete(false);
     setTournamentMode('swiss'); setRoundRobinSchedule(null); setRoundRobinCourts(null); setRoundRobinStartRoundNum(null); setRoundRobinStartSnapshot(null); setRoundRobinEndSnapshot(null); setActiveRoundExtras([]); setTournamentFinished(false); setSocialCourts([]);
-    alarmFiredRef.current = false; warningsFiredRef.current = new Set(); setTimerAlarmed(false); applyTimerState(false, null, durSecs);
+    setTimerAlarmed(false); applyTimerState(false, null, durSecs);
     setPhase('play'); setActiveTab('play');
   }, [applyTimerState]);
 
@@ -454,7 +439,7 @@ export default function App({ viewerOnly = false }) {
     lastSeenRoundNum.current = prevRN; pushSnapshot(snap, err => setFirebaseError(err));
     setCancelledRoundNums(newCancelled); setRound(null); setRoundNum(prevRN); setRoundComplete(prevRC);
     pendingRef.current = {}; setPending({}); setActiveRoundExtras([]); setRoundKey(k => k + 1);
-    alarmFiredRef.current = false; warningsFiredRef.current = new Set(); setTimerAlarmed(false);
+    setTimerAlarmed(false);
     if (!bm) applyTimerState(false, null, timerDuration);
   }, [roundNum, history, cancelledRoundNums, activeTeamIds, courtNumbers, tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, pausedIds, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, nextRoundPresets, tournamentFinished, applyTimerState]);
 
@@ -599,7 +584,6 @@ export default function App({ viewerOnly = false }) {
   }, []);
 
   const handleResult = useCallback((ci, result) => {
-    warmUpAudio();
     const key = courtKey(ci);
     setPending(prev => {
       const np = { ...prev, [key]: result };
@@ -618,14 +602,13 @@ export default function App({ viewerOnly = false }) {
           pushSnapshot(snap, err => err && setCriticalError('Round result failed to save — tap Retry.', snap));
         }
         setHistory(nh); setStandings(ns); setRound(null); setRoundComplete(true); setActiveRoundExtras([]); setLiveAdditions([]);
-        alarmFiredRef.current = false; setTimerAlarmed(false); if (!breakModeRef.current) applyTimerState(false, null, timerDuration);
+        setTimerAlarmed(false); if (!breakModeRef.current) applyTimerState(false, null, timerDuration);
       }
       return np;
     });
   }, [round, liveAdditions, activeRoundExtras, roundNum, history, activeTeamIds, courtNumbers, tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, pausedIds, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, nextRoundPresets, tournamentFinished, applyTimerState, setCriticalError]);
 
   const handleLiveResult = useCallback((i, result) => {
-    warmUpAudio();
     const key = liveKey(i);
     setPending(prev => {
       const np = { ...prev, [key]: result };
@@ -644,7 +627,7 @@ export default function App({ viewerOnly = false }) {
           pushSnapshot(snap, err => err && setCriticalError('Round result failed to save — tap Retry.', snap));
         }
         setHistory(nh); setStandings(ns); setRound(null); setRoundComplete(true); setActiveRoundExtras([]); setLiveAdditions([]);
-        alarmFiredRef.current = false; setTimerAlarmed(false); if (!breakModeRef.current) applyTimerState(false, null, timerDuration);
+        setTimerAlarmed(false); if (!breakModeRef.current) applyTimerState(false, null, timerDuration);
       }
       return np;
     });
@@ -683,7 +666,6 @@ export default function App({ viewerOnly = false }) {
       lastSeenRoundNum.current = newRN; pushSnapshot(snap, err => setFirebaseError(err));
     }
     setRound(mergedNr); setRoundNum(newRN); pendingRef.current = {}; setPending({}); setRoundKey(k => k + 1); setRoundComplete(false); setFinalRound(false); setActiveRoundExtras([]); setNextRoundPresets([]);
-    alarmFiredRef.current = false; warningsFiredRef.current = new Set();
     if (!bm) { const sa = timerDuration > 0 ? Date.now() : null; applyTimerState(timerDuration > 0, sa, timerDuration); }
   }, [activeTeamIds, history, nextRoundPresets, pausedIds, finalRound, courtNumbers, socialCourts, tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, roundNum, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras, tournamentFinished, applyTimerState]);
 
@@ -707,7 +689,6 @@ export default function App({ viewerOnly = false }) {
   const rrMatchKey = useCallback((sr, mi) => `rr_${sr}_${mi}`, []);
 
   const handleRRMatchResult = useCallback((srIdx, matchIdx, result) => {
-    warmUpAudio();
     const key = rrMatchKey(srIdx, matchIdx);
     setPending(prev => {
       const np = { ...prev, [key]: result };
@@ -743,7 +724,7 @@ export default function App({ viewerOnly = false }) {
           pushAtomicUpdate({ history: nh, roundNum: newRoundNum, timerRunning: bm ? timerRunningRef.current : false, timerStartedAt: bm ? timerStartedAtRef.current : null, timerPausedSecsLeft: bm ? rrSecs : timerDurationRef.current, ...pendingClear, ...(endSnap ? { roundRobinEndSnapshot: endSnap } : {}) }, err => setFirebaseError(err));
         }
         setRoundNum(newRoundNum); lastSeenRoundNum.current = newRoundNum;
-        alarmFiredRef.current = false; warningsFiredRef.current = new Set(); setTimerAlarmed(false);
+        setTimerAlarmed(false);
         if (!breakModeRef.current) applyTimerState(false, null, timerDurationRef.current);
         return cleared;
       }
@@ -864,7 +845,7 @@ export default function App({ viewerOnly = false }) {
 
   return (
     <TeamRegistryContext.Provider value={tournamentTeams}>
-      <div className="min-h-screen" onClick={warmUpAudio} style={{ background: '#fff', fontFamily: "'Trebuchet MS',sans-serif", color: '#1e293b' }}>
+      <div className="min-h-screen" style={{ background: '#fff', fontFamily: "'Trebuchet MS',sans-serif", color: '#1e293b' }}>
 
         {/* ── Modals ── */}
         {pinPurpose && <PinModal title={pinTitle} correctPin={adminPin} pinLoaded={adminPinLoaded} pinLoadError={adminPinLoadError} onSuccess={handlePinSuccess} onClose={() => { setPinPurpose(null); setRemoveGameTarget(null); setRemoveActiveCourtIdx(null); setRemoveLiveIdx(null); setRemoveActiveRoundExtraIdx(null); }} />}
