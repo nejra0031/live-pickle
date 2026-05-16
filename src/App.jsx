@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { TeamRegistryContext } from './context/TeamRegistryContext';
 import { setModuleRegistry } from './constants';
 import { courtKey, liveKey } from './constants';
-import { db, ref, set as fbSet, update as fbUpdate, onValue, off, push, get, onDisconnect, remove, pushSnapshot, pushAtomicUpdate, isOwnToken } from './firebase';
+import { db, ref, set as fbSet, update as fbUpdate, onValue, off, push, get, onDisconnect, remove, pushSnapshot, pushAtomicUpdate, isOwnToken, writeBackup, fetchBackup, fetchBackupIndex, clearBackups } from './firebase';
 import { saveState, loadState, clearSave } from './storage';
 import { warmUpAudio, playAlarm, playWarningBeep } from './audio';
 import { normaliseSnapshot, validateSnapshot } from './normalise';
@@ -83,6 +83,10 @@ export default function App({ viewerOnly = false }) {
   const [pinPurpose, setPinPurpose] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmRemoveGame, setConfirmRemoveGame] = useState(false);
+  const [confirmRevert, setConfirmRevert] = useState(false);
+  const [revertTarget, setRevertTarget] = useState(null);
+  const [backupRoundNums, setBackupRoundNums] = useState(new Set());
+  const historyLengthRef = useRef(0);
 
   const [presence, setPresence] = useState({ viewers: 0, admins: 0 });
   const [firebaseError, setFirebaseError] = useState(null);
@@ -216,6 +220,14 @@ export default function App({ viewerOnly = false }) {
     }).catch(() => { setAdminPinLoaded(true); setAdminPinLoadError(true); });
   }, []);
 
+  // ── Load backup index on mount ────────────────────────────────────────────
+  useEffect(() => {
+    fetchBackupIndex().then(snap => {
+      const d = snap.val();
+      if (d) setBackupRoundNums(new Set(Object.keys(d).map(k => Number(k.replace('round_', '')))));
+    }).catch(() => {});
+  }, []);
+
   // ── Firebase main listener ────────────────────────────────────────────────
   const lastSeenRoundNum = useRef(-1), initialLoadDone = useRef(false);
 
@@ -251,6 +263,7 @@ export default function App({ viewerOnly = false }) {
     const validSocial = (s.socialCourts || []).filter(c => (s.courtNumbers || []).includes(c));
     setSocialCourts(validSocial);
     setFinalRound(!!s.finalRound);
+    historyLengthRef.current = s.history.length; // sync so backup useEffect ignores initial load
     const isNew = s.roundNum !== lastSeenRoundNum.current;
     if (isNew) { lastSeenRoundNum.current = s.roundNum; pendingRef.current = {}; setPending({}); setRoundKey(k => k + 1); }
     alarmFiredRef.current = false;
@@ -334,6 +347,29 @@ export default function App({ viewerOnly = false }) {
 
   const handleRestore = () => { const s = savedState; setSavedState(null); updateAllStates(normaliseSnapshot(s)); setActiveTab('play'); };
 
+  // ── Per-round backup ──────────────────────────────────────────────────────
+  // Fires whenever a new round is committed to history. The historyLengthRef
+  // is pre-synced in updateAllStates so this never fires on initial data load.
+  useEffect(() => {
+    if (!isAdminRef.current || phase !== 'play' || history.length <= historyLengthRef.current) return;
+    historyLengthRef.current = history.length;
+    const latestRound = history[history.length - 1];
+    const rn = latestRound.roundNum;
+    const backupSnap = {
+      phase: 'play', activeTeamIds, courtNumbers, socialCourts,
+      teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins,
+      history, roundNum: rn, pausedIds, roundComplete: true,
+      timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: timerDuration,
+      roundData: null, breakMode: breakModeRef.current, finalRound: false,
+      tournamentMode, roundRobinSchedule, roundRobinCourts,
+      roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot,
+      activeRoundExtras: [], liveAdditions: [], nextRoundPresets: [],
+      tournamentFinished, cancelledRoundNums, savedAt: Date.now(),
+    };
+    writeBackup(rn, backupSnap);
+    setBackupRoundNums(prev => new Set([...prev, rn]));
+  }, [history]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Swipe navigation ──────────────────────────────────────────────────────
   const TAB_ORDER = ['play', 'standings', 'history'];
   const swipeTouchRef = useRef(null);
@@ -368,6 +404,23 @@ export default function App({ viewerOnly = false }) {
     setPhase('play'); setActiveTab('play');
   }, [applyTimerState]);
 
+  const doRevertToRound = useCallback(async () => {
+    if (revertTarget == null) return;
+    try {
+      const snap = await fetchBackup(revertTarget);
+      const data = snap.val();
+      if (!data) { setFirebaseError('Backup not found for this round.'); setRevertTarget(null); return; }
+      const { _backupAt, ...snapData } = data;
+      const normalised = normaliseSnapshot(snapData);
+      pushSnapshot(snapData, err => setFirebaseError(err));
+      updateAllStates(normalised);
+      setActiveTab('play');
+    } catch {
+      setFirebaseError('Failed to load backup — check connection.');
+    }
+    setRevertTarget(null);
+  }, [revertTarget, updateAllStates]);
+
   const handleBreakStart = useCallback((message, durationSecs) => {
     const bm = { message, endAt: Date.now() + durationSecs * 1000 };
     setBreakMode(bm); setShowBreakModal(false);
@@ -380,7 +433,8 @@ export default function App({ viewerOnly = false }) {
   }, []);
 
   const doReset = useCallback(() => {
-    clearSave(); pushSnapshot(null, err => setFirebaseError(err));
+    clearSave(); pushSnapshot(null, err => setFirebaseError(err)); clearBackups();
+    setBackupRoundNums(new Set()); historyLengthRef.current = 0;
     lastSeenRoundNum.current = -1; setPhase('setup'); setIsAdmin(false);
     setHistory([]); setStandings([]); setRound(null); setPausedIds([]);
     pendingRef.current = {}; setPending({}); setTournamentMode('swiss');
@@ -438,6 +492,11 @@ export default function App({ viewerOnly = false }) {
     else if (purpose === 'regenerate') { doRegenerateRound(); }
     else if (purpose === 'exitRR') { doExitRoundRobin(); }
     else if (purpose === 'cancelRound') { doCancelRound(); }
+    else if (purpose === 'revertToRound') {
+      setConfirmRevert(true);
+      setPinPurpose(null);
+      return;
+    }
     else if (purpose === 'removeGame' && removeGameTarget) {
       setConfirmRemoveGame(true);
       setPinPurpose(null);
@@ -812,7 +871,7 @@ export default function App({ viewerOnly = false }) {
   }, [showAddGame, round, roundNum, history, courtNumbers, liveAdditions, activeRoundExtras]);
 
   // ── Render ────────────────────────────────────────────────────────────────
-  const pinTitle = pinPurpose === 'reset' ? 'PIN required to reset' : pinPurpose === 'exitRR' ? 'PIN required to exit Round Robin' : pinPurpose === 'cancelRound' ? 'PIN required to cancel round' : pinPurpose === 'regenerate' ? 'PIN required to regenerate round' : pinPurpose?.startsWith('remove') ? 'PIN required to remove' : 'Admin PIN';
+  const pinTitle = pinPurpose === 'reset' ? 'PIN required to reset' : pinPurpose === 'exitRR' ? 'PIN required to exit Round Robin' : pinPurpose === 'cancelRound' ? 'PIN required to cancel round' : pinPurpose === 'regenerate' ? 'PIN required to regenerate round' : pinPurpose === 'revertToRound' ? `PIN required to revert to Round ${revertTarget}` : pinPurpose?.startsWith('remove') ? 'PIN required to remove' : 'Admin PIN';
 
   return (
     <TeamRegistryContext.Provider value={tournamentTeams}>
@@ -822,6 +881,7 @@ export default function App({ viewerOnly = false }) {
         {pinPurpose && <PinModal title={pinTitle} correctPin={adminPin} pinLoaded={adminPinLoaded} pinLoadError={adminPinLoadError} onSuccess={handlePinSuccess} onClose={() => { setPinPurpose(null); setRemoveGameTarget(null); setRemoveActiveCourtIdx(null); setRemoveLiveIdx(null); setRemoveActiveRoundExtraIdx(null); }} />}
         {confirmReset && <ConfirmModal title="Back to Setup" message="This will end the current tournament and reset all data. Are you sure?" confirmLabel="Reset" onConfirm={() => { setConfirmReset(false); setPinPurpose('reset'); }} onClose={() => setConfirmReset(false)} />}
         {confirmRemoveGame && removeGameTarget && <ConfirmModal title="Remove game?" message="This will permanently delete this game from history and recalculate standings. Cannot be undone." confirmLabel="Delete" onConfirm={() => { setConfirmRemoveGame(false); const { ri, gameIdx } = removeGameTarget; setHistory(prev => { const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: h.games.filter((_, gi) => gi !== gameIdx) }); const ns = rebuildStandings(activeTeamIds, nh); setStandings(ns); if (isAdminRef.current) pushAtomicUpdate({ history: nh }, err => setFirebaseError(err)); return nh; }); setRemoveGameTarget(null); }} onClose={() => { setConfirmRemoveGame(false); setRemoveGameTarget(null); }} />}
+        {confirmRevert && revertTarget != null && <ConfirmModal title={`Revert to Round ${revertTarget}?`} message={`This will restore the tournament to the state it was in right after Round ${revertTarget} completed. All rounds played after that will be lost. This cannot be undone.`} confirmLabel="Revert" onConfirm={() => { setConfirmRevert(false); doRevertToRound(); }} onClose={() => { setConfirmRevert(false); setRevertTarget(null); }} />}
         {showBreakModal && <BreakModal onStart={handleBreakStart} onClose={() => setShowBreakModal(false)} />}
         {showTimerSettings && <TimerSettingsModal currentMins={timerDefaultMins} onSave={m => { setTimerDefaultMins(m); setTimerDuration(m * 60); if (isAdminRef.current) pushAtomicUpdate({ timerDefaultMins: m, timerDuration: m * 60 }, err => setFirebaseError(err)); }} onClose={() => setShowTimerSettings(false)} />}
         {showManageTeams && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={handleTogglePause} onSave={handleManageTeamsSave} onClose={() => setShowManageTeams(false)} />}
@@ -936,10 +996,11 @@ export default function App({ viewerOnly = false }) {
                 <HistoryTab
                   history={history} activeTeamIds={activeTeamIds} cancelledRoundNums={cancelledRoundNums}
                   roundRobinStartSnapshot={roundRobinStartSnapshot} roundRobinEndSnapshot={roundRobinEndSnapshot}
-                  isAdmin={isAdmin}
+                  isAdmin={isAdmin} backupRoundNums={backupRoundNums}
                   onAddGame={ri => setShowAddGame({ target: String(ri), defaultCourt: '' })}
                   onEditGame={(ri, gameIdx) => setEditTarget({ ri, gameIdx })}
                   onRemoveGame={(ri, gameIdx) => { setRemoveGameTarget({ ri, gameIdx }); setPinPurpose('removeGame'); }}
+                  onRevertToRound={rn => { setRevertTarget(rn); setPinPurpose('revertToRound'); }}
                 />
               )}
             </>

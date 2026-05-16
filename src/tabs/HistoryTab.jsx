@@ -5,7 +5,7 @@ import { rerank, rebuildStandings } from '../algorithms/standings';
 export default function HistoryTab({
   history, activeTeamIds, cancelledRoundNums,
   roundRobinStartSnapshot, roundRobinEndSnapshot,
-  isAdmin, onAddGame, onEditGame, onRemoveGame,
+  isAdmin, backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound,
 }) {
   const teamById = useTeamById();
   const [newestFirst, setNewestFirst] = useState(true);
@@ -170,10 +170,18 @@ export default function HistoryTab({
               <div className="flex items-center justify-between" style={{ padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)', background: 'rgba(15,76,117,0.06)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
                 <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#0f4c75', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Round {h.roundNum}</span>
                 {isAdmin && (
-                  <button onClick={() => onAddGame(ri)}
-                    style={{ fontSize: 'clamp(10px,2.5vw,12px)', padding: 'clamp(3px,0.8vw,5px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(99,102,241,0.1)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.3)' }}>
-                    ➕ Add Game
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {backupRoundNums.has(h.roundNum) && (
+                      <button onClick={() => onRevertToRound(h.roundNum)}
+                        style={{ fontSize: 'clamp(10px,2.5vw,12px)', padding: 'clamp(3px,0.8vw,5px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(220,38,38,0.08)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.25)' }}>
+                        ↩ Revert
+                      </button>
+                    )}
+                    <button onClick={() => onAddGame(ri)}
+                      style={{ fontSize: 'clamp(10px,2.5vw,12px)', padding: 'clamp(3px,0.8vw,5px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(99,102,241,0.1)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.3)' }}>
+                      ➕ Add Game
+                    </button>
+                  </div>
                 )}
               </div>
 

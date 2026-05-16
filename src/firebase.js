@@ -37,6 +37,22 @@ export function isOwnToken(tok) {
   return true;
 }
 
+// ── Backup helpers ─────────────────────────────────────────────────────────
+export function writeBackup(roundNum, snap) {
+  return set(ref(db, `tournament_backups/round_${roundNum}`), { ...snap, _backupAt: Date.now() }).catch(err => {
+    console.error('Backup write failed', err);
+  });
+}
+export function fetchBackup(roundNum) {
+  return get(ref(db, `tournament_backups/round_${roundNum}`));
+}
+export function fetchBackupIndex() {
+  return get(ref(db, 'tournament_backups'));
+}
+export function clearBackups() {
+  return remove(ref(db, 'tournament_backups')).catch(err => console.error('Backup clear failed', err));
+}
+
 // ── Atomic helpers ─────────────────────────────────────────────────────────
 // pushSnapshot: full replace — only called by the admin who generated the round.
 // NOTE: set() is not atomic with concurrent update() calls from other clients;
