@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useTeamById } from '../context/TeamRegistryContext';
 import CourtCard from '../components/CourtCard';
 import TeamChip from '../components/TeamChip';
@@ -25,13 +26,31 @@ export default function PlayTab({
 }) {
   const teamById = useTeamById();
 
-  const breakBanner = breakMode ? (
+  const [breakSecsLeft, setBreakSecsLeft] = useState(() =>
+    breakMode ? Math.max(0, Math.round((breakMode.endAt - Date.now()) / 1000)) : 0
+  );
+  useEffect(() => {
+    if (!breakMode) return;
+    const tick = () => setBreakSecsLeft(Math.max(0, Math.round((breakMode.endAt - Date.now()) / 1000)));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [breakMode?.endAt]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const breakBanner = breakMode ? (() => {
+    const bMins = Math.floor(breakSecsLeft / 60), bSecs = breakSecsLeft % 60;
+    const over = breakSecsLeft === 0;
+    return (
+
     <div className="rounded-2xl flex flex-col gap-2" style={{ padding: 'clamp(14px,3.5vw,22px)', background: 'linear-gradient(135deg,#fef3c7,#fde68a)', border: '1px solid rgba(217,119,6,0.4)' }}>
-      <div className="flex items-center gap-2">
-        <span style={{ fontSize: 'clamp(22px,5.5vw,32px)' }}>☕</span>
-        <div>
+      <div className="flex items-center gap-3">
+        <span style={{ fontSize: 'clamp(22px,5.5vw,32px)', flexShrink: 0 }}>☕</span>
+        <div className="flex-1">
           <p style={{ fontWeight: 900, fontSize: 'clamp(14px,3.5vw,20px)', color: '#92400e', margin: 0 }}>{breakMode.message}</p>
           <p style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#b45309', margin: 0 }}>Tournament is on a break — matches resume shortly.</p>
+        </div>
+        <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 'clamp(18px,5vw,28px)', color: over ? '#ef4444' : '#92400e', flexShrink: 0 }}>
+          {over ? 'OVER' : `${bMins}:${String(bSecs).padStart(2, '0')}`}
         </div>
       </div>
       {isAdmin && (
@@ -40,7 +59,8 @@ export default function PlayTab({
         </button>
       )}
     </div>
-  ) : null;
+    );
+  })() : null;
 
   const socialSection = socialCourts.length > 0 ? (
     <div className="flex flex-col" style={{ gap: 'clamp(8px,2vw,12px)' }}>
@@ -213,6 +233,7 @@ export default function PlayTab({
     return (
       <div className="flex flex-col gap-4">
         {breakBanner}
+        {socialSection}
         {isAdmin ? (
           <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(12px,3vw,18px)', gap: 'clamp(12px,3vw,16px)', background: '#f8fafc', border: '1px solid rgba(0,0,0,0.08)' }}>
             <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Admin Options</p>

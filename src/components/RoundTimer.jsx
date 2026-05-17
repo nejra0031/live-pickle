@@ -22,6 +22,7 @@ export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning
           <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 'clamp(13px,3.5vw,18px)', lineHeight: 1, color: over ? '#ef4444' : '#92400e' }}>
             {over ? 'BREAK OVER' : `${bm}:${String(bs).padStart(2, '0')}`}
           </div>
+          {breakInfo.message && <div style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#92400e', fontWeight: 700, marginTop: 2 }}>{breakInfo.message}</div>}
         </div>
         {isAdmin && (
           <button onClick={onEndBreak}
