@@ -124,6 +124,9 @@ export default function PlayTab({
       <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
         {breakBanner}
         {socialSection}
+        {(timerDuration > 0 || breakMode) && (
+          <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning} isAdmin={isAdmin} onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} breakInfo={breakMode} onEndBreak={onBreakEnd} />
+        )}
         <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(4px,1vw,8px)', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.25)' }}>
           <p className="font-bold" style={{ color: '#4338ca', fontSize: 'clamp(13px,3.5vw,17px)' }}>🔁 Round Robin</p>
           <p style={{ color: '#64748b', fontSize: 'clamp(10px,2.5vw,13px)' }}>
