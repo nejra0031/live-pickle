@@ -87,6 +87,7 @@ export default function App({ viewerOnly = false }) {
   const historyLengthRef = useRef(0);
 
   const [presence, setPresence] = useState({ viewers: 0, admins: 0 });
+  const [firebaseConnected, setFirebaseConnected] = useState(false);
   const [firebaseError, setFirebaseError] = useState(null);
   const [firebaseErrorPersist, setFirebaseErrorPersist] = useState(false);
   const retrySnapshotRef = useRef(null); // stores last failed critical snapshot for retry
@@ -316,6 +317,12 @@ export default function App({ viewerOnly = false }) {
   useEffect(() => {
     if (myPresRef.current) fbUpdate(myPresRef.current, { role: isAdmin ? 'admin' : 'viewer' }).catch(() => {});
   }, [isAdmin]);
+
+  useEffect(() => {
+    const connRef = ref(db, '.info/connected');
+    onValue(connRef, snap => setFirebaseConnected(snap.val() === true));
+    return () => off(connRef);
+  }, []);
 
 
   // ── Per-round backup ──────────────────────────────────────────────────────
@@ -885,11 +892,11 @@ export default function App({ viewerOnly = false }) {
               <div className="flex-1 min-w-0">
                 <h1 className="font-black tracking-tight leading-tight truncate" style={{ fontSize: 'clamp(16px,4vw,26px)', color: '#0f4c75' }}>{tournamentTitle}</h1>
                 <div className="flex items-center gap-2 flex-wrap">
-                  {phase === 'play' && <p className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>{activeTeamIds.length} teams · {isAdmin ? '🟢 Admin' : '🔵 Viewer'}</p>}
-                  {phase === 'setup' && <p className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>Setup</p>}
-                  {(phase === 'waiting' || phase === 'loading') && !isAdmin && <p className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>🔵 Live Viewer</p>}
+                  {firebaseConnected && <span style={{ background: '#16a34a', color: '#fff', fontSize: 'clamp(8px,1.8vw,10px)', fontWeight: 800, padding: '1px 6px', borderRadius: 4, letterSpacing: '0.06em' }}>LIVE</span>}
+                  {phase === 'play' && <span className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>{isAdmin ? 'Admin' : 'Viewer'}</span>}
+                  {phase === 'setup' && <span className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>Setup</span>}
+                  {(presence.admins > 0 || presence.viewers > 0) && <span className="text-slate-400" style={{ fontSize: 'clamp(9px,2vw,11px)' }}>{presence.admins} admin{presence.admins !== 1 ? 's' : ''} · {presence.viewers} viewer{presence.viewers !== 1 ? 's' : ''}</span>}
                   {!online && <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#dc2626', fontWeight: 700 }}>● Offline</span>}
-                  {(presence.admins > 0 || presence.viewers > 0) && <span className="text-slate-400" title="Approximate — count may lag by up to 60s" style={{ fontSize: 'clamp(9px,2vw,11px)' }}>{(presence.admins - (isAdmin ? 1 : 0)) > 0 && `🟢~${presence.admins - (isAdmin ? 1 : 0)} `}{(presence.viewers - (isAdmin ? 0 : 1)) > 0 && `🔵~${presence.viewers - (isAdmin ? 0 : 1)}`}</span>}
                 </div>
               </div>
               {!viewerOnly && (
