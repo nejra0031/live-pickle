@@ -300,29 +300,31 @@ export default function App({ viewerOnly = false }) {
   // ── Presence ──────────────────────────────────────────────────────────────
   const myPresRef = useRef(null);
   useEffect(() => {
-    const presenceDebounceRef = { t: null };
-    const r = push(presenceRef()); myPresRef.current = r;
-    onDisconnect(r).remove();
-    presenceDebounceRef.t = setTimeout(() => {
-      fbSet(r, { role: 'viewer', joinedAt: Date.now() }).catch(() => {});
-    }, 2000);
-    const presRef = presenceRef();
-    onValue(presRef, snap => {
+    const listenPresRef = presenceRef();
+    onValue(listenPresRef, snap => {
       const d = snap.val() || {}, e = Object.values(d);
       setPresence({ viewers: e.filter(x => x?.role === 'viewer').length, admins: e.filter(x => x?.role === 'admin').length });
     });
-    return () => { clearTimeout(presenceDebounceRef.t); remove(r); off(presRef); };
+    const connRef = ref(db, '.info/connected');
+    onValue(connRef, snap => {
+      console.log('[presence] .info/connected =', snap.val());
+      setFirebaseConnected(snap.val() === true);
+      if (snap.val() !== true) return;
+      // Re-register presence on every (re)connect so the count stays accurate
+      // after inactivity-induced disconnects. onDisconnect removes the old node
+      // server-side but nothing re-adds it — this handler does.
+      const r = push(presenceRef()); myPresRef.current = r;
+      onDisconnect(r).remove();
+      fbSet(r, { role: isAdminRef.current ? 'admin' : 'viewer', joinedAt: Date.now() })
+        .then(() => console.log('[presence] write OK, role=', isAdminRef.current ? 'admin' : 'viewer'))
+        .catch(err => console.error('[presence] write FAILED:', err));
+    });
+    return () => { if (myPresRef.current) remove(myPresRef.current); off(listenPresRef); off(connRef); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (myPresRef.current) fbUpdate(myPresRef.current, { role: isAdmin ? 'admin' : 'viewer' }).catch(() => {});
   }, [isAdmin]);
-
-  useEffect(() => {
-    const connRef = ref(db, '.info/connected');
-    onValue(connRef, snap => setFirebaseConnected(snap.val() === true));
-    return () => off(connRef);
-  }, []);
 
 
   // ── Per-round backup ──────────────────────────────────────────────────────
@@ -369,6 +371,7 @@ export default function App({ viewerOnly = false }) {
 
   const handleStart = useCallback((allTeams, teamIds, courts, durSecs, title) => {
     setTournamentTeams(allTeams);
+    setModuleRegistry(allTeams);
     const resolvedTitle = title || 'Tournament';
     setTournamentTitle(resolvedTitle);
     const s = mkStandings(teamIds);
@@ -528,6 +531,7 @@ export default function App({ viewerOnly = false }) {
 
   const handleManageTeamsSave = useCallback((newRegistry, newActiveIds) => {
     setTournamentTeams(newRegistry);
+    setModuleRegistry(newRegistry);
     setActiveTeamIds(newActiveIds);
     const ns = rebuildStandings(newActiveIds, history);
     setStandings(ns);
