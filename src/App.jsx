@@ -299,27 +299,33 @@ export default function App({ viewerOnly = false }) {
 
   // ── Presence ──────────────────────────────────────────────────────────────
   const myPresRef = useRef(null);
+  const presHeartbeatRef = useRef(null);
   useEffect(() => {
+    const STALE_MS = 90_000;   // ignore entries older than 90 s
+    const HEARTBEAT_MS = 30_000; // update lastSeen every 30 s
     const listenPresRef = presenceRef();
     onValue(listenPresRef, snap => {
       const d = snap.val() || {}, e = Object.values(d);
-      setPresence({ viewers: e.filter(x => x?.role === 'viewer').length, admins: e.filter(x => x?.role === 'admin').length });
+      const cutoff = Date.now() - STALE_MS;
+      const live = e.filter(x => x?.lastSeen >= cutoff);
+      setPresence({ viewers: live.filter(x => x?.role === 'viewer').length, admins: live.filter(x => x?.role === 'admin').length });
     });
     const connRef = ref(db, '.info/connected');
     onValue(connRef, snap => {
       console.log('[presence] .info/connected =', snap.val());
       setFirebaseConnected(snap.val() === true);
       if (snap.val() !== true) return;
-      // Re-register presence on every (re)connect so the count stays accurate
-      // after inactivity-induced disconnects. onDisconnect removes the old node
-      // server-side but nothing re-adds it — this handler does.
       const r = push(presenceRef()); myPresRef.current = r;
       onDisconnect(r).remove();
-      fbSet(r, { role: isAdminRef.current ? 'admin' : 'viewer', joinedAt: Date.now() })
+      fbSet(r, { role: isAdminRef.current ? 'admin' : 'viewer', joinedAt: Date.now(), lastSeen: Date.now() })
         .then(() => console.log('[presence] write OK, role=', isAdminRef.current ? 'admin' : 'viewer'))
         .catch(err => console.error('[presence] write FAILED:', err));
+      clearInterval(presHeartbeatRef.current);
+      presHeartbeatRef.current = setInterval(() => {
+        if (myPresRef.current) fbUpdate(myPresRef.current, { lastSeen: Date.now() }).catch(() => {});
+      }, HEARTBEAT_MS);
     });
-    return () => { if (myPresRef.current) remove(myPresRef.current); off(listenPresRef); off(connRef); };
+    return () => { if (myPresRef.current) remove(myPresRef.current); clearInterval(presHeartbeatRef.current); off(listenPresRef); off(connRef); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

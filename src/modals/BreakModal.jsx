@@ -2,8 +2,9 @@ import { useState } from 'react';
 
 export default function BreakModal({ onStart, onClose }) {
   const [message, setMessage] = useState('Taking a short break!');
-  const [mins, setMins] = useState(5);
-  const valid = message.trim() && mins >= 1;
+  const [minsRaw, setMinsRaw] = useState('5');
+  const minsNum = Number(minsRaw);
+  const valid = message.trim() && minsRaw !== '' && minsNum >= 1 && minsNum <= 120;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -18,13 +19,13 @@ export default function BreakModal({ onStart, onClose }) {
         </div>
         <div>
           <p className="text-xs text-slate-400 mb-2 font-bold uppercase tracking-wide">Duration (minutes)</p>
-          <input type="number" value={mins} min={1} max={120}
-            onChange={e => setMins(Math.max(1, Number(e.target.value)))}
+          <input type="number" value={minsRaw} min={1} max={120}
+            onChange={e => setMinsRaw(e.target.value)}
             style={{ width: '100%', padding: '8px 12px', borderRadius: 10, fontSize: 14, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }} />
         </div>
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold btn-cancel">Cancel</button>
-          <button onClick={() => valid && onStart(message.trim(), mins * 60)} disabled={!valid}
+          <button onClick={() => valid && onStart(message.trim(), minsNum * 60)} disabled={!valid}
             className="flex-1 py-2 rounded-xl text-sm font-bold btn-amber">
             Start Break ☕
           </button>
