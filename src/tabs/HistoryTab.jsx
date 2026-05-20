@@ -181,7 +181,7 @@ export default function HistoryTab({
         const isLastRR = roundRobinEndSnapshot && roundRobinEndSnapshot.endRoundNum != null && h.roundNum === roundRobinEndSnapshot.endRoundNum;
 
         return (
-          <div key={ri}>
+          <div key={ri} className="flex flex-col gap-3">
             {newestFirst && isLastRR && renderRREndSnapshot()}
             <div className="rounded-2xl" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
               <div className="flex items-center justify-between" style={{ padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)', background: 'rgba(15,76,117,0.06)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
