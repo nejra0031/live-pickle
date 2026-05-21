@@ -27,7 +27,7 @@ export default function PlayTab({
   rrMatchKey,
 }) {
   const teamById = useTeamById();
-  const isAdmin = hasPermission(role, 'canGenerateRound');
+  const isAdmin = hasPermission(role, 'canResetTournament');
   const isReferee = !isAdmin && hasPermission(role, 'canSubmitResults');
   const canWrite = hasPermission(role, 'canSubmitResults');
 
@@ -338,6 +338,12 @@ export default function PlayTab({
                 })}
               </div>
             </div>
+
+            {hasPermission(role, 'canGenerateRound') && (
+              <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: finalRound ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
+                {roundNum === 0 ? 'Generate Round 1 →' : finalRound ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
+              </button>
+            )}
           </div>
         ) : (
           <div className="rounded-2xl p-10 text-center flex flex-col items-center gap-3" style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)' }}>
@@ -468,6 +474,13 @@ export default function PlayTab({
           {isReferee && (
             <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(12px,3vw,18px)', gap: 'clamp(12px,3vw,16px)', background: '#f8fafc', border: '1px solid rgba(99,102,241,0.15)' }}>
               <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#6366f1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>{ROLE_MAP[role]?.title ?? 'Referee'} Options</p>
+
+              {hasPermission(role, 'canGenerateRound') && (
+                <div className="flex gap-2">
+                  <button onClick={onRegenerateRound} style={{ flex: 1, padding: 'clamp(8px,2vw,11px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)' }}>🔀 Regenerate</button>
+                  <button onClick={onCancelRound} style={{ flex: 1, padding: 'clamp(8px,2vw,11px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(220,38,38,0.07)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)' }}>✕ Cancel Round</button>
+                </div>
+              )}
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)', borderRadius: 10, background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}` }}>
                 <div>

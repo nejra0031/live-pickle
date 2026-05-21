@@ -73,7 +73,7 @@ export default function App({ viewerOnly = false }) {
   const [role, setRole] = useState(null); // null or a role id from roleConfig.js
   const roleRef = useRef(null);
   useEffect(() => { roleRef.current = role; }, [role]);
-  const isAdmin = hasPermission(role, 'canGenerateRound');
+  const isAdmin = hasPermission(role, 'canResetTournament');
 
   const [pins, setPins] = useState({});
   const [pinsLoaded, setPinsLoaded] = useState({});
