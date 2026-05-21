@@ -5,7 +5,8 @@ import { rerank, rebuildStandings } from '../algorithms/standings';
 export default function HistoryTab({
   history, activeTeamIds, cancelledRoundNums,
   roundRobinStartSnapshot, roundRobinEndSnapshot,
-  isAdmin, backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound,
+  canEditScores, canDeleteGame, canFullEdit,
+  backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound,
 }) {
   const teamById = useTeamById();
   const [newestFirst, setNewestFirst] = useState(true);
@@ -140,7 +141,7 @@ export default function HistoryTab({
 
       {isEmpty && <div className="text-center text-slate-400 py-8 text-sm">No rounds completed yet.</div>}
 
-      {isAdmin && futureBackups.length > 0 && (
+      {canFullEdit && futureBackups.length > 0 && (
         <div className="rounded-2xl flex flex-col gap-2" style={{ padding: 'clamp(10px,2.5vw,14px) clamp(12px,3vw,18px)', background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.3)' }}>
           <p style={{ fontSize: 'clamp(10px,2.5vw,13px)', fontWeight: 800, color: '#92400e', margin: 0 }}>⏩ Snapshots from reverted rounds</p>
           <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#b45309', margin: 0 }}>These rounds existed before your last revert. You can restore any of them.</p>
@@ -186,7 +187,7 @@ export default function HistoryTab({
             <div className="rounded-2xl" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
               <div className="flex items-center justify-between" style={{ padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)', background: 'rgba(15,76,117,0.06)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
                 <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#0f4c75', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Round {h.roundNum}</span>
-                {isAdmin && (
+                {canFullEdit && (
                   <div className="flex items-center gap-1">
                     {backupRoundNums.has(h.roundNum) && (
                       <button onClick={() => onRevertToRound(h.roundNum)}
@@ -218,13 +219,13 @@ export default function HistoryTab({
                         <span className="inline-flex items-center rounded-full font-bold" style={{ background: l?.color, color: l?.text, fontSize: 'clamp(11px,3vw,15px)', padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)', whiteSpace: 'nowrap' }}>{l?.name}</span>
                       </div>
                       <div className="flex gap-1">
-                        {isAdmin && (
-                          <>
-                            <button onClick={() => onEditGame(ri, gi)}
-                              style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(3px,0.8vw,6px) clamp(6px,1.5vw,10px)', borderRadius: 8, background: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>✏️</button>
-                            <button onClick={() => onRemoveGame(ri, gi)}
-                              style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(3px,0.8vw,6px) clamp(6px,1.5vw,10px)', borderRadius: 8, background: 'rgba(220,38,38,0.08)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>×</button>
-                          </>
+                        {canEditScores && (
+                          <button onClick={() => onEditGame(ri, gi)}
+                            style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(3px,0.8vw,6px) clamp(6px,1.5vw,10px)', borderRadius: 8, background: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>✏️</button>
+                        )}
+                        {canDeleteGame && (
+                          <button onClick={() => onRemoveGame(ri, gi)}
+                            style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(3px,0.8vw,6px) clamp(6px,1.5vw,10px)', borderRadius: 8, background: 'rgba(220,38,38,0.08)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>×</button>
                         )}
                       </div>
                     </div>

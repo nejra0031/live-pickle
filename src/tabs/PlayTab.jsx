@@ -4,6 +4,7 @@ import CourtCard from '../components/CourtCard';
 import TeamChip from '../components/TeamChip';
 import RoundTimer from '../components/RoundTimer';
 import { courtKey, liveKey } from '../constants';
+import { ROLE_MAP, hasPermission } from '../roleConfig';
 
 export default function PlayTab({
   tournamentFinished, breakMode, round, roundNum, tournamentMode,
@@ -26,9 +27,9 @@ export default function PlayTab({
   rrMatchKey,
 }) {
   const teamById = useTeamById();
-  const isAdmin = role === 'admin';
-  const isReferee = role === 'referee';
-  const canWrite = role !== null;
+  const isAdmin = hasPermission(role, 'canGenerateRound');
+  const isReferee = !isAdmin && hasPermission(role, 'canSubmitResults');
+  const canWrite = hasPermission(role, 'canSubmitResults');
 
   const [breakSecsLeft, setBreakSecsLeft] = useState(() =>
     breakMode ? Math.max(0, Math.round((breakMode.endAt - Date.now()) / 1000)) : 0
@@ -129,7 +130,7 @@ export default function PlayTab({
         {breakBanner}
         {socialSection}
         {(timerDuration > 0 || breakMode) && (
-          <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning} isAdmin={isAdmin} onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} breakInfo={breakMode} onEndBreak={onBreakEnd} />
+          <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning} isAdmin={hasPermission(role, 'canEditTimer')} onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} breakInfo={breakMode} onEndBreak={onBreakEnd} />
         )}
         <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(4px,1vw,8px)', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.25)' }}>
           <p className="font-bold" style={{ color: '#4338ca', fontSize: 'clamp(13px,3.5vw,17px)' }}>🔁 Round Robin</p>
@@ -301,7 +302,7 @@ export default function PlayTab({
           </div>
         ) : isReferee ? (
           <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(12px,3vw,18px)', gap: 'clamp(12px,3vw,16px)', background: '#f8fafc', border: '1px solid rgba(99,102,241,0.15)' }}>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#6366f1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Referee Options</p>
+            <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#6366f1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>{ROLE_MAP[role]?.title ?? 'Referee'} Options</p>
 
             <button onClick={onSelectRRTeams} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
               🔁 Switch to Round Robin
@@ -359,7 +360,7 @@ export default function PlayTab({
     <div className="flex flex-col gap-4">
       {socialSection}
       {showTimer ? (
-        <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning} isAdmin={isAdmin} onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} breakInfo={breakMode} onEndBreak={onBreakEnd} />
+        <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning} isAdmin={hasPermission(role, 'canEditTimer')} onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} breakInfo={breakMode} onEndBreak={onBreakEnd} />
       ) : (
         <div style={{ textAlign: 'center' }}>
           <span className="text-blue-900 font-black" style={{ fontSize: 'clamp(22px,6vw,32px)' }}>Round {roundNum}</span>
@@ -466,7 +467,7 @@ export default function PlayTab({
           {/* Referee options panel */}
           {isReferee && (
             <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(12px,3vw,18px)', gap: 'clamp(12px,3vw,16px)', background: '#f8fafc', border: '1px solid rgba(99,102,241,0.15)' }}>
-              <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#6366f1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Referee Options</p>
+              <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#6366f1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>{ROLE_MAP[role]?.title ?? 'Referee'} Options</p>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)', borderRadius: 10, background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}` }}>
                 <div>

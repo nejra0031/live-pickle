@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { TeamRegistryContext } from './context/TeamRegistryContext';
 import { setModuleRegistry } from './constants';
 import { courtKey, liveKey } from './constants';
-import { db, ref, set as fbSet, update as fbUpdate, onValue, off, push, get, onDisconnect, remove, pushSnapshot, pushAtomicUpdate, isOwnToken, writeBackup, fetchBackup, fetchBackupIndex, clearBackups, tournamentRef, pendingResultsRef, adminPinRef, refereePinRef, presenceRef } from './firebase';
+import { db, ref, set as fbSet, update as fbUpdate, onValue, off, push, get, onDisconnect, remove, pushSnapshot, pushAtomicUpdate, isOwnToken, writeBackup, fetchBackup, fetchBackupIndex, clearBackups, tournamentRef, pendingResultsRef, rolePinRef, presenceRef } from './firebase';
+import { ROLES, ROLE_MAP, hasPermission } from './roleConfig';
 import { normaliseSnapshot, validateSnapshot } from './normalise';
 import { mkStandings, rerank, rebuildStandings } from './algorithms/standings';
 import { generateRound } from './algorithms/pairing';
@@ -69,17 +70,14 @@ export default function App({ viewerOnly = false }) {
   const [activeTab, setActiveTab] = useState('play');
   useEffect(() => { if (activeTab === 'timer') setActiveTab('play'); }, [activeTab]);
 
-  const [role, setRole] = useState(null); // null | 'admin' | 'referee'
+  const [role, setRole] = useState(null); // null or a role id from roleConfig.js
   const roleRef = useRef(null);
   useEffect(() => { roleRef.current = role; }, [role]);
-  const isAdmin = role === 'admin';
+  const isAdmin = hasPermission(role, 'canGenerateRound');
 
-  const [adminPin, setAdminPin] = useState(null);
-  const [adminPinLoaded, setAdminPinLoaded] = useState(false);
-  const [adminPinLoadError, setAdminPinLoadError] = useState(false);
-  const [refereePin, setRefereePin] = useState(null);
-  const [refereePinLoaded, setRefereePinLoaded] = useState(false);
-  const [refereePinLoadError, setRefereePinLoadError] = useState(false);
+  const [pins, setPins] = useState({});
+  const [pinsLoaded, setPinsLoaded] = useState({});
+  const [pinsLoadError, setPinsLoadError] = useState({});
   const [pinPurpose, setPinPurpose] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmRemoveGame, setConfirmRemoveGame] = useState(false);
@@ -90,7 +88,7 @@ export default function App({ viewerOnly = false }) {
   const [backupRoundNums, setBackupRoundNums] = useState(new Set());
   const historyLengthRef = useRef(0);
 
-  const [presence, setPresence] = useState({ viewers: 0, admins: 0, referees: 0 });
+  const [presence, setPresence] = useState(() => Object.fromEntries([['viewer', 0], ...ROLES.map(r => [r.id, 0])]));
   const [firebaseConnected, setFirebaseConnected] = useState(false);
   const [firebaseError, setFirebaseError] = useState(null);
   const [firebaseErrorPersist, setFirebaseErrorPersist] = useState(false);
@@ -190,31 +188,31 @@ export default function App({ viewerOnly = false }) {
   const resetTimer = useCallback((ns) => {
     const s = ns ?? timerDurationRef.current;
     setTimerAlarmed(false); applyTimerState(false, null, s);
-    if (roleRef.current === 'admin') pushAtomicUpdate({ timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s }, err => setFirebaseError(err));
+    if (hasPermission(roleRef.current, 'canEditTimer')) pushAtomicUpdate({ timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s }, err => setFirebaseError(err));
   }, [applyTimerState]);
 
   const timerToggle = useCallback(() => {
     if (!timerRunningRef.current) {
       const sa = Date.now(); applyTimerState(true, sa, timerPausedSecsRef.current);
-      if (roleRef.current === 'admin') pushAtomicUpdate({ timerRunning: true, timerStartedAt: sa, timerPausedSecsLeft: timerPausedSecsRef.current }, err => setFirebaseError(err));
+      if (hasPermission(roleRef.current, 'canEditTimer')) pushAtomicUpdate({ timerRunning: true, timerStartedAt: sa, timerPausedSecsLeft: timerPausedSecsRef.current }, err => setFirebaseError(err));
     } else {
       const s = computeSecsLeft(); applyTimerState(false, null, s);
-      if (roleRef.current === 'admin') pushAtomicUpdate({ timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s }, err => setFirebaseError(err));
+      if (hasPermission(roleRef.current, 'canEditTimer')) pushAtomicUpdate({ timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s }, err => setFirebaseError(err));
     }
   }, [applyTimerState, computeSecsLeft]);
 
   // ── Firebase PIN loading ──────────────────────────────────────────────────
   useEffect(() => {
-    get(adminPinRef()).then(snap => {
-      const val = snap.val();
-      if (val) setAdminPin(String(val));
-      setAdminPinLoaded(true);
-    }).catch(() => { setAdminPinLoaded(true); setAdminPinLoadError(true); });
-    get(refereePinRef()).then(snap => {
-      const val = snap.val();
-      if (val) setRefereePin(String(val));
-      setRefereePinLoaded(true);
-    }).catch(() => { setRefereePinLoaded(true); setRefereePinLoadError(true); });
+    ROLES.forEach(r => {
+      get(rolePinRef(r.firebasePinPath)).then(snap => {
+        const val = snap.val();
+        setPins(prev => ({ ...prev, [r.id]: val ? String(val) : null }));
+        setPinsLoaded(prev => ({ ...prev, [r.id]: true }));
+      }).catch(() => {
+        setPinsLoaded(prev => ({ ...prev, [r.id]: true }));
+        setPinsLoadError(prev => ({ ...prev, [r.id]: true }));
+      });
+    });
   }, []);
 
   // ── Load backup index on mount ────────────────────────────────────────────
@@ -317,7 +315,9 @@ export default function App({ viewerOnly = false }) {
       const d = snap.val() || {}, e = Object.values(d);
       const cutoff = Date.now() - STALE_MS;
       const live = e.filter(x => x?.lastSeen >= cutoff);
-      setPresence({ viewers: live.filter(x => x?.role === 'viewer').length, admins: live.filter(x => x?.role === 'admin').length, referees: live.filter(x => x?.role === 'referee').length });
+      const counts = { viewer: live.filter(x => !x?.role || x?.role === 'viewer').length };
+      ROLES.forEach(r => { counts[r.id] = live.filter(x => x?.role === r.id).length; });
+      setPresence(counts);
     });
     const connRef = ref(db, '.info/connected');
     onValue(connRef, snap => {
@@ -346,7 +346,7 @@ export default function App({ viewerOnly = false }) {
   // Fires whenever a new round is committed to history. The historyLengthRef
   // is pre-synced in updateAllStates so this never fires on initial data load.
   useEffect(() => {
-    if (roleRef.current !== 'admin' || phase !== 'play' || history.length <= historyLengthRef.current) return;
+    if (!hasPermission(roleRef.current, 'canFullEditHistory') || phase !== 'play' || history.length <= historyLengthRef.current) return;
     historyLengthRef.current = history.length;
     const latestRound = history[history.length - 1];
     const rn = latestRound.roundNum;
@@ -422,12 +422,12 @@ export default function App({ viewerOnly = false }) {
   const handleBreakStart = useCallback((message, durationSecs) => {
     const bm = { message, endAt: Date.now() + durationSecs * 1000 };
     setBreakMode(bm); setShowBreakModal(false);
-    if (roleRef.current === 'admin') pushAtomicUpdate({ breakMode: bm }, err => setFirebaseError(err));
+    if (hasPermission(roleRef.current, 'canBreakTournament')) pushAtomicUpdate({ breakMode: bm }, err => setFirebaseError(err));
   }, []);
 
   const handleBreakEnd = useCallback(() => {
     setBreakMode(null);
-    if (roleRef.current === 'admin') pushAtomicUpdate({ breakMode: null }, err => setFirebaseError(err));
+    if (hasPermission(roleRef.current, 'canBreakTournament')) pushAtomicUpdate({ breakMode: null }, err => setFirebaseError(err));
   }, []);
 
   const doReset = useCallback(() => {
@@ -449,7 +449,7 @@ export default function App({ viewerOnly = false }) {
     const nr = generateRound(ns, compCourts.length, history.length, history, pausedIds, finalRound);
     const roundCourtNums = compCourts.slice(0, nr.courts.length);
     const nrWithNums = { ...nr, courtNums: roundCourtNums };
-    if (roleRef.current === 'admin') { const rd = { courtTeamIds: nr.courts.map(p => p.map(t => t.id)), byeIds: nr.bye.map(t => t.id), pausedTeamIds: (nr.paused || []).map(t => t.id), courtNums: roundCourtNums }; pushAtomicUpdate({ roundData: rd, pendingResults: null }, err => setFirebaseError(err)); }
+    if (hasPermission(roleRef.current, 'canGenerateRound')) { const rd = { courtTeamIds: nr.courts.map(p => p.map(t => t.id)), byeIds: nr.bye.map(t => t.id), pausedTeamIds: (nr.paused || []).map(t => t.id), courtNums: roundCourtNums }; pushAtomicUpdate({ roundData: rd, pendingResults: null }, err => setFirebaseError(err)); }
     setRound(nrWithNums); pendingRef.current = {}; setPending({}); setRoundKey(k => k + 1); setLiveAdditions([]);
   }, [activeTeamIds, history, courtNumbers, socialCourts, pausedIds, finalRound]);
 
@@ -480,7 +480,7 @@ export default function App({ viewerOnly = false }) {
     const cleared = {};
     Object.keys(pendingRef.current).forEach(k => { if (!k.startsWith('rr_')) cleared[k] = pendingRef.current[k]; });
     pendingRef.current = cleared; setPending(cleared);
-    if (roleRef.current !== null) { pushAtomicUpdate({ tournamentMode: 'swiss', roundRobinSchedule: null, roundRobinCourts: null, roundRobinStartRoundNum: null, roundRobinEndSnapshot: endSnap, roundNum: restoredRoundNum, pendingResults: null }, err => setFirebaseError(err)); }
+    if (hasPermission(roleRef.current, 'canSubmitResults')) { pushAtomicUpdate({ tournamentMode: 'swiss', roundRobinSchedule: null, roundRobinCourts: null, roundRobinStartRoundNum: null, roundRobinEndSnapshot: endSnap, roundNum: restoredRoundNum, pendingResults: null }, err => setFirebaseError(err)); }
   }, [roundRobinStartRoundNum, history]);
 
   const handlePinSuccess = useCallback((matchedRole) => {
@@ -515,7 +515,7 @@ export default function App({ viewerOnly = false }) {
         else { np[k] = pendingRef.current[k]; }
       });
       pendingRef.current = np; setPending(np);
-      if (roleRef.current === 'admin') { const rd = { courtTeamIds: newCourts.map(p => p.map(t => t.id)), byeIds: newBye.map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id), courtNums: newCourtNums }; pushAtomicUpdate({ roundData: rd, pendingResults: np }, err => setFirebaseError(err)); }
+      if (hasPermission(roleRef.current, 'canEditActiveCourt')) { const rd = { courtTeamIds: newCourts.map(p => p.map(t => t.id)), byeIds: newBye.map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id), courtNums: newCourtNums }; pushAtomicUpdate({ roundData: rd, pendingResults: np }, err => setFirebaseError(err)); }
       setRemoveActiveCourtIdx(null);
     }
     else if (purpose === 'removeLiveAddition' && removeLiveIdx !== null) {
@@ -528,7 +528,7 @@ export default function App({ viewerOnly = false }) {
           else { np[k] = pendingRef.current[k]; }
         });
         pendingRef.current = np; setPending(np);
-        if (roleRef.current === 'admin') pushAtomicUpdate({ liveAdditions: nl, pendingResults: np }, err => setFirebaseError(err));
+        if (hasPermission(roleRef.current, 'canEditActiveCourt')) pushAtomicUpdate({ liveAdditions: nl, pendingResults: np }, err => setFirebaseError(err));
         return nl;
       });
       setRemoveLiveIdx(null);
@@ -536,7 +536,7 @@ export default function App({ viewerOnly = false }) {
     else if (purpose === 'removeActiveRoundExtra' && removeActiveRoundExtraIdx !== null) {
       setActiveRoundExtras(prev => {
         const ne = prev.filter((_, i) => i !== removeActiveRoundExtraIdx);
-        if (roleRef.current === 'admin') pushAtomicUpdate({ activeRoundExtras: ne }, err => setFirebaseError(err));
+        if (hasPermission(roleRef.current, 'canEditActiveCourt')) pushAtomicUpdate({ activeRoundExtras: ne }, err => setFirebaseError(err));
         return ne;
       });
       setRemoveActiveRoundExtraIdx(null);
@@ -551,7 +551,7 @@ export default function App({ viewerOnly = false }) {
     const ns = rebuildStandings(newActiveIds, history);
     setStandings(ns);
     setShowManageTeams(false);
-    if (roleRef.current === 'admin') pushAtomicUpdate({ teamRegistry: newRegistry, activeTeamIds: newActiveIds }, err => setFirebaseError(err));
+    if (hasPermission(roleRef.current, 'canEditTeams')) pushAtomicUpdate({ teamRegistry: newRegistry, activeTeamIds: newActiveIds }, err => setFirebaseError(err));
   }, [history]);
 
   const handleManageCourtsSave = useCallback((newCourts, newSocialCourts) => {
@@ -581,7 +581,7 @@ export default function App({ viewerOnly = false }) {
             } else { np[k] = pendingRef.current[k]; }
           });
           pendingRef.current = np; setPending(np);
-          if (roleRef.current === 'admin') {
+          if (hasPermission(roleRef.current, 'canEditCourts')) {
             upd.roundData = { courtTeamIds: newRoundCourts.map(p => p.map(t => t.id)), byeIds: newBye.map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id), courtNums: newRoundNums };
             upd.pendingResults = np;
           }
@@ -597,13 +597,13 @@ export default function App({ viewerOnly = false }) {
       setRoundRobinCourts(mapped); upd.roundRobinCourts = mapped;
     }
     setCourtNumbers(newCourts); setSocialCourts(newSocialCourts); setShowManageCourts(false);
-    if (roleRef.current === 'admin') pushAtomicUpdate(upd, err => setFirebaseError(err));
+    if (hasPermission(roleRef.current, 'canEditCourts')) pushAtomicUpdate(upd, err => setFirebaseError(err));
   }, [round, socialCourts, courtNumbers, tournamentMode, roundRobinCourts]);
 
   const handleTogglePause = useCallback(id => {
     setPausedIds(prev => {
       const np = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
-      if (roleRef.current !== null) pushAtomicUpdate({ pausedIds: np }, err => setFirebaseError(err));
+      if (hasPermission(roleRef.current, 'canTogglePause')) pushAtomicUpdate({ pausedIds: np }, err => setFirebaseError(err));
       return np;
     });
   }, []);
@@ -613,14 +613,14 @@ export default function App({ viewerOnly = false }) {
     setPending(prev => {
       const np = { ...prev, [key]: result };
       pendingRef.current = np;
-      if (roleRef.current !== null) pushAtomicUpdate({ [`pendingResults/${key}`]: result }, err => setFirebaseError(err));
+      if (hasPermission(roleRef.current, 'canSubmitResults')) pushAtomicUpdate({ [`pendingResults/${key}`]: result }, err => setFirebaseError(err));
       if (round && round.courts.every((_, i) => np[courtKey(i)]) && liveAdditions.every((_, i) => np[liveKey(i)])) {
         const officialGames = round.courts.map((_, i) => ({ ...np[courtKey(i)], courtNumber: courtNumbers[i] ?? i + 1 }));
         const liveGames = liveAdditions.map((la, i) => ({ ...np[liveKey(i)], courtNumber: la.courtNumber }));
         const games = [...officialGames, ...liveGames, ...activeRoundExtras];
         const entry = { roundNum, games, bye: round.bye.map(t => t.id), paused: (round.paused || []).map(t => t.id) };
         const nh = [...history, entry], ns = rebuildStandings(activeTeamIds, nh);
-        if (roleRef.current !== null) {
+        if (hasPermission(roleRef.current, 'canSubmitResults')) {
           const bm = breakModeRef.current;
           const completeSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
           const snap = { phase: 'play', activeTeamIds, courtNumbers, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history: nh, roundNum, pausedIds, roundComplete: true, timerRunning: bm ? timerRunningRef.current : false, timerStartedAt: bm ? timerStartedAtRef.current : null, timerPausedSecsLeft: bm ? completeSecs : timerDuration, roundData: null, breakMode: bm, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras: [], liveAdditions: [], nextRoundPresets, tournamentFinished, savedAt: Date.now() };
@@ -638,14 +638,14 @@ export default function App({ viewerOnly = false }) {
     setPending(prev => {
       const np = { ...prev, [key]: result };
       pendingRef.current = np;
-      if (roleRef.current !== null) pushAtomicUpdate({ [`pendingResults/${key}`]: result }, err => setFirebaseError(err));
+      if (hasPermission(roleRef.current, 'canSubmitResults')) pushAtomicUpdate({ [`pendingResults/${key}`]: result }, err => setFirebaseError(err));
       if (round && round.courts.every((_, ci) => np[courtKey(ci)]) && liveAdditions.every((_, li) => np[liveKey(li)])) {
         const officialGames = round.courts.map((_, ci) => ({ ...np[courtKey(ci)], courtNumber: courtNumbers[ci] ?? ci + 1 }));
         const liveGames = liveAdditions.map((la, li) => ({ ...np[liveKey(li)], courtNumber: la.courtNumber }));
         const games = [...officialGames, ...liveGames, ...activeRoundExtras];
         const entry = { roundNum, games, bye: round.bye.map(t => t.id), paused: (round.paused || []).map(t => t.id) };
         const nh = [...history, entry], ns = rebuildStandings(activeTeamIds, nh);
-        if (roleRef.current !== null) {
+        if (hasPermission(roleRef.current, 'canSubmitResults')) {
           const bm = breakModeRef.current;
           const completeSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
           const snap = { phase: 'play', activeTeamIds, courtNumbers, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history: nh, roundNum, pausedIds, roundComplete: true, timerRunning: bm ? timerRunningRef.current : false, timerStartedAt: bm ? timerStartedAtRef.current : null, timerPausedSecsLeft: bm ? completeSecs : timerDuration, roundData: null, breakMode: bm, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras: [], liveAdditions: [], nextRoundPresets, tournamentFinished, savedAt: Date.now() };
@@ -683,7 +683,7 @@ export default function App({ viewerOnly = false }) {
     const mergedNr = { ...nr, courts: finalCourts, courtNums: roundCourtNums };
     const newRN = roundNum === 0 ? 1 : roundNum + 1;
     const bm = breakModeRef.current;
-    if (roleRef.current === 'admin') {
+    if (hasPermission(roleRef.current, 'canGenerateRound')) {
       const rd = { courtTeamIds: mergedNr.courts.map(p => p.map(t => t.id)), byeIds: nr.bye.map(t => t.id), pausedTeamIds: (nr.paused || []).map(t => t.id), courtNums: roundCourtNums };
       const genSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
       const sa = bm ? timerStartedAtRef.current : (timerDuration > 0 ? Date.now() : null);
@@ -704,7 +704,7 @@ export default function App({ viewerOnly = false }) {
     setTournamentMode('roundrobin'); setRoundRobinSchedule(schedule); setRoundRobinCourts(courts);
     setRoundRobinStartRoundNum(rrStart); setRoundRobinStartSnapshot(snapshot); setRoundRobinEndSnapshot(null);
     setShowSelectRRTeams(false);
-    if (roleRef.current !== null) { pushAtomicUpdate({ tournamentMode: 'roundrobin', roundNum: rrStart, roundRobinSchedule: schedule, roundRobinCourts: courts, roundRobinStartRoundNum: rrStart, roundRobinStartSnapshot: snapshot, roundRobinEndSnapshot: null, roundData: null, roundComplete: false, pendingResults: null }, err => setFirebaseError(err)); }
+    if (hasPermission(roleRef.current, 'canSelectRRTeams')) { pushAtomicUpdate({ tournamentMode: 'roundrobin', roundNum: rrStart, roundRobinSchedule: schedule, roundRobinCourts: courts, roundRobinStartRoundNum: rrStart, roundRobinStartSnapshot: snapshot, roundRobinEndSnapshot: null, roundData: null, roundComplete: false, pendingResults: null }, err => setFirebaseError(err)); }
     setRoundNum(rrStart); lastSeenRoundNum.current = rrStart;
     pendingRef.current = {}; setPending({}); setRound(null); setRoundComplete(false);
   }, [roundNum, courtNumbers, activeTeamIds]);
@@ -718,7 +718,7 @@ export default function App({ viewerOnly = false }) {
     setPending(prev => {
       const np = { ...prev, [key]: result };
       pendingRef.current = np;
-      if (roleRef.current !== null) pushAtomicUpdate({ [`pendingResults/${key}`]: result }, err => setFirebaseError(err));
+      if (hasPermission(roleRef.current, 'canSubmitResults')) pushAtomicUpdate({ [`pendingResults/${key}`]: result }, err => setFirebaseError(err));
       const schedRound = roundRobinSchedule?.[srIdx] || [];
       const allFilled = schedRound.every((_, mi) => np[rrMatchKey(srIdx, mi)]);
       if (allFilled) {
@@ -741,7 +741,7 @@ export default function App({ viewerOnly = false }) {
         // Advance roundNum to the next playing round so the timer label stays current.
         // When all RR rounds are done, stay at the last committed round number.
         const newRoundNum = allDone ? targetRoundNum : Math.max(roundNum || 0, targetRoundNum + 1);
-        if (roleRef.current !== null) {
+        if (hasPermission(roleRef.current, 'canSubmitResults')) {
           const bm = breakModeRef.current;
           const rrSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
           const pendingClear = {};
@@ -762,7 +762,7 @@ export default function App({ viewerOnly = false }) {
       const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: h.games.map((g, gi) => gi !== gameIdx ? g : { ...ng }), bye: newBye });
       const ns = rebuildStandings(activeTeamIds, nh);
       setStandings(ns);
-      if (roleRef.current === 'admin') pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
+      if (hasPermission(roleRef.current, 'canEditHistoryScores') || hasPermission(roleRef.current, 'canFullEditHistory')) pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
       return nh;
     });
     setEditTarget(null);
@@ -792,7 +792,7 @@ export default function App({ viewerOnly = false }) {
     const np = { ...pendingRef.current };
     delete np[courtKey(courtIdx)];
     pendingRef.current = np; setPending(np);
-    if (roleRef.current === 'admin') { const rd = { courtTeamIds: newCourts.map(p => p.map(t => t.id)), byeIds: newByeTeams.map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id), ...(newCourtNums ? { courtNums: newCourtNums } : {}) }; pushAtomicUpdate({ roundData: rd, courtNumbers: newCourtNumbers, [`pendingResults/${courtKey(courtIdx)}`]: null }, err => setFirebaseError(err)); }
+    if (hasPermission(roleRef.current, 'canEditActiveCourt')) { const rd = { courtTeamIds: newCourts.map(p => p.map(t => t.id)), byeIds: newByeTeams.map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id), ...(newCourtNums ? { courtNums: newCourtNums } : {}) }; pushAtomicUpdate({ roundData: rd, courtNumbers: newCourtNumbers, [`pendingResults/${courtKey(courtIdx)}`]: null }, err => setFirebaseError(err)); }
     setEditActiveCourt(null);
   }, [round, tournamentTeams, courtNumbers, activeTeamIds, liveAdditions]);
 
@@ -800,14 +800,14 @@ export default function App({ viewerOnly = false }) {
     const k = courtKey(idx);
     const np = { ...pendingRef.current }; delete np[k];
     pendingRef.current = np; setPending(np);
-    if (roleRef.current !== null) pushAtomicUpdate({ [`pendingResults/${k}`]: null }, err => setFirebaseError(err));
+    if (hasPermission(roleRef.current, 'canSubmitResults')) pushAtomicUpdate({ [`pendingResults/${k}`]: null }, err => setFirebaseError(err));
   }, []);
 
   const handleUndoLiveResult = useCallback((i) => {
     const k = liveKey(i);
     const np = { ...pendingRef.current }; delete np[k];
     pendingRef.current = np; setPending(np);
-    if (roleRef.current !== null) pushAtomicUpdate({ [`pendingResults/${k}`]: null }, err => setFirebaseError(err));
+    if (hasPermission(roleRef.current, 'canSubmitResults')) pushAtomicUpdate({ [`pendingResults/${k}`]: null }, err => setFirebaseError(err));
   }, []);
 
   const handleEditLiveAddition = useCallback(({ courtIdx, teamAId, teamBId, courtNum }) => {
@@ -817,20 +817,20 @@ export default function App({ viewerOnly = false }) {
     const np = { ...pendingRef.current };
     delete np[liveKey(i)];
     pendingRef.current = np; setPending(np);
-    if (roleRef.current === 'admin') pushAtomicUpdate({ liveAdditions: nl, [`pendingResults/${liveKey(i)}`]: null }, err => setFirebaseError(err));
+    if (hasPermission(roleRef.current, 'canEditActiveCourt')) pushAtomicUpdate({ liveAdditions: nl, [`pendingResults/${liveKey(i)}`]: null }, err => setFirebaseError(err));
     setEditLiveIdx(null);
   }, [editLiveIdx, liveAdditions]);
 
   const handleAddGameSave = useCallback((target, game) => {
     if (target === 'active') {
       if (round) {
-        setActiveRoundExtras(prev => { const ne = [...prev, game]; if (roleRef.current === 'admin') pushAtomicUpdate({ activeRoundExtras: ne }, err => setFirebaseError(err)); return ne; });
+        setActiveRoundExtras(prev => { const ne = [...prev, game]; if (hasPermission(roleRef.current, 'canEditActiveCourt')) pushAtomicUpdate({ activeRoundExtras: ne }, err => setFirebaseError(err)); return ne; });
       } else if (history.length > 0) {
         const ri = history.length - 1;
         setHistory(prev => {
           const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: [...h.games, game] });
           const ns = rebuildStandings(activeTeamIds, nh); setStandings(ns);
-          if (roleRef.current === 'admin') pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
+          if (hasPermission(roleRef.current, 'canFullEditHistory')) pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
           return nh;
         });
       } else {
@@ -841,7 +841,7 @@ export default function App({ viewerOnly = false }) {
       setHistory(prev => {
         const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: [...h.games, game] });
         const ns = rebuildStandings(activeTeamIds, nh); setStandings(ns);
-        if (roleRef.current === 'admin') pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
+        if (hasPermission(roleRef.current, 'canFullEditHistory')) pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
         return nh;
       });
     }
@@ -851,12 +851,12 @@ export default function App({ viewerOnly = false }) {
   const handleFinishTournament = useCallback(() => {
     const s = computeSecsLeft(); applyTimerState(false, null, s);
     setBreakMode(null); setTournamentFinished(true);
-    if (roleRef.current === 'admin') pushAtomicUpdate({ tournamentFinished: true, timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s, breakMode: null }, err => setFirebaseError(err));
+    if (hasPermission(roleRef.current, 'canFinishTournament')) pushAtomicUpdate({ tournamentFinished: true, timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s, breakMode: null }, err => setFirebaseError(err));
   }, [computeSecsLeft, applyTimerState]);
 
   const handleResumeTournament = useCallback(() => {
     setTournamentFinished(false);
-    if (roleRef.current === 'admin') pushAtomicUpdate({ tournamentFinished: false }, err => setFirebaseError(err));
+    if (hasPermission(roleRef.current, 'canFinishTournament')) pushAtomicUpdate({ tournamentFinished: false }, err => setFirebaseError(err));
   }, []);
 
   const handleContinueSwissAfterRR = useCallback(() => { doExitRoundRobin('completed'); }, [doExitRoundRobin]);
@@ -878,27 +878,28 @@ export default function App({ viewerOnly = false }) {
   // ── Render ────────────────────────────────────────────────────────────────
   const pinTitle = pinPurpose === 'login' ? 'Login' : pinPurpose === 'reset' ? 'PIN required to reset' : pinPurpose === 'exitRR' ? 'PIN required to exit Round Robin' : pinPurpose === 'cancelRound' ? 'PIN required to cancel round' : pinPurpose === 'regenerate' ? 'PIN required to regenerate round' : pinPurpose === 'revertToRound' ? `PIN required to revert to Round ${revertTarget}` : pinPurpose?.startsWith('remove') ? 'PIN required to remove' : 'PIN required';
 
-  // Build checkPin function: takes a hash, returns the matched role or null
+  // Build checkPin function: takes a hash, returns the matched role id or null
   const pinCheckFn = (() => {
     if (!pinPurpose) return null;
     if (pinPurpose === 'login') {
-      if (!adminPinLoaded || !refereePinLoaded) return null;
+      if (ROLES.some(r => !pinsLoaded[r.id])) return null;
       return (hash) => {
-        if (adminPin && hash === adminPin) return 'admin';
-        if (refereePin && hash === refereePin) return 'referee';
+        for (const r of ROLES) {
+          if (pins[r.id] && hash === pins[r.id]) return r.id;
+        }
         return null;
       };
     }
-    // exitRR: referee uses their pin, everyone else uses admin pin
-    const useRefPin = pinPurpose === 'exitRR' && role === 'referee';
-    const pin = useRefPin ? refereePin : adminPin;
-    const loaded = useRefPin ? refereePinLoaded : adminPinLoaded;
-    if (!loaded) return null;
-    return (hash) => (pin && hash === pin) ? (useRefPin ? 'referee' : 'admin') : null;
+    // For exitRR: a role with canExitRRWithOwnPin authenticates using their own PIN;
+    // otherwise the admin PIN is required.
+    const selfAuth = pinPurpose === 'exitRR' && hasPermission(role, 'canExitRRWithOwnPin');
+    const pinRoleId = selfAuth ? role : 'admin';
+    if (!pinsLoaded[pinRoleId]) return null;
+    return (hash) => (pins[pinRoleId] && hash === pins[pinRoleId]) ? pinRoleId : null;
   })();
   const pinLoadError = pinPurpose === 'login'
-    ? (adminPinLoadError || refereePinLoadError)
-    : (pinPurpose === 'exitRR' && role === 'referee') ? refereePinLoadError : adminPinLoadError;
+    ? ROLES.some(r => pinsLoadError[r.id])
+    : !!(pinsLoadError[pinPurpose === 'exitRR' && hasPermission(role, 'canExitRRWithOwnPin') ? role : 'admin']);
 
   return (
     <TeamRegistryContext.Provider value={tournamentTeams}>
@@ -911,14 +912,14 @@ export default function App({ viewerOnly = false }) {
         {confirmRemoveGame && removeGameTarget && <ConfirmModal title="Remove game?" message="This will permanently delete this game from history and recalculate standings. Cannot be undone." confirmLabel="Delete" onConfirm={() => { setConfirmRemoveGame(false); const { ri, gameIdx } = removeGameTarget; setHistory(prev => { const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: h.games.filter((_, gi) => gi !== gameIdx) }); const ns = rebuildStandings(activeTeamIds, nh); setStandings(ns); if (roleRef.current === 'admin') pushAtomicUpdate({ history: nh }, err => setFirebaseError(err)); return nh; }); setRemoveGameTarget(null); }} onClose={() => { setConfirmRemoveGame(false); setRemoveGameTarget(null); }} />}
         {confirmRevert && revertTarget != null && <ConfirmModal title={`Revert to Round ${revertTarget}?`} message={`This will restore the tournament to the state it was in right after Round ${revertTarget} completed. All rounds played after that will be lost. This cannot be undone.`} confirmLabel="Revert" onConfirm={() => { setConfirmRevert(false); doRevertToRound(); }} onClose={() => { setConfirmRevert(false); setRevertTarget(null); }} />}
         {showBreakModal && <BreakModal onStart={handleBreakStart} onClose={() => setShowBreakModal(false)} />}
-        {showTimerSettings && <TimerSettingsModal currentMins={timerDefaultMins} onSave={m => { setTimerDefaultMins(m); setTimerDuration(m * 60); if (roleRef.current === 'admin') pushAtomicUpdate({ timerDefaultMins: m, timerDuration: m * 60 }, err => setFirebaseError(err)); }} onClose={() => setShowTimerSettings(false)} />}
+        {showTimerSettings && <TimerSettingsModal currentMins={timerDefaultMins} onSave={m => { setTimerDefaultMins(m); setTimerDuration(m * 60); if (hasPermission(roleRef.current, 'canEditTimer')) pushAtomicUpdate({ timerDefaultMins: m, timerDuration: m * 60 }, err => setFirebaseError(err)); }} onClose={() => setShowTimerSettings(false)} />}
         {showManageTeams && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={handleTogglePause} onSave={handleManageTeamsSave} onClose={() => setShowManageTeams(false)} />}
         {showManageCourts && <ManageCourtsModal courtNumbers={courtNumbers} socialCourts={socialCourts} rrCourtCount={tournamentMode === 'roundrobin' ? (roundRobinCourts?.length ?? 0) : 0} onSave={handleManageCourtsSave} onClose={() => setShowManageCourts(false)} />}
         {showSelectRRTeams && <SelectRoundRobinTeamsModal rankedTeamIds={ranked.map(t => t.id)} tournamentCourts={courtNumbers} onConfirm={handleStartRoundRobin} onClose={() => setShowSelectRRTeams(false)} />}
         {showAddGame && addGameData && <AddGameModal allTeamIds={activeTeamIds} defaultCourt={addGameData.defaultCourt} courtNumbers={courtNumbers} usedCourtNumbers={addGameData.usedCourts} usedTeamIds={addGameData.usedTeams} label={addGameData.label} onSave={g => handleAddGameSave(addGameData.target, g)} onClose={() => setShowAddGame(null)} />}
-        {showPresetMatch && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={nextRoundPresets.flatMap(p => [p.teamId1, p.teamId2])} usedCourtNumbers={nextRoundPresets.map(p => String(p.courtNumber))} onSave={p => { setNextRoundPresets(prev => { const np = [...prev, p]; if (roleRef.current === 'admin') pushAtomicUpdate({ nextRoundPresets: np }, err => setFirebaseError(err)); return np; }); setShowPresetMatch(false); }} onClose={() => setShowPresetMatch(false)} />}
-        {showLiveAddGame && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={[...(round?.courts.flatMap(p => p.map(t => t.id)) || []), ...liveAdditions.flatMap(la => [la.teamId1, la.teamId2])]} usedCourtNumbers={[...(round?.courts.map((_, i) => String(courtNumbers[i] ?? i + 1)) || []), ...liveAdditions.map(la => String(la.courtNumber))]} onSave={la => { setLiveAdditions(prev => { const nl = [...prev, la]; if (roleRef.current === 'admin') pushAtomicUpdate({ liveAdditions: nl }, err => setFirebaseError(err)); return nl; }); setShowLiveAddGame(false); }} onClose={() => setShowLiveAddGame(false)} />}
-        {editTarget && history[editTarget.ri] && <EditGameModal game={history[editTarget.ri].games[editTarget.gameIdx]} roundEntry={history[editTarget.ri]} allTeamIds={activeTeamIds} label={`Round ${history[editTarget.ri].roundNum} · Court ${history[editTarget.ri].games[editTarget.gameIdx].courtNumber}`} onSave={d => handleEditSave(editTarget.ri, editTarget.gameIdx, d)} onClose={() => setEditTarget(null)} />}
+        {showPresetMatch && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={nextRoundPresets.flatMap(p => [p.teamId1, p.teamId2])} usedCourtNumbers={nextRoundPresets.map(p => String(p.courtNumber))} onSave={p => { setNextRoundPresets(prev => { const np = [...prev, p]; if (hasPermission(roleRef.current, 'canPresetMatch')) pushAtomicUpdate({ nextRoundPresets: np }, err => setFirebaseError(err)); return np; }); setShowPresetMatch(false); }} onClose={() => setShowPresetMatch(false)} />}
+        {showLiveAddGame && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={[...(round?.courts.flatMap(p => p.map(t => t.id)) || []), ...liveAdditions.flatMap(la => [la.teamId1, la.teamId2])]} usedCourtNumbers={[...(round?.courts.map((_, i) => String(courtNumbers[i] ?? i + 1)) || []), ...liveAdditions.map(la => String(la.courtNumber))]} onSave={la => { setLiveAdditions(prev => { const nl = [...prev, la]; if (hasPermission(roleRef.current, 'canLiveAddGame')) pushAtomicUpdate({ liveAdditions: nl }, err => setFirebaseError(err)); return nl; }); setShowLiveAddGame(false); }} onClose={() => setShowLiveAddGame(false)} />}
+        {editTarget && history[editTarget.ri] && <EditGameModal game={history[editTarget.ri].games[editTarget.gameIdx]} roundEntry={history[editTarget.ri]} allTeamIds={activeTeamIds} label={`Round ${history[editTarget.ri].roundNum} · Court ${history[editTarget.ri].games[editTarget.gameIdx].courtNumber}`} scoreOnly={hasPermission(role, 'canEditHistoryScores') && !hasPermission(role, 'canFullEditHistory')} onSave={d => handleEditSave(editTarget.ri, editTarget.gameIdx, d)} onClose={() => setEditTarget(null)} />}
         {editActiveCourt !== null && round && <EditActiveCourtModal courtIdx={editActiveCourt} courtNumbers={courtNumbers} currentCourts={round.courts} allTeamIds={activeTeamIds} hasPending={!!pending[courtKey(editActiveCourt)]} onSave={handleEditActiveCourt} onClose={() => setEditActiveCourt(null)} />}
         {editLiveIdx !== null && liveAdditions[editLiveIdx] && <EditActiveCourtModal courtIdx={0} courtNumbers={[liveAdditions[editLiveIdx].courtNumber]} currentCourts={[[tournamentTeams.find(t => t.id === liveAdditions[editLiveIdx].teamId1), tournamentTeams.find(t => t.id === liveAdditions[editLiveIdx].teamId2)]]} allTeamIds={activeTeamIds} hasPending={!!pending[liveKey(editLiveIdx)]} onSave={handleEditLiveAddition} onClose={() => setEditLiveIdx(null)} />}
 
@@ -934,16 +935,16 @@ export default function App({ viewerOnly = false }) {
                 <h1 className="font-black tracking-tight leading-tight truncate" style={{ fontSize: 'clamp(16px,4vw,26px)', color: '#0f4c75' }}>{tournamentTitle}</h1>
                 <div className="flex items-center gap-2 flex-wrap">
                   {firebaseConnected && <span style={{ background: '#16a34a', color: '#fff', fontSize: 'clamp(8px,1.8vw,10px)', fontWeight: 800, padding: '1px 6px', borderRadius: 4, letterSpacing: '0.06em' }}>LIVE</span>}
-                  {phase === 'play' && <span className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>{{ admin: 'Admin', referee: 'Referee' }[role] ?? 'Viewer'}</span>}
+                  {phase === 'play' && <span className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>{ROLE_MAP[role]?.title ?? 'Viewer'}</span>}
                   {phase === 'setup' && <span className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>Setup</span>}
-                  {(presence.admins > 0 || presence.referees > 0 || presence.viewers > 0) && <span className="text-slate-400" style={{ fontSize: 'clamp(9px,2vw,11px)' }}>{presence.admins} admin{presence.admins !== 1 ? 's' : ''}{presence.referees > 0 ? ` · ${presence.referees} referee${presence.referees !== 1 ? 's' : ''}` : ''} · {presence.viewers} viewer{presence.viewers !== 1 ? 's' : ''}</span>}
+                  {Object.values(presence).some(v => v > 0) && <span className="text-slate-400" style={{ fontSize: 'clamp(9px,2vw,11px)' }}>{[...ROLES.map(r => { const n = presence[r.id] ?? 0; return n > 0 ? `${n} ${r.title.toLowerCase()}${n !== 1 ? 's' : ''}` : null; }).filter(Boolean), `${presence.viewer ?? 0} viewer${(presence.viewer ?? 0) !== 1 ? 's' : ''}`].join(' · ')}</span>}
                   {!online && <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#dc2626', fontWeight: 700 }}>● Offline</span>}
                 </div>
               </div>
               {!viewerOnly && (
                 <button onClick={() => { if (role) setRole(null); else setPinPurpose('login'); }}
-                  style={{ flexShrink: 0, fontSize: 'clamp(10px,2.5vw,13px)', padding: '6px 10px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: role === 'admin' ? 'rgba(251,191,36,0.18)' : role === 'referee' ? 'rgba(99,102,241,0.12)' : 'rgba(0,0,0,0.06)', color: role === 'admin' ? '#92400e' : role === 'referee' ? '#4338ca' : '#64748b', border: `1px solid ${role === 'admin' ? 'rgba(251,191,36,0.5)' : role === 'referee' ? 'rgba(99,102,241,0.35)' : 'rgba(0,0,0,0.12)'}` }}>
-                  {role === 'admin' ? '🔓 Admin' : role === 'referee' ? '🏓 Referee' : '🔒 Login'}
+                  style={{ flexShrink: 0, fontSize: 'clamp(10px,2.5vw,13px)', padding: '6px 10px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: ROLE_MAP[role]?.btnBg ?? 'rgba(0,0,0,0.06)', color: ROLE_MAP[role]?.btnColor ?? '#64748b', border: `1px solid ${ROLE_MAP[role]?.btnBorder ?? 'rgba(0,0,0,0.12)'}` }}>
+                  {role ? `${ROLE_MAP[role]?.icon ?? ''} ${ROLE_MAP[role]?.title ?? role}` : '🔒 Login'}
                 </button>
               )}
               <button onClick={() => setHeaderHidden(true)} title="Hide header"
@@ -963,9 +964,9 @@ export default function App({ viewerOnly = false }) {
         </div>
 
         {/* ── Firebase error toast ── */}
-        {isAdmin && (presence.admins - 1) > 0 && (
+        {isAdmin && ((presence['admin'] ?? 0) - 1) > 0 && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99, padding: '6px 16px', background: '#d97706', color: '#fff', fontWeight: 700, fontSize: 13, textAlign: 'center' }}>
-            ⚠️ {presence.admins - 1} other admin session{presence.admins - 1 > 1 ? 's' : ''} active — only one admin should write at a time.
+            ⚠️ {(presence['admin'] ?? 0) - 1} other admin session{(presence['admin'] ?? 0) - 1 > 1 ? 's' : ''} active — only one admin should write at a time.
           </div>
         )}
         {firebaseError && (
@@ -1004,7 +1005,7 @@ export default function App({ viewerOnly = false }) {
                 <PlayTab
                   tournamentFinished={tournamentFinished} breakMode={activeTab === 'play' ? breakMode : null} round={round} roundNum={roundNum} tournamentMode={tournamentMode}
                   roundRobinSchedule={roundRobinSchedule} roundRobinCourts={roundRobinCourts} roundRobinStartRoundNum={roundRobinStartRoundNum}
-                  courtNumbers={courtNumbers} socialCourts={socialCourts} liveAdditions={liveAdditions} pending={pending} role={role} finalRound={finalRound} pausedIds={pausedIds} setFinalRound={v => { setFinalRound(v); if (roleRef.current !== null) pushAtomicUpdate({ finalRound: v }, err => setFirebaseError(err)); }}
+                  courtNumbers={courtNumbers} socialCourts={socialCourts} liveAdditions={liveAdditions} pending={pending} role={role} finalRound={finalRound} pausedIds={pausedIds} setFinalRound={v => { setFinalRound(v); if (hasPermission(roleRef.current, 'canSetFinalRound')) pushAtomicUpdate({ finalRound: v }, err => setFirebaseError(err)); }}
                   history={history} ranked={ranked} activeRoundExtras={activeRoundExtras} nextRoundPresets={nextRoundPresets} roundKey={roundKey}
                   timerSecsLeft={timerSecsLeft} timerDuration={timerDuration} timerRunning={timerRunning}
                   onTimerToggle={timerToggle} onTimerRestart={() => resetTimer(timerDuration)} onTimerSettings={() => setShowTimerSettings(true)}
@@ -1015,7 +1016,7 @@ export default function App({ viewerOnly = false }) {
                   onEditLive={setEditLiveIdx} onRemoveLive={idx => { setRemoveLiveIdx(idx); setPinPurpose('removeLiveAddition'); }}
                   onUndoResult={handleUndoResult} onUndoLiveResult={handleUndoLiveResult}
                   onTogglePause={handleTogglePause}
-                  onRemovePreset={pi => { setNextRoundPresets(prev => { const np = prev.filter((_, i) => i !== pi); if (roleRef.current === 'admin') pushAtomicUpdate({ nextRoundPresets: np }, err => setFirebaseError(err)); return np; }); }}
+                  onRemovePreset={pi => { setNextRoundPresets(prev => { const np = prev.filter((_, i) => i !== pi); if (hasPermission(roleRef.current, 'canPresetMatch')) pushAtomicUpdate({ nextRoundPresets: np }, err => setFirebaseError(err)); return np; }); }}
                   onRemoveExtra={gi => { setRemoveActiveRoundExtraIdx(gi); setPinPurpose('removeActiveRoundExtra'); }}
                   onSelectRRTeams={() => setShowSelectRRTeams(true)} onPresetMatch={() => setShowPresetMatch(true)} onLiveAddGame={() => setShowLiveAddGame(true)}
                   onContinueSwissAfterRR={handleContinueSwissAfterRR} onExitRoundRobin={(reason) => reason ? doExitRoundRobin(reason) : handleExitRoundRobin()}
@@ -1029,7 +1030,10 @@ export default function App({ viewerOnly = false }) {
                 <HistoryTab
                   history={history} activeTeamIds={activeTeamIds} cancelledRoundNums={cancelledRoundNums}
                   roundRobinStartSnapshot={roundRobinStartSnapshot} roundRobinEndSnapshot={roundRobinEndSnapshot}
-                  isAdmin={isAdmin} backupRoundNums={backupRoundNums}
+                  canEditScores={hasPermission(role, 'canEditHistoryScores') || hasPermission(role, 'canFullEditHistory')}
+                  canDeleteGame={hasPermission(role, 'canDeleteHistoryGame')}
+                  canFullEdit={hasPermission(role, 'canFullEditHistory')}
+                  backupRoundNums={backupRoundNums}
                   onAddGame={ri => setShowAddGame({ target: String(ri), defaultCourt: '' })}
                   onEditGame={(ri, gameIdx) => setEditTarget({ ri, gameIdx })}
                   onRemoveGame={(ri, gameIdx) => { setRemoveGameTarget({ ri, gameIdx }); setPinPurpose('removeGame'); }}
