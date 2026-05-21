@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTeamById } from '../context/TeamRegistryContext';
 import { ALL_TEAMS } from '../constants';
 
-export default function ManageTeamsModal({ activeTeamIds, tournamentTeams, pausedIds = [], onTogglePause, onSave, onClose }) {
+export default function ManageTeamsModal({ activeTeamIds, tournamentTeams, pausedIds = [], onTogglePause, onSave, onClose, canEditRoster = true }) {
   const teamById = useTeamById();
   const [localTeams, setLocalTeams] = useState(
     activeTeamIds.map(id => {
@@ -61,24 +61,26 @@ export default function ManageTeamsModal({ activeTeamIds, tournamentTeams, pause
           </div>
         )}
 
-        <div>
-          <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Rename</p>
-          <div className="flex flex-col gap-2" style={{ maxHeight: 200, overflowY: 'auto' }}>
-            {localTeams.map(t => (
-              <div key={t.id} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: t.color }} />
-                <input value={t.name} onChange={e => rename(t.id, e.target.value)}
-                  style={{ flex: 1, padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none' }} />
-                <button onClick={() => setLocalTeams(p => p.filter(x => x.id !== t.id))}
-                  title="Remove from tournament (history preserved)"
-                  disabled={localTeams.length <= 2}
-                  style={{ padding: '3px 7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: localTeams.length <= 2 ? 'not-allowed' : 'pointer', background: 'rgba(220,38,38,0.12)', color: localTeams.length <= 2 ? '#475569' : '#f87171', border: '1px solid rgba(220,38,38,0.25)', flexShrink: 0 }}>×</button>
-              </div>
-            ))}
+        {canEditRoster && (
+          <div>
+            <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Rename</p>
+            <div className="flex flex-col gap-2" style={{ maxHeight: 200, overflowY: 'auto' }}>
+              {localTeams.map(t => (
+                <div key={t.id} className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: t.color }} />
+                  <input value={t.name} onChange={e => rename(t.id, e.target.value)}
+                    style={{ flex: 1, padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none' }} />
+                  <button onClick={() => setLocalTeams(p => p.filter(x => x.id !== t.id))}
+                    title="Remove from tournament (history preserved)"
+                    disabled={localTeams.length <= 2}
+                    style={{ padding: '3px 7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: localTeams.length <= 2 ? 'not-allowed' : 'pointer', background: 'rgba(220,38,38,0.12)', color: localTeams.length <= 2 ? '#475569' : '#f87171', border: '1px solid rgba(220,38,38,0.25)', flexShrink: 0 }}>×</button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {available.length > 0 && (
+        {canEditRoster && available.length > 0 && (
           <div>
             <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Add a team</p>
             <div className="flex gap-2">
@@ -97,8 +99,14 @@ export default function ManageTeamsModal({ activeTeamIds, tournamentTeams, pause
         )}
 
         <div className="flex gap-2 pt-1">
-          <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold btn-cancel">Cancel</button>
-          <button onClick={save} className="flex-1 py-2 rounded-xl text-sm font-bold btn-indigo">Save</button>
+          {canEditRoster ? (
+            <>
+              <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold btn-cancel">Cancel</button>
+              <button onClick={save} className="flex-1 py-2 rounded-xl text-sm font-bold btn-indigo">Save</button>
+            </>
+          ) : (
+            <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold btn-indigo">Done</button>
+          )}
         </div>
       </div>
     </div>

@@ -848,6 +848,16 @@ export default function App({ viewerOnly = false }) {
     setShowAddGame(null);
   }, [round, history, activeTeamIds]);
 
+  const handleEditCourtNumber = useCallback((ri, gi, newCourtNum) => {
+    const trimmed = String(newCourtNum).trim();
+    if (!trimmed) return;
+    setHistory(prev => {
+      const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: h.games.map((g, j) => j !== gi ? g : { ...g, courtNumber: trimmed }) });
+      if (hasPermission(roleRef.current, 'canFullEditHistory')) pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
+      return nh;
+    });
+  }, []);
+
   const handleFinishTournament = useCallback(() => {
     const s = computeSecsLeft(); applyTimerState(false, null, s);
     setBreakMode(null); setTournamentFinished(true);
@@ -913,7 +923,7 @@ export default function App({ viewerOnly = false }) {
         {confirmRevert && revertTarget != null && <ConfirmModal title={`Revert to Round ${revertTarget}?`} message={`This will restore the tournament to the state it was in right after Round ${revertTarget} completed. All rounds played after that will be lost. This cannot be undone.`} confirmLabel="Revert" onConfirm={() => { setConfirmRevert(false); doRevertToRound(); }} onClose={() => { setConfirmRevert(false); setRevertTarget(null); }} />}
         {showBreakModal && <BreakModal onStart={handleBreakStart} onClose={() => setShowBreakModal(false)} />}
         {showTimerSettings && <TimerSettingsModal currentMins={timerDefaultMins} onSave={m => { setTimerDefaultMins(m); setTimerDuration(m * 60); if (hasPermission(roleRef.current, 'canEditTimer')) pushAtomicUpdate({ timerDefaultMins: m, timerDuration: m * 60 }, err => setFirebaseError(err)); }} onClose={() => setShowTimerSettings(false)} />}
-        {showManageTeams && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={handleTogglePause} onSave={handleManageTeamsSave} onClose={() => setShowManageTeams(false)} />}
+        {showManageTeams && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={handleTogglePause} onSave={handleManageTeamsSave} onClose={() => setShowManageTeams(false)} canEditRoster={hasPermission(role, 'canEditTeams')} />}
         {showManageCourts && <ManageCourtsModal courtNumbers={courtNumbers} socialCourts={socialCourts} rrCourtCount={tournamentMode === 'roundrobin' ? (roundRobinCourts?.length ?? 0) : 0} onSave={handleManageCourtsSave} onClose={() => setShowManageCourts(false)} />}
         {showSelectRRTeams && <SelectRoundRobinTeamsModal rankedTeamIds={ranked.map(t => t.id)} tournamentCourts={courtNumbers} onConfirm={handleStartRoundRobin} onClose={() => setShowSelectRRTeams(false)} />}
         {showAddGame && addGameData && <AddGameModal allTeamIds={activeTeamIds} defaultCourt={addGameData.defaultCourt} courtNumbers={courtNumbers} usedCourtNumbers={addGameData.usedCourts} usedTeamIds={addGameData.usedTeams} label={addGameData.label} onSave={g => handleAddGameSave(addGameData.target, g)} onClose={() => setShowAddGame(null)} />}
@@ -1015,7 +1025,6 @@ export default function App({ viewerOnly = false }) {
                   onEditActiveCourt={setEditActiveCourt} onRemoveActiveCourt={idx => { setRemoveActiveCourtIdx(idx); setPinPurpose('removeActiveCourt'); }}
                   onEditLive={setEditLiveIdx} onRemoveLive={idx => { setRemoveLiveIdx(idx); setPinPurpose('removeLiveAddition'); }}
                   onUndoResult={handleUndoResult} onUndoLiveResult={handleUndoLiveResult}
-                  onTogglePause={handleTogglePause}
                   onRemovePreset={pi => { setNextRoundPresets(prev => { const np = prev.filter((_, i) => i !== pi); if (hasPermission(roleRef.current, 'canPresetMatch')) pushAtomicUpdate({ nextRoundPresets: np }, err => setFirebaseError(err)); return np; }); }}
                   onRemoveExtra={gi => { setRemoveActiveRoundExtraIdx(gi); setPinPurpose('removeActiveRoundExtra'); }}
                   onSelectRRTeams={() => setShowSelectRRTeams(true)} onPresetMatch={() => setShowPresetMatch(true)} onLiveAddGame={() => setShowLiveAddGame(true)}
@@ -1038,6 +1047,7 @@ export default function App({ viewerOnly = false }) {
                   onEditGame={(ri, gameIdx) => setEditTarget({ ri, gameIdx })}
                   onRemoveGame={(ri, gameIdx) => { setRemoveGameTarget({ ri, gameIdx }); setPinPurpose('removeGame'); }}
                   onRevertToRound={rn => { setRevertTarget(rn); setPinPurpose('revertToRound'); }}
+                  onEditCourtNumber={handleEditCourtNumber}
                 />
               )}
             </>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning, isAdmin, onToggle, onRestart, onOpenSettings, breakInfo, onEndBreak }) {
+export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning, canToggleTimer, canControlTimer, canEndBreak, onToggle, onRestart, onOpenSettings, breakInfo, onEndBreak }) {
   const [breakSecsLeft, setBreakSecsLeft] = useState(() => breakInfo ? Math.max(0, Math.round((breakInfo.endAt - Date.now()) / 1000)) : 0);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning
           </div>
           {breakInfo.message && <div style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#92400e', fontWeight: 700, marginTop: 2 }}>{breakInfo.message}</div>}
         </div>
-        {isAdmin && (
+        {canEndBreak && (
           <button onClick={onEndBreak}
             style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(251,191,36,0.2)', color: '#92400e', border: '1px solid rgba(251,191,36,0.5)' }}>
             End Break
@@ -98,21 +98,27 @@ export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Right: admin buttons */}
-      {isAdmin && (
+      {/* Right: timer controls */}
+      {(canToggleTimer || canControlTimer) && (
         <div style={{ display: 'flex', gap: 'clamp(4px,1vw,8px)', position: 'relative', zIndex: 2 }}>
-          <button onClick={onToggle}
-            style={{ fontSize: 'clamp(11px,2.5vw,14px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.35)' }}>
-            {timerRunning ? '⏸' : '▶'}
-          </button>
-          <button onClick={onRestart}
-            style={{ fontSize: 'clamp(11px,2.5vw,14px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)' }}>
-            ↺
-          </button>
-          <button onClick={onOpenSettings}
-            style={{ fontSize: 'clamp(11px,2.5vw,14px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)' }}>
-            ⚙
-          </button>
+          {canToggleTimer && (
+            <button onClick={onToggle}
+              style={{ fontSize: 'clamp(11px,2.5vw,14px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.35)' }}>
+              {timerRunning ? '⏸' : '▶'}
+            </button>
+          )}
+          {canControlTimer && (
+            <button onClick={onRestart}
+              style={{ fontSize: 'clamp(11px,2.5vw,14px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)' }}>
+              ↺
+            </button>
+          )}
+          {canControlTimer && (
+            <button onClick={onOpenSettings}
+              style={{ fontSize: 'clamp(11px,2.5vw,14px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.25)' }}>
+              ⚙
+            </button>
+          )}
         </div>
       )}
     </div>

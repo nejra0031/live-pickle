@@ -18,7 +18,6 @@ export default function PlayTab({
   onEditActiveCourt, onRemoveActiveCourt,
   onEditLive, onRemoveLive,
   onUndoResult, onUndoLiveResult,
-  onTogglePause,
   onRemovePreset, onRemoveExtra,
   onSelectRRTeams, onPresetMatch, onLiveAddGame,
   onContinueSwissAfterRR, onExitRoundRobin,
@@ -58,7 +57,7 @@ export default function PlayTab({
           {over ? 'OVER' : `${bMins}:${String(bSecs).padStart(2, '0')}`}
         </div>
       </div>
-      {isAdmin && (
+      {hasPermission(role, 'canBreakTournament') && (
         <button onClick={onBreakEnd} style={{ alignSelf: 'flex-start', padding: '6px 16px', borderRadius: 8, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(146,64,14,0.15)', color: '#92400e', border: '1px solid rgba(146,64,14,0.3)' }}>
           End Break
         </button>
@@ -130,7 +129,7 @@ export default function PlayTab({
         {breakBanner}
         {socialSection}
         {(timerDuration > 0 || breakMode) && (
-          <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning} isAdmin={hasPermission(role, 'canEditTimer')} onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} breakInfo={breakMode} onEndBreak={onBreakEnd} />
+          <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning} canToggleTimer={hasPermission(role, 'canEditTimer') || hasPermission(role, 'canTogglePause')} canControlTimer={hasPermission(role, 'canEditTimer')} canEndBreak={hasPermission(role, 'canBreakTournament')} onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} breakInfo={breakMode} onEndBreak={onBreakEnd} />
         )}
         <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(4px,1vw,8px)', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.25)' }}>
           <p className="font-bold" style={{ color: '#4338ca', fontSize: 'clamp(13px,3.5vw,17px)' }}>🔁 Round Robin</p>
@@ -319,25 +318,11 @@ export default function PlayTab({
               </button>
             </div>
 
-            {/* Pause teams */}
-            <div>
-              <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0' }}>Pause / Unpause Teams</p>
-              <div className="flex flex-col gap-1">
-                {ranked.map(entry => {
-                  const team = teamById(entry.id);
-                  if (!team) return null;
-                  const isPaused = pausedIds.includes(entry.id);
-                  return (
-                    <div key={entry.id} className="flex items-center justify-between" style={{ padding: 'clamp(5px,1.2vw,8px) clamp(8px,2vw,12px)', borderRadius: 8, background: isPaused ? 'rgba(220,38,38,0.04)' : 'rgba(0,0,0,0.02)', border: `1px solid ${isPaused ? 'rgba(220,38,38,0.2)' : 'rgba(0,0,0,0.06)'}` }}>
-                      <span style={{ fontWeight: 700, fontSize: 'clamp(12px,3vw,14px)', color: team.color, opacity: isPaused ? 0.6 : 1, textDecoration: isPaused ? 'line-through' : 'none' }}>{team.name}</span>
-                      <button onClick={() => onTogglePause(entry.id)} style={{ fontSize: 'clamp(10px,2.5vw,12px)', padding: '3px 10px', borderRadius: 6, fontWeight: 700, cursor: 'pointer', background: isPaused ? 'rgba(34,197,94,0.1)' : 'rgba(220,38,38,0.1)', color: isPaused ? '#16a34a' : '#dc2626', border: `1px solid ${isPaused ? 'rgba(34,197,94,0.25)' : 'rgba(220,38,38,0.2)'}` }}>
-                        {isPaused ? 'Unpause' : 'Pause'}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            {(hasPermission(role, 'canTogglePause') || hasPermission(role, 'canEditTeams')) && (
+              <button onClick={onManageTeams} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
+                ✏️ Manage Teams
+              </button>
+            )}
 
             {hasPermission(role, 'canGenerateRound') && (
               <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: finalRound ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
@@ -366,7 +351,7 @@ export default function PlayTab({
     <div className="flex flex-col gap-4">
       {socialSection}
       {showTimer ? (
-        <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning} isAdmin={hasPermission(role, 'canEditTimer')} onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} breakInfo={breakMode} onEndBreak={onBreakEnd} />
+        <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning} canToggleTimer={hasPermission(role, 'canEditTimer') || hasPermission(role, 'canTogglePause')} canControlTimer={hasPermission(role, 'canEditTimer')} canEndBreak={hasPermission(role, 'canBreakTournament')} onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} breakInfo={breakMode} onEndBreak={onBreakEnd} />
       ) : (
         <div style={{ textAlign: 'center' }}>
           <span className="text-blue-900 font-black" style={{ fontSize: 'clamp(22px,6vw,32px)' }}>Round {roundNum}</span>
@@ -492,24 +477,11 @@ export default function PlayTab({
                 </button>
               </div>
 
-              <div>
-                <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0' }}>Pause / Unpause Teams</p>
-                <div className="flex flex-col gap-1">
-                  {ranked.map(entry => {
-                    const team = teamById(entry.id);
-                    if (!team) return null;
-                    const isPaused = pausedIds.includes(entry.id);
-                    return (
-                      <div key={entry.id} className="flex items-center justify-between" style={{ padding: 'clamp(5px,1.2vw,8px) clamp(8px,2vw,12px)', borderRadius: 8, background: isPaused ? 'rgba(220,38,38,0.04)' : 'rgba(0,0,0,0.02)', border: `1px solid ${isPaused ? 'rgba(220,38,38,0.2)' : 'rgba(0,0,0,0.06)'}` }}>
-                        <span style={{ fontWeight: 700, fontSize: 'clamp(12px,3vw,14px)', color: team.color, opacity: isPaused ? 0.6 : 1, textDecoration: isPaused ? 'line-through' : 'none' }}>{team.name}</span>
-                        <button onClick={() => onTogglePause(entry.id)} style={{ fontSize: 'clamp(10px,2.5vw,12px)', padding: '3px 10px', borderRadius: 6, fontWeight: 700, cursor: 'pointer', background: isPaused ? 'rgba(34,197,94,0.1)' : 'rgba(220,38,38,0.1)', color: isPaused ? '#16a34a' : '#dc2626', border: `1px solid ${isPaused ? 'rgba(34,197,94,0.25)' : 'rgba(220,38,38,0.2)'}` }}>
-                          {isPaused ? 'Unpause' : 'Pause'}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              {(hasPermission(role, 'canTogglePause') || hasPermission(role, 'canEditTeams')) && (
+                <button onClick={onManageTeams} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
+                  ✏️ Manage Teams
+                </button>
+              )}
             </div>
           )}
         </>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useTeamById } from '../context/TeamRegistryContext';
 import { rerank, rebuildStandings } from '../algorithms/standings';
 
@@ -6,10 +6,19 @@ export default function HistoryTab({
   history, activeTeamIds, cancelledRoundNums,
   roundRobinStartSnapshot, roundRobinEndSnapshot,
   canEditScores, canDeleteGame, canFullEdit,
-  backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound,
+  backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound, onEditCourtNumber,
 }) {
   const teamById = useTeamById();
   const [newestFirst, setNewestFirst] = useState(true);
+  const [editingCourtNum, setEditingCourtNum] = useState(null); // { ri, gi }
+  const [courtNumDraft, setCourtNumDraft] = useState('');
+  const courtInputRef = useRef(null);
+
+  const commitCourtEdit = (ri, gi) => {
+    const val = courtNumDraft.trim();
+    if (val) onEditCourtNumber?.(ri, gi, val);
+    setEditingCourtNum(null);
+  };
 
   const chip = (id, faded) => {
     const t = teamById(id); if (!t) return null;
@@ -208,7 +217,20 @@ export default function HistoryTab({
                   const w = teamById(game.winnerId), l = teamById(game.loserId);
                   return (
                     <div key={gi} style={{ display: 'grid', gridTemplateColumns: 'clamp(22px,5vw,36px) 1fr clamp(22px,5vw,34px) clamp(10px,2vw,14px) clamp(22px,5vw,34px) 1fr auto', alignItems: 'center', gap: 'clamp(4px,1vw,8px)', marginBottom: gi < h.games.length - 1 ? 'clamp(6px,1.5vw,10px)' : 0 }}>
-                      <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,13px)', fontWeight: 700, textAlign: 'center' }}>{game.courtNumber}</span>
+                      <div style={{ textAlign: 'center' }}>
+                        {editingCourtNum?.ri === ri && editingCourtNum?.gi === gi ? (
+                          <input ref={courtInputRef} value={courtNumDraft} onChange={e => setCourtNumDraft(e.target.value)}
+                            onBlur={() => commitCourtEdit(ri, gi)}
+                            onKeyDown={e => { if (e.key === 'Enter') commitCourtEdit(ri, gi); if (e.key === 'Escape') setEditingCourtNum(null); }}
+                            style={{ width: '100%', fontSize: 'clamp(10px,2.5vw,13px)', fontWeight: 700, textAlign: 'center', padding: '2px 4px', borderRadius: 4, background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.2)', outline: 'none' }} />
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,13px)', fontWeight: 700, cursor: canFullEdit ? 'pointer' : 'default' }}
+                            title={canFullEdit ? 'Click to edit court number' : undefined}
+                            onClick={canFullEdit ? () => { setEditingCourtNum({ ri, gi }); setCourtNumDraft(String(game.courtNumber ?? '')); setTimeout(() => courtInputRef.current?.focus(), 0); } : undefined}>
+                            {game.courtNumber}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex justify-end">
                         <span className="inline-flex items-center rounded-full font-bold" style={{ background: w?.color, color: w?.text, fontSize: 'clamp(11px,3vw,15px)', padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)', whiteSpace: 'nowrap' }}>{w?.name}</span>
                       </div>

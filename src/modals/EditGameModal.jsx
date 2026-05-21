@@ -14,7 +14,7 @@ export default function EditGameModal({ game, roundEntry, allTeamIds, label, onS
   const teamA = teamById(teamAId), teamB = teamById(teamBId);
   const scoresValid = scoreA !== '' && scoreB !== '' && Number(scoreA) !== Number(scoreB);
   const teamsValid = scoreOnly || (teamAId && teamBId && teamAId !== teamBId);
-  const courtValid = courtNum.trim() !== '';
+  const courtValid = scoreOnly || courtNum.trim() !== '';
   const valid = scoresValid && teamsValid && courtValid;
   const aWins = valid && Number(scoreA) > Number(scoreB);
   const newWinnerId = valid ? (aWins ? teamAId : teamBId) : null;
@@ -51,13 +51,6 @@ export default function EditGameModal({ game, roundEntry, allTeamIds, label, onS
       <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4 modal-box" onClick={e => e.stopPropagation()}>
         <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">{label} — Edit{scoreOnly ? ' scores' : ''}</div>
 
-        <div>
-          <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Court</p>
-          <input value={courtNum} onChange={e => setCourtNum(e.target.value)} className="input-dark w-full"
-            style={{ fontSize: 14, padding: '6px 10px', border: `1px solid ${courtValid ? 'rgba(255,255,255,0.15)' : '#ef4444'}` }} />
-          {!courtValid && <p className="text-xs text-amber-400 mt-1">Court name is required.</p>}
-        </div>
-
         {scoreOnly ? (
           <>
             <div className="flex items-center gap-3">
@@ -80,6 +73,13 @@ export default function EditGameModal({ game, roundEntry, allTeamIds, label, onS
           </>
         ) : (
           <>
+            <div>
+              <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Court</p>
+              <input value={courtNum} onChange={e => setCourtNum(e.target.value)} className="input-dark w-full"
+                style={{ fontSize: 14, padding: '6px 10px', border: `1px solid ${courtValid ? 'rgba(255,255,255,0.15)' : '#ef4444'}` }} />
+              {!courtValid && <p className="text-xs text-amber-400 mt-1">Court name is required.</p>}
+            </div>
+
             <div className="flex flex-col gap-2">
               <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">Team A</p>
               <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
