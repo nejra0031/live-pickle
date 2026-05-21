@@ -5,20 +5,24 @@ const sha256hex = async str => {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
-export default function PinModal({ title = 'Admin PIN', correctPin, pinLoaded, pinLoadError, onSuccess, onClose }) {
+// checkPin: sync (hashHex: string) => role | null — null means no match
+// If checkPin is null, pins are still loading
+export default function PinModal({ title = 'Login', checkPin, pinLoadError, onSuccess, onClose }) {
   const [pin, setPin] = useState('');
   const [errMsg, setErrMsg] = useState('');
 
   const showErr = msg => { setErrMsg(msg); setTimeout(() => setErrMsg(''), 1800); };
 
   const check = async () => {
-    if (!pinLoaded) return;
-    if (!correctPin) { showErr('No PIN is configured in the database.'); return; }
-    if (await sha256hex(pin) === correctPin) onSuccess();
+    if (!checkPin) return;
+    const hash = await sha256hex(pin);
+    const matched = checkPin(hash);
+    if (matched !== null) onSuccess(matched);
     else { showErr('Incorrect PIN'); setPin(''); }
   };
 
   const hasErr = !!errMsg;
+  const ready = !!checkPin;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -33,7 +37,7 @@ export default function PinModal({ title = 'Admin PIN', correctPin, pinLoaded, p
         {pinLoadError && (
           <div className="text-xs text-amber-400 text-center">Could not load PIN — check connection.</div>
         )}
-        {!pinLoaded
+        {!ready
           ? <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, padding: '8px 0' }}>Loading…</div>
           : <input type="password" inputMode="numeric" value={pin} placeholder="PIN"
               onChange={e => setPin(e.target.value)} onKeyDown={e => e.key === 'Enter' && check()} autoFocus
@@ -41,8 +45,8 @@ export default function PinModal({ title = 'Admin PIN', correctPin, pinLoaded, p
         }
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold btn-cancel">Cancel</button>
-          <button onClick={check} disabled={!pinLoaded} className="flex-1 py-2 rounded-xl text-sm font-bold"
-            style={{ background: pinLoaded ? 'linear-gradient(90deg,#6366f1,#8b5cf6)' : 'rgba(255,255,255,0.08)', color: pinLoaded ? '#fff' : '#475569', cursor: pinLoaded ? 'pointer' : 'not-allowed', border: 'none' }}>
+          <button onClick={check} disabled={!ready} className="flex-1 py-2 rounded-xl text-sm font-bold"
+            style={{ background: ready ? 'linear-gradient(90deg,#6366f1,#8b5cf6)' : 'rgba(255,255,255,0.08)', color: ready ? '#fff' : '#475569', cursor: ready ? 'pointer' : 'not-allowed', border: 'none' }}>
             Unlock
           </button>
         </div>

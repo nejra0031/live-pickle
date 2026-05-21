@@ -8,7 +8,7 @@ import { courtKey, liveKey } from '../constants';
 export default function PlayTab({
   tournamentFinished, breakMode, round, roundNum, tournamentMode,
   roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum,
-  courtNumbers, socialCourts = [], liveAdditions, pending, isAdmin, finalRound, setFinalRound, pausedIds = [],
+  courtNumbers, socialCourts = [], liveAdditions, pending, role, finalRound, setFinalRound, pausedIds = [],
   history, ranked, activeRoundExtras, nextRoundPresets, roundKey,
   timerSecsLeft, timerDuration, timerRunning, onTimerToggle, onTimerRestart, onTimerSettings,
   onResult, onLiveResult, onRRMatchResult,
@@ -17,6 +17,7 @@ export default function PlayTab({
   onEditActiveCourt, onRemoveActiveCourt,
   onEditLive, onRemoveLive,
   onUndoResult, onUndoLiveResult,
+  onTogglePause,
   onRemovePreset, onRemoveExtra,
   onSelectRRTeams, onPresetMatch, onLiveAddGame,
   onContinueSwissAfterRR, onExitRoundRobin,
@@ -25,6 +26,9 @@ export default function PlayTab({
   rrMatchKey,
 }) {
   const teamById = useTeamById();
+  const isAdmin = role === 'admin';
+  const isReferee = role === 'referee';
+  const canWrite = role !== null;
 
   const [breakSecsLeft, setBreakSecsLeft] = useState(() =>
     breakMode ? Math.max(0, Math.round((breakMode.endAt - Date.now()) / 1000)) : 0
@@ -165,7 +169,7 @@ export default function PlayTab({
                     </div>
                   );
                 }
-                if (isAdmin) {
+                if (canWrite) {
                   const aIsPaused = pausedIds.includes(idA), bIsPaused = pausedIds.includes(idB);
                   if (aIsPaused || bIsPaused) {
                     const activeId = aIsPaused ? idB : idA, pausedId = aIsPaused ? idA : idB;
@@ -222,7 +226,7 @@ export default function PlayTab({
             <button onClick={onFinishTournament} style={{ padding: 'clamp(10px,2.5vw,14px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,16px)', cursor: 'pointer', background: 'linear-gradient(90deg,#d97706,#f59e0b)', color: '#fff', border: 'none' }}>🏁 Finish Tournament</button>
           </div>
         )}
-        {isAdmin && !allDone && <button onClick={() => onExitRoundRobin()} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(0,0,0,0.05)', color: '#475569', border: '1px solid rgba(0,0,0,0.1)' }}>↩ Exit Round Robin (back to Swiss)</button>}
+        {canWrite && !allDone && <button onClick={() => onExitRoundRobin()} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(0,0,0,0.05)', color: '#475569', border: '1px solid rgba(0,0,0,0.1)' }}>↩ Exit Round Robin (back to Swiss)</button>}
         {isAdmin && !allDone && <button onClick={onFinishTournament} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'linear-gradient(90deg,#d97706,#f59e0b)', color: '#fff', border: 'none' }}>🏁 Finish Tournament</button>}
         {isAdmin && <button onClick={onBreakStart} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(217,119,6,0.1)', color: '#92400e', border: '1px solid rgba(217,119,6,0.3)' }}>☕ Pause Tournament (Break)</button>}
         {isAdmin && <button onClick={onReset} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 12, textDecoration: 'underline' }}>↩ Reset tournament…</button>}
@@ -295,6 +299,45 @@ export default function PlayTab({
 
             <button onClick={onReset} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>↩ Reset tournament…</button>
           </div>
+        ) : isReferee ? (
+          <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(12px,3vw,18px)', gap: 'clamp(12px,3vw,16px)', background: '#f8fafc', border: '1px solid rgba(99,102,241,0.15)' }}>
+            <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#6366f1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Referee Options</p>
+
+            <button onClick={onSelectRRTeams} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
+              🔁 Switch to Round Robin
+            </button>
+
+            {/* Final Round toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)', borderRadius: 10, background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}` }}>
+              <div>
+                <div style={{ fontSize: 'clamp(12px,3vw,14px)', fontWeight: 700, color: finalRound ? '#92400e' : '#475569' }}>🏁 Final Round</div>
+                <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', marginTop: 2 }}>Applies to the next round generated</div>
+              </div>
+              <button onClick={() => setFinalRound(f => !f)} style={{ flexShrink: 0, padding: 'clamp(4px,1vw,6px) clamp(12px,3vw,18px)', borderRadius: 8, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: finalRound ? 'rgba(251,191,36,0.25)' : 'rgba(0,0,0,0.06)', color: finalRound ? '#92400e' : '#64748b', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.5)' : 'rgba(0,0,0,0.1)'}` }}>
+                {finalRound ? 'On' : 'Off'}
+              </button>
+            </div>
+
+            {/* Pause teams */}
+            <div>
+              <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0' }}>Pause / Unpause Teams</p>
+              <div className="flex flex-col gap-1">
+                {ranked.map(entry => {
+                  const team = teamById(entry.id);
+                  if (!team) return null;
+                  const isPaused = pausedIds.includes(entry.id);
+                  return (
+                    <div key={entry.id} className="flex items-center justify-between" style={{ padding: 'clamp(5px,1.2vw,8px) clamp(8px,2vw,12px)', borderRadius: 8, background: isPaused ? 'rgba(220,38,38,0.04)' : 'rgba(0,0,0,0.02)', border: `1px solid ${isPaused ? 'rgba(220,38,38,0.2)' : 'rgba(0,0,0,0.06)'}` }}>
+                      <span style={{ fontWeight: 700, fontSize: 'clamp(12px,3vw,14px)', color: team.color, opacity: isPaused ? 0.6 : 1, textDecoration: isPaused ? 'line-through' : 'none' }}>{team.name}</span>
+                      <button onClick={() => onTogglePause(entry.id)} style={{ fontSize: 'clamp(10px,2.5vw,12px)', padding: '3px 10px', borderRadius: 6, fontWeight: 700, cursor: 'pointer', background: isPaused ? 'rgba(34,197,94,0.1)' : 'rgba(220,38,38,0.1)', color: isPaused ? '#16a34a' : '#dc2626', border: `1px solid ${isPaused ? 'rgba(34,197,94,0.25)' : 'rgba(220,38,38,0.2)'}` }}>
+                        {isPaused ? 'Unpause' : 'Pause'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="rounded-2xl p-10 text-center flex flex-col items-center gap-3" style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)' }}>
             <div style={{ fontSize: 'clamp(28px,7vw,44px)' }}>{roundNum === 0 ? '🏓' : '⏳'}</div>
@@ -323,13 +366,13 @@ export default function PlayTab({
         </div>
       )}
 
-      {isAdmin ? (
+      {canWrite ? (
         <>
           {round.courts.map((teams, idx) => (
             <CourtCard key={`${roundKey}-court-${idx}`} courtLabel={`Court ${round.courtNums?.[idx] ?? courtNumbers[idx] ?? idx + 1}`}
               teams={teams} onResult={r => onResult(idx, r)} pendingResult={pending[courtKey(idx)]}
-              onEdit={() => onEditActiveCourt(idx)}
-              onRemove={() => onRemoveActiveCourt(idx)}
+              onEdit={isAdmin ? () => onEditActiveCourt(idx) : undefined}
+              onRemove={isAdmin ? () => onRemoveActiveCourt(idx) : undefined}
               onUndo={() => onUndoResult(idx)} />
           ))}
           {liveAdditions.map((la, i) => {
@@ -337,7 +380,7 @@ export default function PlayTab({
             if (!tA || !tB) return null;
             return <CourtCard key={`live-${i}`} courtLabel={`Court ${la.courtNumber}`}
               teams={[tA, tB]} onResult={r => onLiveResult(i, r)} pendingResult={pending[liveKey(i)]}
-              onEdit={() => onEditLive(i)}
+              onEdit={isAdmin ? () => onEditLive(i) : undefined}
               onUndo={() => onUndoLiveResult(i)} />;
           })}
           {(round.paused?.length > 0 || round.bye?.length > 0) && (
@@ -356,68 +399,105 @@ export default function PlayTab({
               )}
             </div>
           )}
-          <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(12px,3vw,18px)', gap: 'clamp(12px,3vw,16px)', background: '#f8fafc', border: '1px solid rgba(0,0,0,0.08)' }}>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Admin Options</p>
 
-            {/* 3-column action grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'clamp(6px,1.5vw,8px)' }}>
-              {[
-                { label: '🔀', sub: 'Regenerate',  onClick: onRegenerateRound, bg: 'rgba(15,76,117,0.08)',   color: '#0f4c75', border: 'rgba(15,76,117,0.2)' },
-                { label: '➕', sub: 'Add Game',    onClick: onLiveAddGame,     bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
-                { label: '☕', sub: 'Break',        onClick: onBreakStart,      bg: 'rgba(217,119,6,0.08)',   color: '#92400e', border: 'rgba(217,119,6,0.25)' },
-                { label: '✏️', sub: 'Teams',        onClick: onManageTeams,     bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
-                { label: '🏟️', sub: 'Courts',       onClick: onManageCourts,    bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
-                { label: '✕',  sub: 'Cancel Round', onClick: onCancelRound,     bg: 'rgba(220,38,38,0.07)',   color: '#dc2626', border: 'rgba(220,38,38,0.2)' },
-              ].map(({ label, sub, onClick, bg, color, border }) => (
-                <button key={sub} onClick={onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: 'clamp(8px,2vw,12px) 4px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', background: bg, color, border: `1px solid ${border}` }}>
-                  <span style={{ fontSize: 'clamp(18px,4.5vw,26px)', lineHeight: 1 }}>{label}</span>
-                  <span style={{ fontSize: 'clamp(10px,2.5vw,12px)' }}>{sub}</span>
-                </button>
-              ))}
-            </div>
+          {/* Admin options panel */}
+          {isAdmin && (
+            <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(12px,3vw,18px)', gap: 'clamp(12px,3vw,16px)', background: '#f8fafc', border: '1px solid rgba(0,0,0,0.08)' }}>
+              <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Admin Options</p>
 
-            {Object.keys(pending).length > 0 && (
-              <p style={{ fontSize: 'clamp(10px,2.5vw,12px)', color: '#94a3b8', margin: 0 }}>Regenerate requires PIN — scores already entered.</p>
-            )}
-
-            {/* Final Round toggle row */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)', borderRadius: 10, background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}` }}>
-              <div>
-                <div style={{ fontSize: 'clamp(12px,3vw,14px)', fontWeight: 700, color: finalRound ? '#92400e' : '#475569' }}>🏁 Final Round</div>
-                <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', marginTop: 2 }}>Applies to the next round generated</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'clamp(6px,1.5vw,8px)' }}>
+                {[
+                  { label: '🔀', sub: 'Regenerate',  onClick: onRegenerateRound, bg: 'rgba(15,76,117,0.08)',   color: '#0f4c75', border: 'rgba(15,76,117,0.2)' },
+                  { label: '➕', sub: 'Add Game',    onClick: onLiveAddGame,     bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
+                  { label: '☕', sub: 'Break',        onClick: onBreakStart,      bg: 'rgba(217,119,6,0.08)',   color: '#92400e', border: 'rgba(217,119,6,0.25)' },
+                  { label: '✏️', sub: 'Teams',        onClick: onManageTeams,     bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
+                  { label: '🏟️', sub: 'Courts',       onClick: onManageCourts,    bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
+                  { label: '✕',  sub: 'Cancel Round', onClick: onCancelRound,     bg: 'rgba(220,38,38,0.07)',   color: '#dc2626', border: 'rgba(220,38,38,0.2)' },
+                ].map(({ label, sub, onClick, bg, color, border }) => (
+                  <button key={sub} onClick={onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: 'clamp(8px,2vw,12px) 4px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', background: bg, color, border: `1px solid ${border}` }}>
+                    <span style={{ fontSize: 'clamp(18px,4.5vw,26px)', lineHeight: 1 }}>{label}</span>
+                    <span style={{ fontSize: 'clamp(10px,2.5vw,12px)' }}>{sub}</span>
+                  </button>
+                ))}
               </div>
-              <button onClick={() => setFinalRound(f => !f)} style={{ flexShrink: 0, padding: 'clamp(4px,1vw,6px) clamp(12px,3vw,18px)', borderRadius: 8, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: finalRound ? 'rgba(251,191,36,0.25)' : 'rgba(0,0,0,0.06)', color: finalRound ? '#92400e' : '#64748b', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.5)' : 'rgba(0,0,0,0.1)'}` }}>
-                {finalRound ? 'On' : 'Off'}
-              </button>
-            </div>
 
-            {activeRoundExtras.length > 0 && (
-              <div className="rounded-xl" style={{ padding: 'clamp(8px,2vw,12px)', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#4338ca', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Manually added ({activeRoundExtras.length})</p>
+              {Object.keys(pending).length > 0 && (
+                <p style={{ fontSize: 'clamp(10px,2.5vw,12px)', color: '#94a3b8', margin: 0 }}>Regenerate requires PIN — scores already entered.</p>
+              )}
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)', borderRadius: 10, background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}` }}>
+                <div>
+                  <div style={{ fontSize: 'clamp(12px,3vw,14px)', fontWeight: 700, color: finalRound ? '#92400e' : '#475569' }}>🏁 Final Round</div>
+                  <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', marginTop: 2 }}>Applies to the next round generated</div>
+                </div>
+                <button onClick={() => setFinalRound(f => !f)} style={{ flexShrink: 0, padding: 'clamp(4px,1vw,6px) clamp(12px,3vw,18px)', borderRadius: 8, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: finalRound ? 'rgba(251,191,36,0.25)' : 'rgba(0,0,0,0.06)', color: finalRound ? '#92400e' : '#64748b', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.5)' : 'rgba(0,0,0,0.1)'}` }}>
+                  {finalRound ? 'On' : 'Off'}
+                </button>
+              </div>
+
+              {activeRoundExtras.length > 0 && (
+                <div className="rounded-xl" style={{ padding: 'clamp(8px,2vw,12px)', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                  <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#4338ca', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Manually added ({activeRoundExtras.length})</p>
+                  <div className="flex flex-col gap-1">
+                    {activeRoundExtras.map((g, gi) => {
+                      const w = teamById(g.winnerId), l = teamById(g.loserId);
+                      return (
+                        <div key={gi} className="flex items-center" style={{ gap: 'clamp(4px,1vw,8px)', fontSize: 'clamp(11px,2.5vw,13px)' }}>
+                          <span style={{ color: '#94a3b8', minWidth: 50 }}>Court {g.courtNumber}</span>
+                          <span style={{ color: w?.color, fontWeight: 700 }}>{w?.name}</span>
+                          <span style={{ color: w?.color, fontWeight: 800 }}>{g.winnerScore}</span>
+                          <span style={{ color: '#cbd5e1' }}>–</span>
+                          <span style={{ color: l?.color, fontWeight: 800 }}>{g.loserScore}</span>
+                          <span style={{ color: l?.color, fontWeight: 700 }}>{l?.name}</span>
+                          <button onClick={() => onRemoveExtra(gi)} style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer' }}>×</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <button onClick={onFinishTournament} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: 'linear-gradient(90deg,#d97706,#f59e0b)', color: '#fff', border: 'none' }}>🏁 Finish Tournament</button>
+
+              <button onClick={onReset} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>↩ Reset tournament…</button>
+            </div>
+          )}
+
+          {/* Referee options panel */}
+          {isReferee && (
+            <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(12px,3vw,18px)', gap: 'clamp(12px,3vw,16px)', background: '#f8fafc', border: '1px solid rgba(99,102,241,0.15)' }}>
+              <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#6366f1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Referee Options</p>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)', borderRadius: 10, background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}` }}>
+                <div>
+                  <div style={{ fontSize: 'clamp(12px,3vw,14px)', fontWeight: 700, color: finalRound ? '#92400e' : '#475569' }}>🏁 Final Round</div>
+                  <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', marginTop: 2 }}>Applies to the next round generated</div>
+                </div>
+                <button onClick={() => setFinalRound(f => !f)} style={{ flexShrink: 0, padding: 'clamp(4px,1vw,6px) clamp(12px,3vw,18px)', borderRadius: 8, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: finalRound ? 'rgba(251,191,36,0.25)' : 'rgba(0,0,0,0.06)', color: finalRound ? '#92400e' : '#64748b', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.5)' : 'rgba(0,0,0,0.1)'}` }}>
+                  {finalRound ? 'On' : 'Off'}
+                </button>
+              </div>
+
+              <div>
+                <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0' }}>Pause / Unpause Teams</p>
                 <div className="flex flex-col gap-1">
-                  {activeRoundExtras.map((g, gi) => {
-                    const w = teamById(g.winnerId), l = teamById(g.loserId);
+                  {ranked.map(entry => {
+                    const team = teamById(entry.id);
+                    if (!team) return null;
+                    const isPaused = pausedIds.includes(entry.id);
                     return (
-                      <div key={gi} className="flex items-center" style={{ gap: 'clamp(4px,1vw,8px)', fontSize: 'clamp(11px,2.5vw,13px)' }}>
-                        <span style={{ color: '#94a3b8', minWidth: 50 }}>Court {g.courtNumber}</span>
-                        <span style={{ color: w?.color, fontWeight: 700 }}>{w?.name}</span>
-                        <span style={{ color: w?.color, fontWeight: 800 }}>{g.winnerScore}</span>
-                        <span style={{ color: '#cbd5e1' }}>–</span>
-                        <span style={{ color: l?.color, fontWeight: 800 }}>{g.loserScore}</span>
-                        <span style={{ color: l?.color, fontWeight: 700 }}>{l?.name}</span>
-                        <button onClick={() => onRemoveExtra(gi)} style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer' }}>×</button>
+                      <div key={entry.id} className="flex items-center justify-between" style={{ padding: 'clamp(5px,1.2vw,8px) clamp(8px,2vw,12px)', borderRadius: 8, background: isPaused ? 'rgba(220,38,38,0.04)' : 'rgba(0,0,0,0.02)', border: `1px solid ${isPaused ? 'rgba(220,38,38,0.2)' : 'rgba(0,0,0,0.06)'}` }}>
+                        <span style={{ fontWeight: 700, fontSize: 'clamp(12px,3vw,14px)', color: team.color, opacity: isPaused ? 0.6 : 1, textDecoration: isPaused ? 'line-through' : 'none' }}>{team.name}</span>
+                        <button onClick={() => onTogglePause(entry.id)} style={{ fontSize: 'clamp(10px,2.5vw,12px)', padding: '3px 10px', borderRadius: 6, fontWeight: 700, cursor: 'pointer', background: isPaused ? 'rgba(34,197,94,0.1)' : 'rgba(220,38,38,0.1)', color: isPaused ? '#16a34a' : '#dc2626', border: `1px solid ${isPaused ? 'rgba(34,197,94,0.25)' : 'rgba(220,38,38,0.2)'}` }}>
+                          {isPaused ? 'Unpause' : 'Pause'}
+                        </button>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            )}
-
-            {/* Finish Tournament */}
-            <button onClick={onFinishTournament} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: 'linear-gradient(90deg,#d97706,#f59e0b)', color: '#fff', border: 'none' }}>🏁 Finish Tournament</button>
-
-            <button onClick={onReset} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>↩ Reset tournament…</button>
-          </div>
+            </div>
+          )}
         </>
       ) : (
         /* Viewer branch */

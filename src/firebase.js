@@ -19,13 +19,15 @@ export { ref, set, update, onValue, off, push, get, onDisconnect, remove };
 const TEST_MODE = import.meta.env.VITE_TEST_MODE === 'true';
 const TOURNAMENT_PATH  = TEST_MODE ? 'current_tournament_e2e' : 'current_tournament';
 const BACKUPS_PATH     = TEST_MODE ? 'tournament_backups_e2e' : 'tournament_backups';
-const ADMIN_PIN_PATH   = TEST_MODE ? 'config/adminPin_test'   : 'config/adminPin';
-const PRESENCE_PATH    = TEST_MODE ? 'presence_e2e'           : 'presence';
+const ADMIN_PIN_PATH   = TEST_MODE ? 'config/adminPin_test'    : 'config/adminPin';
+const REFEREE_PIN_PATH = TEST_MODE ? 'config/refereePin_test'  : 'config/refereePin';
+const PRESENCE_PATH    = TEST_MODE ? 'presence_e2e'            : 'presence';
 
 // Exported so App.jsx can use the correct path for presence push/listen
 export const tournamentRef     = () => ref(db, TOURNAMENT_PATH);
 export const pendingResultsRef = () => ref(db, `${TOURNAMENT_PATH}/pendingResults`);
 export const adminPinRef       = () => ref(db, ADMIN_PIN_PATH);
+export const refereePinRef     = () => ref(db, REFEREE_PIN_PATH);
 export const presenceRef       = () => ref(db, PRESENCE_PATH);
 
 // ── Write-token helpers ────────────────────────────────────────────────────
