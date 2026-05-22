@@ -9,7 +9,7 @@ import { ROLE_MAP, hasPermission } from '../roleConfig';
 export default function PlayTab({
   tournamentFinished, breakMode, round, roundNum, tournamentMode,
   roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum,
-  courtNumbers, socialCourts = [], liveAdditions, pending, role, finalRound, setFinalRound, pausedIds = [],
+  courtNumbers, socialCourts = [], liveAdditions, pending, role, finalRound, setFinalRound, pausedIds = [], targetRounds = 0,
   history, ranked, activeRoundExtras, nextRoundPresets, roundKey,
   timerSecsLeft, timerDuration, timerRunning, onTimerToggle, onTimerRestart, onTimerSettings,
   onResult, onLiveResult, onRRMatchResult,
@@ -27,6 +27,8 @@ export default function PlayTab({
 }) {
   const teamById = useTeamById();
   const isAdmin = hasPermission(role, 'canResetTournament');
+  const nextRN = roundNum === 0 ? 1 : roundNum + 1;
+  const isAutoFinal = targetRounds > 0 && nextRN === targetRounds && !finalRound;
   const isReferee = !isAdmin && hasPermission(role, 'canSubmitResults');
   const canWrite = hasPermission(role, 'canSubmitResults');
 
@@ -266,7 +268,7 @@ export default function PlayTab({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)', borderRadius: 10, background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}` }}>
               <div>
                 <div style={{ fontSize: 'clamp(12px,3vw,14px)', fontWeight: 700, color: finalRound ? '#92400e' : '#475569' }}>🏁 Final Round</div>
-                <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', marginTop: 2 }}>Applies to the next round generated</div>
+                <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: isAutoFinal ? '#d97706' : '#94a3b8', marginTop: 2 }}>{isAutoFinal ? `Auto-applying for round ${nextRN}` : 'Applies to the next round generated'}</div>
               </div>
               <button onClick={() => setFinalRound(f => !f)} style={{ flexShrink: 0, padding: 'clamp(4px,1vw,6px) clamp(12px,3vw,18px)', borderRadius: 8, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: finalRound ? 'rgba(251,191,36,0.25)' : 'rgba(0,0,0,0.06)', color: finalRound ? '#92400e' : '#64748b', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.5)' : 'rgba(0,0,0,0.1)'}` }}>
                 {finalRound ? 'On' : 'Off'}
@@ -293,8 +295,8 @@ export default function PlayTab({
               </div>
             )}
 
-            <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: finalRound ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
-              {roundNum === 0 ? 'Generate Round 1 →' : finalRound ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
+            <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: (finalRound || isAutoFinal) ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
+              {roundNum === 0 ? (isAutoFinal ? '🏁 Generate Final Round →' : 'Generate Round 1 →') : (finalRound || isAutoFinal) ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
             </button>
 
             <button onClick={onReset} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>↩ Reset tournament…</button>
@@ -313,7 +315,7 @@ export default function PlayTab({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)', borderRadius: 10, background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}` }}>
               <div>
                 <div style={{ fontSize: 'clamp(12px,3vw,14px)', fontWeight: 700, color: finalRound ? '#92400e' : '#475569' }}>🏁 Final Round</div>
-                <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', marginTop: 2 }}>Applies to the next round generated</div>
+                <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: isAutoFinal ? '#d97706' : '#94a3b8', marginTop: 2 }}>{isAutoFinal ? `Auto-applying for round ${nextRN}` : 'Applies to the next round generated'}</div>
               </div>
               <button onClick={() => setFinalRound(f => !f)} style={{ flexShrink: 0, padding: 'clamp(4px,1vw,6px) clamp(12px,3vw,18px)', borderRadius: 8, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: finalRound ? 'rgba(251,191,36,0.25)' : 'rgba(0,0,0,0.06)', color: finalRound ? '#92400e' : '#64748b', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.5)' : 'rgba(0,0,0,0.1)'}` }}>
                 {finalRound ? 'On' : 'Off'}
@@ -327,8 +329,8 @@ export default function PlayTab({
             )}
 
             {hasPermission(role, 'canGenerateRound') && (
-              <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: finalRound ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
-                {roundNum === 0 ? 'Generate Round 1 →' : finalRound ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
+              <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: (finalRound || isAutoFinal) ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
+                {roundNum === 0 ? (isAutoFinal ? '🏁 Generate Final Round →' : 'Generate Round 1 →') : (finalRound || isAutoFinal) ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
               </button>
             )}
           </div>
@@ -422,7 +424,7 @@ export default function PlayTab({
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)', borderRadius: 10, background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}` }}>
                 <div>
                   <div style={{ fontSize: 'clamp(12px,3vw,14px)', fontWeight: 700, color: finalRound ? '#92400e' : '#475569' }}>🏁 Final Round</div>
-                  <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', marginTop: 2 }}>Applies to the next round generated</div>
+                  <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: isAutoFinal ? '#d97706' : '#94a3b8', marginTop: 2 }}>{isAutoFinal ? `Auto-applying for round ${nextRN}` : 'Applies to the next round generated'}</div>
                 </div>
                 <button onClick={() => setFinalRound(f => !f)} style={{ flexShrink: 0, padding: 'clamp(4px,1vw,6px) clamp(12px,3vw,18px)', borderRadius: 8, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: finalRound ? 'rgba(251,191,36,0.25)' : 'rgba(0,0,0,0.06)', color: finalRound ? '#92400e' : '#64748b', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.5)' : 'rgba(0,0,0,0.1)'}` }}>
                   {finalRound ? 'On' : 'Off'}
@@ -472,7 +474,7 @@ export default function PlayTab({
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)', borderRadius: 10, background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}` }}>
                 <div>
                   <div style={{ fontSize: 'clamp(12px,3vw,14px)', fontWeight: 700, color: finalRound ? '#92400e' : '#475569' }}>🏁 Final Round</div>
-                  <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', marginTop: 2 }}>Applies to the next round generated</div>
+                  <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: isAutoFinal ? '#d97706' : '#94a3b8', marginTop: 2 }}>{isAutoFinal ? `Auto-applying for round ${nextRN}` : 'Applies to the next round generated'}</div>
                 </div>
                 <button onClick={() => setFinalRound(f => !f)} style={{ flexShrink: 0, padding: 'clamp(4px,1vw,6px) clamp(12px,3vw,18px)', borderRadius: 8, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: finalRound ? 'rgba(251,191,36,0.25)' : 'rgba(0,0,0,0.06)', color: finalRound ? '#92400e' : '#64748b', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.5)' : 'rgba(0,0,0,0.1)'}` }}>
                   {finalRound ? 'On' : 'Off'}
