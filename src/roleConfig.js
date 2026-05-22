@@ -44,7 +44,7 @@ export const ROLES = [
       canTogglePause:     true,
       canSelectRRTeams:        true,
       canSwitchTournamentMode: false,
-      canSetFinalRound:        true,
+      canSetFinalRound:        false,
       canGenerateRound:        true,
       canEditTimer:            false,
       canEditActiveCourt: false,
