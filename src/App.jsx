@@ -480,7 +480,7 @@ export default function App({ viewerOnly = false }) {
     const cleared = {};
     Object.keys(pendingRef.current).forEach(k => { if (!k.startsWith('rr_')) cleared[k] = pendingRef.current[k]; });
     pendingRef.current = cleared; setPending(cleared);
-    if (hasPermission(roleRef.current, 'canSubmitResults')) { pushAtomicUpdate({ tournamentMode: 'swiss', roundRobinSchedule: null, roundRobinCourts: null, roundRobinStartRoundNum: null, roundRobinEndSnapshot: endSnap, roundNum: restoredRoundNum, pendingResults: null }, err => setFirebaseError(err)); }
+    if (hasPermission(roleRef.current, 'canSwitchTournamentMode')) { pushAtomicUpdate({ tournamentMode: 'swiss', roundRobinSchedule: null, roundRobinCourts: null, roundRobinStartRoundNum: null, roundRobinEndSnapshot: endSnap, roundNum: restoredRoundNum, pendingResults: null }, err => setFirebaseError(err)); }
   }, [roundRobinStartRoundNum, history]);
 
   const handlePinSuccess = useCallback((matchedRole) => {
@@ -704,7 +704,7 @@ export default function App({ viewerOnly = false }) {
     setTournamentMode('roundrobin'); setRoundRobinSchedule(schedule); setRoundRobinCourts(courts);
     setRoundRobinStartRoundNum(rrStart); setRoundRobinStartSnapshot(snapshot); setRoundRobinEndSnapshot(null);
     setShowSelectRRTeams(false);
-    if (hasPermission(roleRef.current, 'canSelectRRTeams')) { pushAtomicUpdate({ tournamentMode: 'roundrobin', roundNum: rrStart, roundRobinSchedule: schedule, roundRobinCourts: courts, roundRobinStartRoundNum: rrStart, roundRobinStartSnapshot: snapshot, roundRobinEndSnapshot: null, roundData: null, roundComplete: false, pendingResults: null }, err => setFirebaseError(err)); }
+    if (hasPermission(roleRef.current, 'canSwitchTournamentMode')) { pushAtomicUpdate({ tournamentMode: 'roundrobin', roundNum: rrStart, roundRobinSchedule: schedule, roundRobinCourts: courts, roundRobinStartRoundNum: rrStart, roundRobinStartSnapshot: snapshot, roundRobinEndSnapshot: null, roundData: null, roundComplete: false, pendingResults: null }, err => setFirebaseError(err)); }
     setRoundNum(rrStart); lastSeenRoundNum.current = rrStart;
     pendingRef.current = {}; setPending({}); setRound(null); setRoundComplete(false);
   }, [roundNum, courtNumbers, activeTeamIds]);
