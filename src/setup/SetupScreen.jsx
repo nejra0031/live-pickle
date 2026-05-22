@@ -3,28 +3,60 @@ import { ALL_TEAMS } from '../constants';
 
 const PRESET = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
-function gcd(a, b) {
-  while (b) { [a, b] = [b, a % b]; }
-  return a;
-}
-
-// Returns game counts where every team plays exactly that many games.
-// Condition: (games * numTeams) must be divisible by playsPerRound.
-// The valid counts form multiples of: playsPerRound / gcd(numTeams, playsPerRound)
-function getValidGameCounts(numTeams, numCourts, max = 30) {
-  if (numTeams < 2 || numCourts < 1) return [];
+// Stats for R rounds where the final round may use fewer courts to equalise.
+// Returns { minGames, maxGames, finalCourts, rounds }.
+function computeStats(numTeams, numCourts, numRounds) {
+  if (numTeams < 2 || numCourts < 1 || numRounds < 1) return null;
   const effectiveCourts = Math.min(numCourts, Math.floor(numTeams / 2));
   const playsPerRound = effectiveCourts * 2;
-  const step = playsPerRound / gcd(numTeams, playsPerRound);
+  const totalBefore = (numRounds - 1) * playsPerRound;
+  const teamsAtMax = totalBefore % numTeams;
+  let finalCourts, minGames, maxGames;
+  if (teamsAtMax === 0) {
+    finalCourts = effectiveCourts;
+    const totalAfter = totalBefore + finalCourts * 2;
+    maxGames = Math.ceil(totalAfter / numTeams);
+    minGames = Math.floor(totalAfter / numTeams);
+  } else {
+    const teamsBelowMax = numTeams - teamsAtMax;
+    finalCourts = Math.min(effectiveCourts, Math.floor(teamsBelowMax / 2));
+    const maxBefore = Math.ceil(totalBefore / numTeams);
+    const minBefore = Math.floor(totalBefore / numTeams);
+    const teamsEqualized = 2 * finalCourts;
+    if (teamsBelowMax - teamsEqualized > 0) {
+      minGames = minBefore;
+      maxGames = maxBefore;
+    } else {
+      minGames = maxGames = maxBefore;
+    }
+  }
+  return { minGames, maxGames, finalCourts, rounds: numRounds };
+}
+
+// Returns all game counts ≤ max where every team plays exactly that many games,
+// accounting for the final round potentially using fewer courts to equalise.
+function getValidGameCounts(numTeams, numCourts, max = 30) {
+  if (numTeams < 2 || numCourts < 1) return [];
+  const seen = new Set();
   const results = [];
-  for (let k = 1; k * step <= max; k++) results.push(k * step);
-  return results;
+  for (let r = 1; r <= 500; r++) {
+    const s = computeStats(numTeams, numCourts, r);
+    if (!s) continue;
+    if (s.minGames === s.maxGames && s.minGames > 0 && s.minGames <= max && !seen.has(s.minGames)) {
+      seen.add(s.minGames);
+      results.push(s.minGames);
+    }
+    if (s.minGames > max) break;
+  }
+  return results.sort((a, b) => a - b);
 }
 
 function roundsForGames(numTeams, numCourts, targetGames) {
-  const effectiveCourts = Math.min(numCourts, Math.floor(numTeams / 2));
-  const playsPerRound = effectiveCourts * 2;
-  return (targetGames * numTeams) / playsPerRound;
+  for (let r = 1; r <= 500; r++) {
+    const s = computeStats(numTeams, numCourts, r);
+    if (s && s.minGames === s.maxGames && s.minGames === targetGames) return r;
+  }
+  return null;
 }
 
 export default function SetupScreen({ onStart }) {
