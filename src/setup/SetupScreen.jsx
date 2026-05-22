@@ -3,42 +3,28 @@ import { ALL_TEAMS } from '../constants';
 
 const PRESET = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
-function computeStats(numTeams, numCourts, numRounds) {
-  if (numTeams < 2 || numCourts < 1 || numRounds < 1) return null;
-  // A team can only play once per round, so effective courts = min(courts, floor(teams/2))
-  const effectiveCourts = Math.min(numCourts, Math.floor(numTeams / 2));
-  const playsPerRound = effectiveCourts * 2;
-  const totalBefore = (numRounds - 1) * playsPerRound;
-  const teamsAtMax = totalBefore % numTeams;
-  let finalCourts, minGames, maxGames;
-  if (teamsAtMax === 0) {
-    finalCourts = effectiveCourts;
-    const totalAfter = totalBefore + finalCourts * 2;
-    maxGames = Math.ceil(totalAfter / numTeams);
-    minGames = Math.floor(totalAfter / numTeams);
-  } else {
-    const teamsBelowMax = numTeams - teamsAtMax;
-    finalCourts = Math.min(effectiveCourts, Math.floor(teamsBelowMax / 2));
-    const maxBefore = Math.ceil(totalBefore / numTeams);
-    const minBefore = Math.floor(totalBefore / numTeams);
-    const teamsEqualized = 2 * finalCourts;
-    if (teamsBelowMax - teamsEqualized > 0) {
-      minGames = minBefore;
-      maxGames = maxBefore;
-    } else {
-      minGames = maxGames = maxBefore;
-    }
-  }
-  return { minGames, maxGames, finalCourts, rounds: numRounds };
+function gcd(a, b) {
+  while (b) { [a, b] = [b, a % b]; }
+  return a;
 }
 
-function computeRoundsForGames(numTeams, numCourts, targetGames) {
-  if (numTeams < 2 || numCourts < 1 || targetGames < 1) return null;
-  for (let r = 1; r <= 200; r++) {
-    const s = computeStats(numTeams, numCourts, r);
-    if (s && s.maxGames >= targetGames) return s;
-  }
-  return null;
+// Returns game counts where every team plays exactly that many games.
+// Condition: (games * numTeams) must be divisible by playsPerRound.
+// The valid counts form multiples of: playsPerRound / gcd(numTeams, playsPerRound)
+function getValidGameCounts(numTeams, numCourts, max = 30) {
+  if (numTeams < 2 || numCourts < 1) return [];
+  const effectiveCourts = Math.min(numCourts, Math.floor(numTeams / 2));
+  const playsPerRound = effectiveCourts * 2;
+  const step = playsPerRound / gcd(numTeams, playsPerRound);
+  const results = [];
+  for (let k = 1; k * step <= max; k++) results.push(k * step);
+  return results;
+}
+
+function roundsForGames(numTeams, numCourts, targetGames) {
+  const effectiveCourts = Math.min(numCourts, Math.floor(numTeams / 2));
+  const playsPerRound = effectiveCourts * 2;
+  return (targetGames * numTeams) / playsPerRound;
 }
 
 export default function SetupScreen({ onStart }) {
@@ -50,17 +36,14 @@ export default function SetupScreen({ onStart }) {
   const [timerMins, setTimerMins] = useState(12);
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [title, setTitle] = useState('Tournament');
-  const [targetMode, setTargetMode] = useState('rounds'); // 'rounds' | 'games'
-  const [numRounds, setNumRounds] = useState(0);
   const [numGames, setNumGames] = useState(0);
 
   const selectedTeams = colorTeams.filter(t => t.selected).map(t => ({ id: t.id, name: t.customName || t.name, color: t.color, text: t.text }));
   const allTeamIds = selectedTeams.map(t => t.id);
   const effectiveCourts = Math.min(courts.length, Math.floor(allTeamIds.length / 2));
-  const stats = targetMode === 'rounds'
-    ? (numRounds > 0 ? computeStats(allTeamIds.length, courts.length, numRounds) : null)
-    : (numGames > 0 ? computeRoundsForGames(allTeamIds.length, courts.length, numGames) : null);
-  const parsedRounds = stats ? stats.rounds : 0;
+  const validCounts = getValidGameCounts(allTeamIds.length, courts.length);
+  const selectedGames = validCounts.includes(numGames) ? numGames : 0;
+  const parsedRounds = selectedGames > 0 ? roundsForGames(allTeamIds.length, courts.length, selectedGames) : 0;
 
   const addCourt = () => {
     const v = courtInput.trim();
@@ -164,7 +147,7 @@ export default function SetupScreen({ onStart }) {
       </div>
 
       <div>
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-2 mb-2">
           <p className="text-sm font-bold text-slate-700">Round Timer</p>
           <button onClick={() => setTimerEnabled(p => !p)} className="text-xs px-2 py-1 rounded-lg font-bold"
             style={{ background: timerEnabled ? 'rgba(15,76,117,0.15)' : 'rgba(0,0,0,0.06)', color: timerEnabled ? '#0f4c75' : '#94a3b8', cursor: 'pointer', border: '1px solid ' + (timerEnabled ? 'rgba(15,76,117,0.4)' : 'rgba(0,0,0,0.1)') }}>
@@ -183,48 +166,31 @@ export default function SetupScreen({ onStart }) {
       </div>
 
       <div>
-        <div className="flex items-center gap-2 mb-2">
-          <p className="text-sm font-bold text-slate-700">Number of rounds/games</p>
+        <div className="flex items-center gap-2 mb-3">
+          <p className="text-sm font-bold text-slate-700">Each team plays</p>
           <span className="text-xs text-slate-400">optional</span>
         </div>
-        <div className="flex items-center gap-2 mb-3">
-          {['rounds', 'games'].map(m => (
-            <button key={m} onClick={() => setTargetMode(m)}
-              style={{ padding: '3px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: targetMode === m ? 'rgba(15,76,117,0.15)' : 'rgba(0,0,0,0.05)', color: targetMode === m ? '#0f4c75' : '#94a3b8', border: '1px solid ' + (targetMode === m ? 'rgba(15,76,117,0.4)' : 'rgba(0,0,0,0.1)') }}>
-              {m === 'rounds' ? 'Set rounds' : 'Set games/team'}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-3">
-          {targetMode === 'rounds' ? (
-            <>
-              <input type="number" min={1} max={99} value={numRounds || ''}
-                onChange={e => setNumRounds(e.target.value ? Math.max(1, Number(e.target.value)) : 0)}
-                placeholder="–"
-                style={{ ...iS, width: 64, textAlign: 'center', fontSize: 14, background: 'rgba(255,255,255,0.7)', color: '#1e293b', border: '1px solid rgba(0,0,0,0.15)' }} />
-              <span className="text-slate-600 text-sm">rounds total</span>
-            </>
-          ) : (
-            <>
-              <input type="number" min={1} max={99} value={numGames || ''}
-                onChange={e => setNumGames(e.target.value ? Math.max(1, Number(e.target.value)) : 0)}
-                placeholder="–"
-                style={{ ...iS, width: 64, textAlign: 'center', fontSize: 14, background: 'rgba(255,255,255,0.7)', color: '#1e293b', border: '1px solid rgba(0,0,0,0.15)' }} />
-              <span className="text-slate-600 text-sm">games per team</span>
-            </>
-          )}
-        </div>
-        {stats && (
-          <p className="text-slate-500 text-xs mt-2">
-            {targetMode === 'rounds'
-              ? <>Teams play <strong>{stats.minGames === stats.maxGames ? stats.minGames : `${stats.minGames}–${stats.maxGames}`}</strong> game{stats.maxGames !== 1 ? 's' : ''}</>
-              : <>Takes <strong>{stats.rounds}</strong> round{stats.rounds !== 1 ? 's' : ''}</>
-            }
-            {' · '}Final round uses <strong>{stats.finalCourts}</strong> court{stats.finalCourts !== 1 ? 's' : ''}
-          </p>
+        {validCounts.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {validCounts.map(n => {
+              const sel = selectedGames === n;
+              const rounds = roundsForGames(allTeamIds.length, courts.length, n);
+              return (
+                <button key={n} onClick={() => setNumGames(sel ? 0 : n)}
+                  title={`${rounds} round${rounds !== 1 ? 's' : ''}`}
+                  style={{ padding: '4px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: sel ? 'rgba(15,76,117,0.18)' : 'rgba(0,0,0,0.05)', color: sel ? '#0f4c75' : '#64748b', border: '2px solid ' + (sel ? 'rgba(15,76,117,0.5)' : 'rgba(0,0,0,0.1)') }}>
+                  {n} game{n !== 1 ? 's' : ''}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-slate-400 text-xs">Select teams and courts to see options.</p>
         )}
-        {!stats && (targetMode === 'rounds' ? numRounds > 0 : numGames > 0) && (
-          <p className="text-slate-400 text-xs mt-2">Select teams and courts to see details.</p>
+        {selectedGames > 0 && (
+          <p className="text-slate-500 text-xs mt-2">
+            Takes <strong>{parsedRounds}</strong> round{parsedRounds !== 1 ? 's' : ''}
+          </p>
         )}
       </div>
 
