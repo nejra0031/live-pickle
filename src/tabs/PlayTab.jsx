@@ -311,24 +311,13 @@ export default function PlayTab({
               </button>
             )}
 
-            {/* Final Round toggle */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)', borderRadius: 10, background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}` }}>
-              <div>
-                <div style={{ fontSize: 'clamp(12px,3vw,14px)', fontWeight: 700, color: finalRound ? '#92400e' : '#475569' }}>🏁 Final Round</div>
-                <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: isAutoFinal ? '#d97706' : '#94a3b8', marginTop: 2 }}>{isAutoFinal ? `Auto-applying for round ${nextRN}` : 'Applies to the next round generated'}</div>
-              </div>
-              <button onClick={() => setFinalRound(f => !f)} style={{ flexShrink: 0, padding: 'clamp(4px,1vw,6px) clamp(12px,3vw,18px)', borderRadius: 8, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: finalRound ? 'rgba(251,191,36,0.25)' : 'rgba(0,0,0,0.06)', color: finalRound ? '#92400e' : '#64748b', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.5)' : 'rgba(0,0,0,0.1)'}` }}>
-                {finalRound ? 'On' : 'Off'}
-              </button>
-            </div>
-
             {(hasPermission(role, 'canTogglePause') || hasPermission(role, 'canEditTeams')) && (
               <button onClick={onManageTeams} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
                 ✏️ Manage Teams
               </button>
             )}
 
-            {hasPermission(role, 'canGenerateRound') && (
+            {hasPermission(role, 'canGenerateRound') && !(targetRounds > 0 && roundNum >= targetRounds) && (
               <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: (finalRound || isAutoFinal) ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
                 {roundNum === 0 ? (isAutoFinal ? '🏁 Generate Final Round →' : 'Generate Round 1 →') : (finalRound || isAutoFinal) ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
               </button>
@@ -470,16 +459,6 @@ export default function PlayTab({
                   <button onClick={onCancelRound} style={{ flex: 1, padding: 'clamp(8px,2vw,11px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(220,38,38,0.07)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)' }}>✕ Cancel Round</button>
                 </div>
               )}
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)', borderRadius: 10, background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}` }}>
-                <div>
-                  <div style={{ fontSize: 'clamp(12px,3vw,14px)', fontWeight: 700, color: finalRound ? '#92400e' : '#475569' }}>🏁 Final Round</div>
-                  <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: isAutoFinal ? '#d97706' : '#94a3b8', marginTop: 2 }}>{isAutoFinal ? `Auto-applying for round ${nextRN}` : 'Applies to the next round generated'}</div>
-                </div>
-                <button onClick={() => setFinalRound(f => !f)} style={{ flexShrink: 0, padding: 'clamp(4px,1vw,6px) clamp(12px,3vw,18px)', borderRadius: 8, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: finalRound ? 'rgba(251,191,36,0.25)' : 'rgba(0,0,0,0.06)', color: finalRound ? '#92400e' : '#64748b', border: `1px solid ${finalRound ? 'rgba(251,191,36,0.5)' : 'rgba(0,0,0,0.1)'}` }}>
-                  {finalRound ? 'On' : 'Off'}
-                </button>
-              </div>
 
               {(hasPermission(role, 'canTogglePause') || hasPermission(role, 'canEditTeams')) && (
                 <button onClick={onManageTeams} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>

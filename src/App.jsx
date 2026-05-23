@@ -67,6 +67,16 @@ export default function App({ viewerOnly = false }) {
   const [targetRounds, setTargetRounds] = useState(0);
   const [socialCourts, setSocialCourts] = useState([]);
 
+  // Auto-enable finalRound when setup's games-per-team target means the next round is the final
+  useEffect(() => {
+    if (targetRounds <= 0 || finalRound) return;
+    const nextRN = roundNum === 0 ? 1 : roundNum + 1;
+    if (nextRN === targetRounds) {
+      setFinalRound(true);
+      pushAtomicUpdate({ finalRound: true }, err => setFirebaseError(err));
+    }
+  }, [targetRounds, roundNum]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── UI state ──────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('play');
   useEffect(() => { if (activeTab === 'timer') setActiveTab('play'); }, [activeTab]);
