@@ -129,7 +129,7 @@ export default function SetupScreen({ onStart }) {
                   <button className="rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1"
                     style={{ background: sel ? t.color : 'rgba(0,0,0,0.06)', color: sel ? t.text : '#64748b', border: '2px solid ' + (sel ? t.color : 'rgba(0,0,0,0.12)'), cursor: 'pointer' }}>
                     <span onClick={() => setColorTeams(p => p.map(x => x.id === t.id ? { ...x, selected: !x.selected } : x))}>{t.customName || t.name}</span>
-                    {sel && <span onClick={e => { e.stopPropagation(); setEditingId(t.id); }} style={{ cursor: 'text', opacity: 0.7, fontSize: 10, marginLeft: 2 }} title="Rename">✏️</span>}
+                    <span onClick={sel ? e => { e.stopPropagation(); setEditingId(t.id); } : undefined} style={{ opacity: sel ? 0.7 : 0, pointerEvents: sel ? 'auto' : 'none', cursor: sel ? 'text' : 'default', fontSize: 10 }} title="Rename">✏️</span>
                   </button>
                 )}
               </div>
