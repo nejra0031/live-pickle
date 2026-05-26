@@ -48,6 +48,7 @@ export default function App({ viewerOnly = false }) {
   const [roundNum, setRoundNum] = useState(1);
   const [pending, setPending] = useState({});
   const pendingRef = useRef({});
+  const roundCompletingRef = useRef(false); // guards against double-completion per client
   const [roundComplete, setRoundComplete] = useState(false);
   const [roundKey, setRoundKey] = useState(0);
   const [pausedIds, setPausedIds] = useState([]);
@@ -100,6 +101,13 @@ export default function App({ viewerOnly = false }) {
   const historyLengthRef = useRef(0);
 
   const [presence, setPresence] = useState(() => Object.fromEntries([['viewer', 0], ...ROLES.map(r => [r.id, 0])]));
+  const [multiAdminDismissed, setMultiAdminDismissed] = useState(false);
+  const prevOtherAdminCountRef = useRef(0);
+  useEffect(() => {
+    const otherCount = Math.max(0, (presence['admin'] ?? 0) - 1);
+    if (otherCount > prevOtherAdminCountRef.current) setMultiAdminDismissed(false);
+    prevOtherAdminCountRef.current = otherCount;
+  }, [presence]);
   const [firebaseConnected, setFirebaseConnected] = useState(false);
   const [firebaseError, setFirebaseError] = useState(null);
   const [firebaseErrorPersist, setFirebaseErrorPersist] = useState(false);
@@ -629,24 +637,9 @@ export default function App({ viewerOnly = false }) {
       const np = { ...prev, [key]: result };
       pendingRef.current = np;
       if (hasPermission(roleRef.current, 'canSubmitResults')) pushAtomicUpdate({ [`pendingResults/${key}`]: result }, err => setFirebaseError(err));
-      if (round && round.courts.every((_, i) => np[courtKey(i)]) && liveAdditions.every((_, i) => np[liveKey(i)])) {
-        const officialGames = round.courts.map((_, i) => ({ ...np[courtKey(i)], courtNumber: courtNumbers[i] ?? i + 1 }));
-        const liveGames = liveAdditions.map((la, i) => ({ ...np[liveKey(i)], courtNumber: la.courtNumber }));
-        const games = [...officialGames, ...liveGames, ...activeRoundExtras];
-        const entry = { roundNum, games, bye: round.bye.map(t => t.id), paused: (round.paused || []).map(t => t.id) };
-        const nh = [...history, entry], ns = rebuildStandings(activeTeamIds, nh);
-        if (hasPermission(roleRef.current, 'canSubmitResults')) {
-          const bm = breakModeRef.current;
-          const completeSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
-          const snap = { phase: 'play', activeTeamIds, courtNumbers, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history: nh, roundNum, pausedIds, roundComplete: true, timerRunning: bm ? timerRunningRef.current : false, timerStartedAt: bm ? timerStartedAtRef.current : null, timerPausedSecsLeft: bm ? completeSecs : timerDuration, roundData: null, breakMode: bm, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras: [], liveAdditions: [], nextRoundPresets, tournamentFinished, savedAt: Date.now() };
-          pushSnapshot(snap, err => err && setCriticalError('Round result failed to save — tap Retry.', snap));
-        }
-        setHistory(nh); setStandings(ns); setRound(null); setRoundComplete(true); setActiveRoundExtras([]); setLiveAdditions([]);
-        setTimerAlarmed(false); if (!breakModeRef.current) applyTimerState(false, null, timerDuration);
-      }
       return np;
     });
-  }, [round, liveAdditions, activeRoundExtras, roundNum, history, activeTeamIds, courtNumbers, tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, pausedIds, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, nextRoundPresets, tournamentFinished, applyTimerState, setCriticalError]);
+  }, []);
 
   const handleLiveResult = useCallback((i, result) => {
     const key = liveKey(i);
@@ -654,24 +647,36 @@ export default function App({ viewerOnly = false }) {
       const np = { ...prev, [key]: result };
       pendingRef.current = np;
       if (hasPermission(roleRef.current, 'canSubmitResults')) pushAtomicUpdate({ [`pendingResults/${key}`]: result }, err => setFirebaseError(err));
-      if (round && round.courts.every((_, ci) => np[courtKey(ci)]) && liveAdditions.every((_, li) => np[liveKey(li)])) {
-        const officialGames = round.courts.map((_, ci) => ({ ...np[courtKey(ci)], courtNumber: courtNumbers[ci] ?? ci + 1 }));
-        const liveGames = liveAdditions.map((la, li) => ({ ...np[liveKey(li)], courtNumber: la.courtNumber }));
-        const games = [...officialGames, ...liveGames, ...activeRoundExtras];
-        const entry = { roundNum, games, bye: round.bye.map(t => t.id), paused: (round.paused || []).map(t => t.id) };
-        const nh = [...history, entry], ns = rebuildStandings(activeTeamIds, nh);
-        if (hasPermission(roleRef.current, 'canSubmitResults')) {
-          const bm = breakModeRef.current;
-          const completeSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
-          const snap = { phase: 'play', activeTeamIds, courtNumbers, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history: nh, roundNum, pausedIds, roundComplete: true, timerRunning: bm ? timerRunningRef.current : false, timerStartedAt: bm ? timerStartedAtRef.current : null, timerPausedSecsLeft: bm ? completeSecs : timerDuration, roundData: null, breakMode: bm, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras: [], liveAdditions: [], nextRoundPresets, tournamentFinished, savedAt: Date.now() };
-          pushSnapshot(snap, err => err && setCriticalError('Round result failed to save — tap Retry.', snap));
-        }
-        setHistory(nh); setStandings(ns); setRound(null); setRoundComplete(true); setActiveRoundExtras([]); setLiveAdditions([]);
-        setTimerAlarmed(false); if (!breakModeRef.current) applyTimerState(false, null, timerDuration);
-      }
       return np;
     });
-  }, [round, liveAdditions, activeRoundExtras, roundNum, history, activeTeamIds, courtNumbers, tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, pausedIds, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, nextRoundPresets, tournamentFinished, applyTimerState, setCriticalError]);
+  }, []);
+
+  // Reset the completing guard whenever a new round starts (roundComplete → false).
+  useEffect(() => { if (!roundComplete) roundCompletingRef.current = false; }, [roundComplete]);
+
+  // Detects when all courts are filled and completes the round. Runs on every
+  // pending change — whether from a local result entry or from the Firebase
+  // pendingResults listener — so two admins submitting different courts
+  // simultaneously can't leave the round stuck awaiting completion.
+  useEffect(() => {
+    if (!round || roundComplete || roundCompletingRef.current) return;
+    if (!round.courts.every((_, i) => pending[courtKey(i)])) return;
+    if (!liveAdditions.every((_, i) => pending[liveKey(i)])) return;
+    roundCompletingRef.current = true;
+    const officialGames = round.courts.map((_, i) => ({ ...pending[courtKey(i)], courtNumber: courtNumbers[i] ?? i + 1 }));
+    const liveGames = liveAdditions.map((la, i) => ({ ...pending[liveKey(i)], courtNumber: la.courtNumber }));
+    const games = [...officialGames, ...liveGames, ...activeRoundExtras];
+    const entry = { roundNum, games, bye: round.bye.map(t => t.id), paused: (round.paused || []).map(t => t.id) };
+    const nh = [...history, entry], ns = rebuildStandings(activeTeamIds, nh);
+    if (hasPermission(roleRef.current, 'canSubmitResults')) {
+      const bm = breakModeRef.current;
+      const completeSecs = bm && timerRunningRef.current && timerStartedAtRef.current ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000)) : timerPausedSecsRef.current;
+      const snap = { phase: 'play', activeTeamIds, courtNumbers, teamRegistry: tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, history: nh, roundNum, pausedIds, roundComplete: true, timerRunning: bm ? timerRunningRef.current : false, timerStartedAt: bm ? timerStartedAtRef.current : null, timerPausedSecsLeft: bm ? completeSecs : timerDuration, roundData: null, breakMode: bm, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, activeRoundExtras: [], liveAdditions: [], nextRoundPresets, tournamentFinished, savedAt: Date.now() };
+      pushSnapshot(snap, err => err && setCriticalError('Round result failed to save — tap Retry.', snap));
+    }
+    setHistory(nh); setStandings(ns); setRound(null); setRoundComplete(true); setActiveRoundExtras([]); setLiveAdditions([]);
+    setTimerAlarmed(false); if (!breakModeRef.current) applyTimerState(false, null, timerDuration);
+  }, [pending, round, roundComplete, liveAdditions, activeRoundExtras, roundNum, history, activeTeamIds, courtNumbers, tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins, pausedIds, tournamentMode, roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot, nextRoundPresets, tournamentFinished, applyTimerState, setCriticalError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRegenerateRound = useCallback(() => {
     if (Object.keys(pending).length > 0) { setPinPurpose('regenerate'); return; }
@@ -990,9 +995,10 @@ export default function App({ viewerOnly = false }) {
         </div>
 
         {/* ── Firebase error toast ── */}
-        {isAdmin && ((presence['admin'] ?? 0) - 1) > 0 && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99, padding: '6px 16px', background: '#d97706', color: '#fff', fontWeight: 700, fontSize: 13, textAlign: 'center' }}>
-            ⚠️ {(presence['admin'] ?? 0) - 1} other admin session{(presence['admin'] ?? 0) - 1 > 1 ? 's' : ''} active — only one admin should write at a time.
+        {isAdmin && !multiAdminDismissed && ((presence['admin'] ?? 0) - 1) > 0 && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99, padding: '6px 16px', background: '#d97706', color: '#fff', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+            <span>⚠️ {(presence['admin'] ?? 0) - 1} other admin session{(presence['admin'] ?? 0) - 1 > 1 ? 's' : ''} active — results from multiple admins are now handled safely.</span>
+            <button onClick={() => setMultiAdminDismissed(true)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 18, lineHeight: 1, padding: '0 2px', flexShrink: 0 }}>×</button>
           </div>
         )}
         {firebaseError && (
