@@ -1,7 +1,7 @@
 const TEST_PIN = 'test1234';
 
 async function loginAsAdmin(page) {
-  await page.click('button:has-text("Admin login")');
+  await page.click('button:has-text("Login")');
   await page.fill('input[type="password"]', TEST_PIN);
   await page.click('button:has-text("Unlock")');
   await page.waitForSelector('button:has-text("Admin")', { timeout: 5000 });
