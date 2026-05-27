@@ -152,27 +152,6 @@ export default function ThreePlayerSection({
         </div>
       )}
 
-      {/* Past rounds */}
-      {history.length > 0 && (
-        <div className="flex flex-col" style={{ gap: 'clamp(8px,2vw,12px)' }}>
-          {[...history].reverse().map((h, idx) => {
-            if (!h.tptMatchups) return null;
-            const ri = history.length - 1 - idx;
-            return (
-              <div key={ri} className="flex flex-col" style={{ gap: 'clamp(6px,1.5vw,8px)', padding: 'clamp(10px,2.5vw,14px)', borderRadius: 14, background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.2)' }}>
-                <div className="flex items-center justify-between">
-                  <span style={{ color: '#16a34a', fontWeight: 800, fontSize: 'clamp(12px,3vw,15px)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    ✓ Round {h.roundNum} · Complete
-                  </span>
-                </div>
-                {h.tptMatchups.map((matchup, mi) =>
-                  renderMatchupCard(matchup, mi, ri, false)
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {/* Admin controls */}
       {isAdmin && !allDone && (
