@@ -10,7 +10,7 @@ function sideLabel(playerIds, players) {
 
 function GameLabel({ type, idx }) {
   if (type === 'males_doubles') return <span style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Males doubles</span>;
-  return <span style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, color: '#be185d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mixed doubles {idx === 1 ? '①' : '②'}</span>;
+  return <span style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, color: '#be185d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mixed doubles {idx === 1 ? '#1' : '#2'}</span>;
 }
 
 export default function ThreePlayerSection({
@@ -74,15 +74,15 @@ export default function ThreePlayerSection({
           const sideB = { id: teamB.id, name: sideLabel(game.sideB, tptPlayers), color: teamB.color, text: teamB.text };
 
           return (
-            <div key={gi}>
+            <div key={key}>
               <div className="mb-1 px-1">
                 <GameLabel type={game.type} idx={gi} />
               </div>
-              {isCurrentRound && canWrite ? (
+              {isCurrentRound && canWrite && !pendingResult ? (
                 <CourtCard
                   courtLabel={game.label}
                   teams={[sideA, sideB]}
-                  pendingResult={pendingResult}
+                  pendingResult={null}
                   onResult={r => onTPTResult(ri, mi, gi, { winnerTeamId: r.winnerId, loserTeamId: r.loserId, winnerScore: r.winnerScore, loserScore: r.loserScore })}
                 />
               ) : (

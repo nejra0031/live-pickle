@@ -370,10 +370,11 @@ export default function App({ viewerOnly = false }) {
     const newHistory = [...roundMgmtStateRef.current.history, histEntry];
     pushAtomicUpdate(
       { [`tptResults/${key}`]: result, history: newHistory, roundNum: newRoundNum },
-      err => { tptRoundCompletingRef.current = false; if (err) setFirebaseError(err); }
+      err => { if (err) setFirebaseError(err); }
     );
     setHistory(newHistory);
     setRoundNum(newRoundNum);
+    tptRoundCompletingRef.current = false;
   }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleManageTPTTeamsSave = useCallback((newTPTTeams, newPlayers) => {

@@ -46,9 +46,8 @@ export default function ManageTeamsModal({ activeTeamIds, tournamentTeams, pause
                 const t = teamById(id), p = pausedIds.includes(id);
                 return (
                   <button key={id} onClick={() => onTogglePause(id)} title={p ? 'Return to rotation' : 'Pause (injury/break)'}
-                    className="flex items-center rounded-full font-bold"
-                    style={{ gap: 'clamp(4px,1vw,6px)', padding: 'clamp(5px,1.2vw,8px) clamp(10px,2.5vw,16px)', fontSize: 'clamp(12px,3vw,16px)', background: p ? 'rgba(0,0,0,0.05)' : t.color, color: p ? '#94a3b8' : t.text, border: `2px solid ${p ? 'rgba(0,0,0,0.08)' : t.color}`, cursor: 'pointer', opacity: p ? 0.6 : 1, textDecoration: p ? 'line-through' : 'none' }}>
-                    <span style={{ visibility: p ? 'visible' : 'hidden', lineHeight: 1 }}>⏸</span>
+                    className="rounded-full font-bold"
+                    style={{ padding: 'clamp(5px,1.2vw,8px) clamp(10px,2.5vw,16px)', fontSize: 'clamp(12px,3vw,16px)', background: p ? 'rgba(0,0,0,0.05)' : t.color, color: p ? '#94a3b8' : t.text, border: `2px solid ${p ? 'rgba(0,0,0,0.08)' : t.color}`, cursor: 'pointer', opacity: p ? 0.6 : 1, textDecoration: p ? 'line-through' : 'none' }}>
                     {t.name}
                   </button>
                 );
