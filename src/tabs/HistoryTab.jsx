@@ -7,6 +7,7 @@ export default function HistoryTab({
   roundRobinStartSnapshot, roundRobinEndSnapshot,
   canEditScores, canDeleteGame, canFullEdit,
   backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound, onEditCourtNumber,
+  tptTeams = {}, tptPlayers = {},
 }) {
   const teamById = useTeamById();
   const [newestFirst, setNewestFirst] = useState(true);
@@ -179,7 +180,58 @@ export default function HistoryTab({
           );
         }
         const { h, ri } = entry;
+        const isTPTRound = !!h.tptMatchups;
         const seIdx = sortedEntries.findIndex(e => e.ri === ri);
+
+        if (isTPTRound) {
+          const byeTeam = h.tptByeTeamId ? tptTeams[h.tptByeTeamId] : null;
+          return (
+            <div key={ri} className="rounded-2xl" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+              <div style={{ padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)', background: 'rgba(15,76,117,0.06)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+                <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#0f4c75', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Round {h.roundNum}</span>
+              </div>
+              <div style={{ padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)', display: 'flex', flexDirection: 'column', gap: 'clamp(8px,2vw,12px)' }}>
+                {h.tptMatchups.map((matchup, mi) => {
+                  const teamA = tptTeams[matchup.teamAId];
+                  const teamB = tptTeams[matchup.teamBId];
+                  if (!teamA || !teamB) return null;
+                  return (
+                    <div key={mi} className="rounded-xl" style={{ padding: 'clamp(8px,2vw,12px)', border: '1px solid rgba(0,0,0,0.07)', background: 'rgba(0,0,0,0.01)' }}>
+                      <div className="flex items-center gap-2" style={{ marginBottom: 'clamp(6px,1.5vw,10px)' }}>
+                        <span className="inline-flex items-center rounded-full font-black" style={{ background: teamA.color, color: teamA.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px' }}>{teamA.name}</span>
+                        <span style={{ color: '#94a3b8', fontWeight: 700 }}>vs</span>
+                        <span className="inline-flex items-center rounded-full font-black" style={{ background: teamB.color, color: teamB.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px' }}>{teamB.name}</span>
+                      </div>
+                      {(matchup.games || []).map((game, gi) => {
+                        if (!game) return null;
+                        const winTeam = game.winnerTeamId === teamA.id ? teamA : teamB;
+                        const loseTeam = game.winnerTeamId === teamA.id ? teamB : teamA;
+                        const label = gi === 0 ? 'Males' : `Mixed ${gi === 1 ? '①' : '②'}`;
+                        return (
+                          <div key={gi} className="flex items-center flex-wrap" style={{ gap: 'clamp(4px,1vw,8px)', padding: 'clamp(3px,0.8vw,5px) 0', borderTop: gi > 0 ? '1px solid rgba(0,0,0,0.05)' : undefined }}>
+                            <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: gi === 0 ? '#1d4ed8' : '#be185d', fontWeight: 700, minWidth: 'clamp(34px,8vw,52px)', flexShrink: 0 }}>{label}</span>
+                            <span className="inline-flex items-center rounded-full font-bold" style={{ background: winTeam.color, color: winTeam.text, fontSize: 'clamp(10px,2.5vw,13px)', padding: '2px 8px' }}>{winTeam.name}</span>
+                            <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{game.winnerScore}</span>
+                            <span style={{ color: '#94a3b8' }}>–</span>
+                            <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{game.loserScore}</span>
+                            <span className="inline-flex items-center rounded-full font-bold" style={{ background: loseTeam.color, color: loseTeam.text, fontSize: 'clamp(10px,2.5vw,13px)', padding: '2px 8px' }}>{loseTeam.name}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+                {byeTeam && (
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700 }}>Bye:</span>
+                    <span className="inline-flex items-center rounded-full font-bold" style={{ background: byeTeam.color, color: byeTeam.text, fontSize: 'clamp(11px,3vw,14px)', padding: '2px 10px' }}>{byeTeam.name}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+
         const sbf = rebuildStandings(activeTeamIds, sortedEntries.slice(0, seIdx).map(e => e.h));
         const saf = rebuildStandings(activeTeamIds, sortedEntries.slice(0, seIdx + 1).map(e => e.h));
         const rbf = rerank(sbf), raf = rerank(saf);

@@ -7,6 +7,7 @@ import { ROLES, ROLE_MAP, hasPermission } from './roleConfig';
 import { normaliseSnapshot } from './normalise';
 import { mkStandings, rerank, rebuildStandings } from './algorithms/standings';
 import { generateRound } from './algorithms/pairing';
+import { generateTPTSchedule, buildTPTStandings } from './algorithms/threePlayerTeam';
 import useOnline from './hooks/useOnline';
 import { useFirebaseSync } from './hooks/useFirebaseSync';
 import { useRoundTimer } from './hooks/useRoundTimer';
@@ -21,6 +22,7 @@ import ConfirmModal from './modals/ConfirmModal';
 import BreakModal from './modals/BreakModal';
 import TimerSettingsModal from './modals/TimerSettingsModal';
 import ManageTeamsModal from './modals/ManageTeamsModal';
+import ManageTPTTeamsModal from './modals/ManageTPTTeamsModal';
 import ManageCourtsModal from './modals/ManageCourtsModal';
 import SelectRoundRobinTeamsModal from './modals/SelectRoundRobinTeamsModal';
 import AddGameModal from './modals/AddGameModal';
@@ -70,6 +72,15 @@ export default function App({ viewerOnly = false }) {
   const [finalRound,        setFinalRound]         = useState(false);
   const [targetRounds,      setTargetRounds]       = useState(0);
   const [socialCourts,      setSocialCourts]       = useState([]);
+
+  // ── TPT state ─────────────────────────────────────────────────────────────
+  const [tptTeams,    setTPTTeams]    = useState({});
+  const [tptPlayers,  setTPTPlayers]  = useState({});
+  const [tptSchedule, setTPTSchedule] = useState([]);
+  const [tptResults,  setTPTResults]  = useState({});
+  const tptResultsRef  = useRef({});
+  const tptScheduleRef = useRef([]);
+  const tptRoundCompletingRef = useRef(false);
 
   // Auto-enable finalRound when next round equals the target
   useEffect(() => {
@@ -177,6 +188,10 @@ export default function App({ viewerOnly = false }) {
     setSocialCourts(validSocial);
     setFinalRound(!!s.finalRound);
     setTargetRounds(s.targetRounds || 0);
+    if (s.tptTeams)    { setTPTTeams(s.tptTeams);    }
+    if (s.players)     { setTPTPlayers(s.players);   }
+    if (s.tptSchedule) { setTPTSchedule(s.tptSchedule); tptScheduleRef.current = s.tptSchedule; }
+    if (s.tptResults)  { setTPTResults(s.tptResults); tptResultsRef.current = s.tptResults; }
     historyLengthRef.current = s.history.length;
     if (s._tournamentId) tournamentIdRef.current = s._tournamentId;
     const isNew = s.roundNum !== lastSeenRoundNum.current;
@@ -262,6 +277,11 @@ export default function App({ viewerOnly = false }) {
 
   const ranked = useMemo(() => rerank(standings), [standings]);
 
+  const tptTeamStandings = useMemo(() => {
+    if (tournamentMode !== 'tpt' || Object.keys(tptTeams).length === 0) return [];
+    return buildTPTStandings(tptTeams, tptPlayers, tptSchedule, tptResults).teamStandings;
+  }, [tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults]);
+
   // ── Tournament lifecycle handlers ──────────────────────────────────────────
   const handleStart = useCallback((allTeams, teamIds, courts, durSecs, title, numRounds) => {
     setTournamentTeams(allTeams); setModuleRegistry(allTeams);
@@ -280,6 +300,86 @@ export default function App({ viewerOnly = false }) {
     setTargetRounds(tr); setTimerAlarmed(false); applyTimerState(false, null, durSecs);
     setPhase('play'); setActiveTab('play');
   }, [applyTimerState]);
+
+  const handleStartTPT = useCallback((tptTeamsData, playersData, courts, durSecs, title) => {
+    const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    tournamentIdRef.current = tid;
+    const schedule = generateTPTSchedule(Object.keys(tptTeamsData));
+    const resolvedTitle = title || 'Tournament';
+    setTournamentTitle(resolvedTitle);
+    document.title = resolvedTitle;
+    const snap = {
+      phase: 'play', _tournamentId: tid,
+      tournamentMode: 'tpt', tournamentTitle: resolvedTitle,
+      courtNumbers: courts, socialCourts: [],
+      timerDuration: durSecs, timerDefaultMins: durSecs > 0 ? Math.round(durSecs / 60) : 12,
+      tptTeams: tptTeamsData, players: playersData,
+      tptSchedule: schedule, tptResults: {},
+      history: [], roundNum: 0,
+      activeTeamIds: [], teamRegistry: [], pausedIds: [],
+      timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: durSecs,
+      roundData: null, roundComplete: false, savedAt: Date.now(),
+    };
+    pushSnapshot(snap, err => setFirebaseError(err));
+    setRole('admin');
+    setTPTTeams(tptTeamsData); setTPTPlayers(playersData);
+    setTPTSchedule(schedule); tptScheduleRef.current = schedule;
+    setTPTResults({}); tptResultsRef.current = {};
+    tptRoundCompletingRef.current = false;
+    setCourtNumbers(courts); setTimerDuration(durSecs);
+    setHistory([]); setRoundNum(0); setActiveTeamIds([]); setStandings([]);
+    setTournamentMode('tpt'); setRound(null); setPausedIds([]);
+    lastSeenRoundNum.current = 0; pendingRef.current = {}; setPending({}); setRoundKey(0); setRoundComplete(false);
+    setRoundRobinSchedule(null); setRoundRobinCourts(null); setRoundRobinStartRoundNum(null);
+    setRoundRobinStartSnapshot(null); setRoundRobinEndSnapshot(null);
+    setActiveRoundExtras([]); setTournamentFinished(false); setSocialCourts([]);
+    setTimerAlarmed(false); applyTimerState(false, null, durSecs);
+    setPhase('play'); setActiveTab('play');
+  }, [applyTimerState]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTPTResult = useCallback((schedRoundIdx, matchupIdx, gameIdx, result) => {
+    if (!hasPermission(roleRef.current, 'canSubmitResults')) return;
+    const key = `${schedRoundIdx}_${matchupIdx}_${gameIdx}`;
+    const newResults = { ...tptResultsRef.current, [key]: result };
+    setTPTResults(newResults);
+    tptResultsRef.current = newResults;
+
+    const schedRound = tptScheduleRef.current[schedRoundIdx];
+    if (!schedRound) { pushAtomicUpdate({ [`tptResults/${key}`]: result }, err => setFirebaseError(err)); return; }
+
+    const allDone = !tptRoundCompletingRef.current &&
+      schedRound.matchups.every((_, mi2) => [0, 1, 2].every(gi => !!newResults[`${schedRoundIdx}_${mi2}_${gi}`]));
+
+    if (!allDone) {
+      pushAtomicUpdate({ [`tptResults/${key}`]: result }, err => setFirebaseError(err));
+      return;
+    }
+
+    tptRoundCompletingRef.current = true;
+    const curRoundNum = roundMgmtStateRef.current.roundNum;
+    const newRoundNum = curRoundNum + 1;
+    const histEntry = {
+      roundNum: newRoundNum,
+      games: [], bye: [], paused: [],
+      tptMatchups: schedRound.matchups.map((matchup, mi) => ({
+        teamAId: matchup.teamAId, teamBId: matchup.teamBId,
+        games: [0, 1, 2].map(gi => newResults[`${schedRoundIdx}_${mi}_${gi}`] || null),
+      })),
+      ...(schedRound.byeTeamId ? { tptByeTeamId: schedRound.byeTeamId } : {}),
+    };
+    const newHistory = [...roundMgmtStateRef.current.history, histEntry];
+    pushAtomicUpdate(
+      { [`tptResults/${key}`]: result, history: newHistory, roundNum: newRoundNum },
+      err => { tptRoundCompletingRef.current = false; if (err) setFirebaseError(err); }
+    );
+    setHistory(newHistory);
+    setRoundNum(newRoundNum);
+  }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleManageTPTTeamsSave = useCallback((newTPTTeams, newPlayers) => {
+    setTPTTeams(newTPTTeams); setTPTPlayers(newPlayers); closeModal();
+    pushAtomicUpdate({ tptTeams: newTPTTeams, players: newPlayers }, err => setFirebaseError(err));
+  }, [closeModal]);
 
   const doRevertToRound = useCallback(async () => {
     const target = modal.data?.roundNum;
@@ -320,8 +420,10 @@ export default function App({ viewerOnly = false }) {
     setRoundRobinStartSnapshot(null); setRoundRobinEndSnapshot(null);
     setActiveRoundExtras([]); setLiveAdditions([]); setNextRoundPresets([]);
     setTournamentFinished(false); setBreakMode(null); setCancelledRoundNums([]); setSocialCourts([]);
+    setTPTTeams({}); setTPTPlayers({}); setTPTSchedule([]); setTPTResults({});
+    tptResultsRef.current = {}; tptScheduleRef.current = []; tptRoundCompletingRef.current = false;
     resetTimer(0);
-  }, [resetTimer, setBackupRoundNums]);
+  }, [resetTimer, setBackupRoundNums]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePinSuccess = useCallback((matchedRole) => {
     const { purpose, ...payload } = modal.data || {};
@@ -600,7 +702,8 @@ export default function App({ viewerOnly = false }) {
         )}
         {modal.open === 'break' && <BreakModal onStart={handleBreakStart} onClose={closeModal} />}
         {modal.open === 'timerSettings' && <TimerSettingsModal currentMins={timerDefaultMins} onSave={m => { setTimerDefaultMins(m); setTimerDuration(m * 60); if (hasPermission(roleRef.current, 'canEditTimer')) pushAtomicUpdate({ timerDefaultMins: m, timerDuration: m * 60 }, err => setFirebaseError(err)); closeModal(); }} onClose={closeModal} />}
-        {modal.open === 'manageTeams' && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={handleTogglePause} onSave={handleManageTeamsSave} onClose={closeModal} canEditRoster={hasPermission(role, 'canEditTeams')} />}
+        {modal.open === 'manageTeams' && tournamentMode !== 'tpt' && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={handleTogglePause} onSave={handleManageTeamsSave} onClose={closeModal} canEditRoster={hasPermission(role, 'canEditTeams')} />}
+        {modal.open === 'manageTeams' && tournamentMode === 'tpt' && isAdmin && <ManageTPTTeamsModal tptTeams={tptTeams} tptPlayers={tptPlayers} onSave={handleManageTPTTeamsSave} onClose={closeModal} />}
         {modal.open === 'manageCourts' && <ManageCourtsModal courtNumbers={courtNumbers} socialCourts={socialCourts} rrCourtCount={tournamentMode === 'roundrobin' ? (roundRobinCourts?.length ?? 0) : 0} onSave={handleManageCourtsSave} onClose={closeModal} />}
         {modal.open === 'selectRRTeams' && <SelectRoundRobinTeamsModal rankedTeamIds={ranked.map(t => t.id)} tournamentCourts={courtNumbers} onConfirm={handleStartRoundRobin} onClose={closeModal} />}
         {modal.open === 'addGame' && addGameData && <AddGameModal allTeamIds={activeTeamIds} defaultCourt={addGameData.defaultCourt} courtNumbers={courtNumbers} usedCourtNumbers={addGameData.usedCourts} usedTeamIds={addGameData.usedTeams} label={addGameData.label} onSave={g => handleAddGameSave(addGameData.target, g)} onClose={closeModal} />}
@@ -680,7 +783,7 @@ export default function App({ viewerOnly = false }) {
               }
             </div>
           )}
-          {(phase === 'loading' || phase === 'waiting' || phase === 'setup') && isAdmin && <SetupScreen onStart={handleStart} />}
+          {(phase === 'loading' || phase === 'waiting' || phase === 'setup') && isAdmin && <SetupScreen onStart={handleStart} onStartTPT={handleStartTPT} />}
 
           {phase === 'play' && (
             <>
@@ -688,12 +791,14 @@ export default function App({ viewerOnly = false }) {
                 <PlayTab
                   tournamentFinished={tournamentFinished} breakMode={activeTab === 'play' ? breakMode : null}
                   round={round} roundNum={roundNum} tournamentMode={tournamentMode}
+                  tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults}
+                  onTPTResult={handleTPTResult}
                   roundRobinSchedule={roundRobinSchedule} roundRobinCourts={roundRobinCourts} roundRobinStartRoundNum={roundRobinStartRoundNum}
                   courtNumbers={courtNumbers} socialCourts={socialCourts} liveAdditions={liveAdditions}
                   pending={pending} role={role} finalRound={finalRound} pausedIds={pausedIds}
                   targetRounds={targetRounds}
                   setFinalRound={v => { setFinalRound(v); if (hasPermission(roleRef.current, 'canSetFinalRound')) pushAtomicUpdate({ finalRound: v }, err => setFirebaseError(err)); }}
-                  history={history} ranked={ranked} activeRoundExtras={activeRoundExtras}
+                  history={history} ranked={tournamentMode === 'tpt' ? tptTeamStandings : ranked} activeRoundExtras={activeRoundExtras}
                   nextRoundPresets={nextRoundPresets} roundKey={roundKey}
                   timerSecsLeft={timerSecsLeft} timerDuration={timerDuration} timerRunning={timerRunning}
                   onTimerToggle={timerToggle} onTimerRestart={() => resetTimer(timerDuration)} onTimerSettings={() => openModal('timerSettings')}
@@ -718,10 +823,11 @@ export default function App({ viewerOnly = false }) {
                   rrMatchKey={rrMatchKey}
                 />
               )}
-              {activeTab === 'standings' && <StandingsTab ranked={ranked} pausedIds={pausedIds} />}
+              {activeTab === 'standings' && <StandingsTab ranked={ranked} pausedIds={pausedIds} tournamentMode={tournamentMode} tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults} />}
               {activeTab === 'history' && (
                 <HistoryTab
                   history={history} activeTeamIds={activeTeamIds} cancelledRoundNums={cancelledRoundNums}
+                  tptTeams={tptTeams} tptPlayers={tptPlayers}
                   roundRobinStartSnapshot={roundRobinStartSnapshot} roundRobinEndSnapshot={roundRobinEndSnapshot}
                   canEditScores={hasPermission(role, 'canEditHistoryScores') || hasPermission(role, 'canFullEditHistory')}
                   canDeleteGame={hasPermission(role, 'canDeleteHistoryGame')}

@@ -30,7 +30,11 @@ export function normaliseSnapshot(s) {
     : null;
   if (registry && registry.length > 0) setModuleRegistry(registry);
 
-  const h = toArr(s.history).map(r => ({ ...r, games: toArr(r.games), bye: toArr(r.bye), paused: toArr(r.paused) }));
+  const h = toArr(s.history).map(r => {
+    const base = { ...r, games: toArr(r.games), bye: toArr(r.bye), paused: toArr(r.paused) };
+    if (r.tptMatchups) base.tptMatchups = toArr(r.tptMatchups).map(m => ({ ...m, games: toArr(m.games) }));
+    return base;
+  });
 
   const rd = s.roundData ? {
     courtTeamIds:   toArr(s.roundData.courtTeamIds).map(p => toArr(p)),
@@ -49,6 +53,22 @@ export function normaliseSnapshot(s) {
     endRoundNum: s.roundRobinEndSnapshot.endRoundNum ?? null,
     endReason:   s.roundRobinEndSnapshot.endReason || 'manual',
   } : null;
+
+  const tptSchedule = s.tptSchedule
+    ? toArr(s.tptSchedule).map(r => ({
+        matchups: toArr(r.matchups).map(m => ({ teamAId: String(m.teamAId), teamBId: String(m.teamBId) })),
+        byeTeamId: r.byeTeamId || null,
+      }))
+    : null;
+
+  const tptTeams = s.tptTeams
+    ? Object.fromEntries(
+        Object.entries(s.tptTeams).map(([id, t]) => [
+          id,
+          { ...t, maleIds: toArr(t.maleIds).map(String), femaleId: String(t.femaleId || '') },
+        ])
+      )
+    : null;
 
   return {
     ...s,
@@ -69,5 +89,9 @@ export function normaliseSnapshot(s) {
     liveAdditions:           s.liveAdditions        ? toArr(s.liveAdditions)       : [],
     cancelledRoundNums:      s.cancelledRoundNums   ? toArr(s.cancelledRoundNums).map(Number) : [],
     tournamentFinished:      !!s.tournamentFinished,
+    tptSchedule,
+    tptTeams,
+    players:                 s.players   || null,
+    tptResults:              s.tptResults || null,
   };
 }

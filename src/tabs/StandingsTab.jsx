@@ -1,8 +1,13 @@
 import { useTeamById } from '../context/TeamRegistryContext';
 import { ORDINAL } from '../constants';
+import ThreePlayerStandingsTab from './ThreePlayerStandingsTab';
 
-export default function StandingsTab({ ranked, pausedIds }) {
+export default function StandingsTab({ ranked, pausedIds, tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults }) {
   const teamById = useTeamById();
+
+  if (tournamentMode === 'tpt') {
+    return <ThreePlayerStandingsTab tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults} />;
+  }
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}>

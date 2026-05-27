@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ALL_TEAMS } from '../constants';
+import ThreePlayerSetupScreen from './ThreePlayerSetupScreen';
 
 const PRESET = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -59,7 +60,8 @@ function roundsForGames(numTeams, numCourts, targetGames) {
   return null;
 }
 
-export default function SetupScreen({ onStart }) {
+export default function SetupScreen({ onStart, onStartTPT }) {
+  const [tournamentType, setTournamentType] = useState('swiss');
   const [colorTeams, setColorTeams] = useState(ALL_TEAMS.map(t => ({ ...t, selected: false, customName: t.name })));
   const [editingId, setEditingId] = useState(null);
   const [courts, setCourts] = useState([]);
@@ -101,7 +103,18 @@ export default function SetupScreen({ onStart }) {
 
   const iS = { padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.12)', color: '#1e293b', outline: 'none' };
 
+  if (tournamentType === 'tpt') {
+    return (
+      <div className="flex flex-col gap-4">
+        <TypeToggle value={tournamentType} onChange={setTournamentType} />
+        <ThreePlayerSetupScreen onStart={onStartTPT} />
+      </div>
+    );
+  }
+
   return (
+    <div className="flex flex-col gap-4">
+      <TypeToggle value={tournamentType} onChange={setTournamentType} />
     <div className="rounded-2xl p-6 flex flex-col gap-6" style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.7)', backdropFilter: 'blur(8px)' }}>
       <div>
         <p className="text-sm font-bold text-slate-700 mb-1">Tournament Name</p>
@@ -241,6 +254,25 @@ export default function SetupScreen({ onStart }) {
         disabled={!canStart} className="w-full py-3 rounded-xl font-bold text-base btn-blue">
         Start Tournament 🚀
       </button>
+    </div>
+    </div>
+  );
+}
+
+function TypeToggle({ value, onChange }) {
+  const opts = [
+    { id: 'swiss', label: '🎾 Swiss / Round Robin' },
+    { id: 'tpt',   label: '👥 3-Player Team' },
+  ];
+  return (
+    <div className="flex gap-2 rounded-xl overflow-hidden" style={{ border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.5)' }}>
+      {opts.map(o => (
+        <button key={o.id} onClick={() => onChange(o.id)}
+          className="flex-1 py-2 font-bold text-sm"
+          style={{ background: value === o.id ? 'linear-gradient(90deg,#0f4c75,#1a6fa8)' : 'transparent', color: value === o.id ? '#fff' : '#475569', border: 'none', cursor: 'pointer' }}>
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }
