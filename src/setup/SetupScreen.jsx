@@ -232,15 +232,10 @@ export default function SetupScreen({ onStart, onStartTPT }) {
         ) : (
           <p className="text-slate-400 text-xs">Select teams and courts to see options.</p>
         )}
-        {selectedGames > 0 && (
-          <p className="text-slate-500 text-xs mt-2">
-            Takes <strong>{parsedRounds}</strong> round{parsedRounds !== 1 ? 's' : ''}
-          </p>
-        )}
       </div>
 
       <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)', color: '#475569' }}>
-        {courts.length} court{courts.length !== 1 ? 's' : ''} → {effectiveCourts * 2} play, {Math.max(0, allTeamIds.length - effectiveCourts * 2)} bye per round{timerEnabled ? ' · ' + timerMins + ' min rounds' : ''}.<br />
+        {courts.length} court{courts.length !== 1 ? 's' : ''} → {effectiveCourts * 2} play, {Math.max(0, allTeamIds.length - effectiveCourts * 2)} bye per round{parsedRounds > 0 ? ' · ' + parsedRounds + ' round' + (parsedRounds !== 1 ? 's' : '') : ''}{timerEnabled ? ' · ' + timerMins + ' min rounds' : ''}.<br />
         No back-to-back byes. Bye partnerships rotate.
       </div>
 
