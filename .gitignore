@@ -4,3 +4,7 @@ archive/
 .claude/
 *.md
 *.md.bak
+
+# Playwright test artifacts
+playwright-report/
+test-results/
