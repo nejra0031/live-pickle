@@ -61,7 +61,7 @@ export function useRoundTimer({ timerDuration, roleRef, onFirebaseError }) {
     setTimerAlarmed(false);
     applyTimerState(false, null, s);
     if (hasPermission(roleRef.current, 'canEditTimer')) {
-      pushAtomicUpdate({ timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s }, err => onFirebaseError(err));
+      pushAtomicUpdate({ timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s }, onFirebaseError);
     }
   }, [applyTimerState, roleRef, onFirebaseError]);
 
@@ -70,13 +70,13 @@ export function useRoundTimer({ timerDuration, roleRef, onFirebaseError }) {
       const sa = Date.now();
       applyTimerState(true, sa, timerPausedSecsRef.current);
       if (hasPermission(roleRef.current, 'canEditTimer')) {
-        pushAtomicUpdate({ timerRunning: true, timerStartedAt: sa, timerPausedSecsLeft: timerPausedSecsRef.current }, err => onFirebaseError(err));
+        pushAtomicUpdate({ timerRunning: true, timerStartedAt: sa, timerPausedSecsLeft: timerPausedSecsRef.current }, onFirebaseError);
       }
     } else {
       const s = computeSecsLeft();
       applyTimerState(false, null, s);
       if (hasPermission(roleRef.current, 'canEditTimer')) {
-        pushAtomicUpdate({ timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s }, err => onFirebaseError(err));
+        pushAtomicUpdate({ timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s }, onFirebaseError);
       }
     }
   }, [applyTimerState, computeSecsLeft, roleRef, onFirebaseError]);

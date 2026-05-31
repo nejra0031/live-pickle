@@ -1,0 +1,88 @@
+import { ROLES, hasPermission } from '../roleConfig';
+import { courtKey } from '../constants';
+import PinModal from './PinModal';
+import ConfirmModal from './ConfirmModal';
+import BreakModal from './BreakModal';
+import TimerSettingsModal from './TimerSettingsModal';
+import ManageTeamsModal from './ManageTeamsModal';
+import ManageTPTTeamsModal from './ManageTPTTeamsModal';
+import ManageCourtsModal from './ManageCourtsModal';
+import SelectRoundRobinTeamsModal from './SelectRoundRobinTeamsModal';
+import AddGameModal from './AddGameModal';
+import PresetMatchModal from './PresetMatchModal';
+import EditGameModal from './EditGameModal';
+import EditActiveCourtModal from './EditActiveCourtModal';
+
+// Renders whichever modal `modal.open` selects, plus the PIN-purpose title/check
+// derivation. All actions are passed in as handlers — no business logic lives here.
+export default function ModalRoot({
+  modal, openModal, closeModal,
+  // pin
+  pins, pinsLoaded, pinsLoadError, role, onPinSuccess,
+  // confirm / break / timer
+  doRevertToRound, onBreakStart, onConfirmRemoveGame, timerDefaultMins, onTimerSettingsSave,
+  // shared tournament state
+  isAdmin, tournamentMode, activeTeamIds, tournamentTeams, pausedIds,
+  courtNumbers, socialCourts, roundRobinCourts, ranked,
+  round, liveAdditions, nextRoundPresets, history, pending,
+  tptTeams, tptPlayers,
+  // handlers
+  onTogglePause, onManageTeamsSave, onManageTPTTeamsSave, onManageCourtsSave,
+  onStartRoundRobin, addGameData, onAddGameSave, onAddPreset, onAddLiveGame,
+  onEditSave, onEditActiveCourt, onEditLiveAddition,
+}) {
+  const pinPurpose = modal.open === 'pin' ? modal.data?.purpose : null;
+  const pinTitle = pinPurpose === 'login' ? 'Login'
+    : pinPurpose === 'reset' ? 'PIN required to reset'
+    : pinPurpose === 'exitRR' ? 'PIN required to exit Round Robin'
+    : pinPurpose === 'cancelRound' ? 'PIN required to cancel round'
+    : pinPurpose === 'regenerate' ? 'PIN required to regenerate round'
+    : pinPurpose === 'revertToRound' ? `PIN required to revert to Round ${modal.data?.revertTarget}`
+    : pinPurpose?.startsWith('remove') ? 'PIN required to remove'
+    : 'PIN required';
+
+  const pinCheckFn = (() => {
+    if (!pinPurpose) return null;
+    if (pinPurpose === 'login') {
+      if (ROLES.some(r => !pinsLoaded[r.id])) return null;
+      return (hash) => { for (const r of ROLES) { if (pins[r.id] && hash === pins[r.id]) return r.id; } return null; };
+    }
+    const selfAuth  = pinPurpose === 'exitRR' && hasPermission(role, 'canExitRRWithOwnPin');
+    const pinRoleId = selfAuth ? role : 'admin';
+    if (!pinsLoaded[pinRoleId]) return null;
+    return (hash) => (pins[pinRoleId] && hash === pins[pinRoleId]) ? pinRoleId : null;
+  })();
+  const pinLoadError = pinPurpose === 'login'
+    ? ROLES.some(r => pinsLoadError[r.id])
+    : !!(pinsLoadError[pinPurpose === 'exitRR' && hasPermission(role, 'canExitRRWithOwnPin') ? role : 'admin']);
+
+  const editGameTarget     = modal.open === 'editGame'        ? modal.data : null;
+  const editActiveCourtIdx = modal.open === 'editActiveCourt' ? modal.data : null;
+  const editLiveIdxVal     = modal.open === 'editLive'        ? modal.data : null;
+
+  return (
+    <>
+      {modal.open === 'pin' && <PinModal title={pinTitle} checkPin={pinCheckFn} pinLoadError={pinLoadError} onSuccess={onPinSuccess} onClose={closeModal} />}
+      {modal.open === 'tournamentSwapped' && <ConfirmModal title="Tournament changed" message="A new tournament was started from another device. This tab is now showing the new tournament. Reload the page to ensure everything is in sync." confirmLabel="Reload" onConfirm={() => window.location.reload()} onClose={closeModal} />}
+      {modal.open === 'confirmReset' && <ConfirmModal title="Back to Setup" message="This will end the current tournament and reset all data. Are you sure?" confirmLabel="Reset" onConfirm={() => { closeModal(); openModal('pin', { purpose: 'reset' }); }} onClose={closeModal} />}
+      {modal.open === 'confirmRemoveGame' && modal.data && (
+        <ConfirmModal title="Remove game?" message="This will permanently delete this game from history and recalculate standings. Cannot be undone." confirmLabel="Delete" onConfirm={onConfirmRemoveGame} onClose={closeModal} />
+      )}
+      {modal.open === 'confirmRevert' && modal.data?.roundNum != null && (
+        <ConfirmModal title={`Revert to Round ${modal.data.roundNum}?`} message={`This will restore the tournament to the state it was in right after Round ${modal.data.roundNum} completed. All rounds played after that will be lost. This cannot be undone.`} confirmLabel="Revert" onConfirm={doRevertToRound} onClose={closeModal} />
+      )}
+      {modal.open === 'break' && <BreakModal onStart={onBreakStart} onClose={closeModal} />}
+      {modal.open === 'timerSettings' && <TimerSettingsModal currentMins={timerDefaultMins} onSave={onTimerSettingsSave} onClose={closeModal} />}
+      {modal.open === 'manageTeams' && tournamentMode !== 'tpt' && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={onTogglePause} onSave={onManageTeamsSave} onClose={closeModal} canEditRoster={hasPermission(role, 'canEditTeams')} />}
+      {modal.open === 'manageTeams' && tournamentMode === 'tpt' && isAdmin && <ManageTPTTeamsModal tptTeams={tptTeams} tptPlayers={tptPlayers} onSave={onManageTPTTeamsSave} onClose={closeModal} />}
+      {modal.open === 'manageCourts' && <ManageCourtsModal courtNumbers={courtNumbers} socialCourts={socialCourts} rrCourtCount={tournamentMode === 'roundrobin' ? (roundRobinCourts?.length ?? 0) : 0} onSave={onManageCourtsSave} onClose={closeModal} />}
+      {modal.open === 'selectRRTeams' && <SelectRoundRobinTeamsModal rankedTeamIds={ranked.map(t => t.id)} tournamentCourts={courtNumbers} onConfirm={onStartRoundRobin} onClose={closeModal} />}
+      {modal.open === 'addGame' && addGameData && <AddGameModal allTeamIds={activeTeamIds} defaultCourt={addGameData.defaultCourt} courtNumbers={courtNumbers} usedCourtNumbers={addGameData.usedCourts} usedTeamIds={addGameData.usedTeams} label={addGameData.label} onSave={g => onAddGameSave(addGameData.target, g)} onClose={closeModal} />}
+      {modal.open === 'presetMatch' && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={nextRoundPresets.flatMap(p => [p.teamId1, p.teamId2])} usedCourtNumbers={nextRoundPresets.map(p => String(p.courtNumber))} onSave={onAddPreset} onClose={closeModal} />}
+      {modal.open === 'liveAddGame' && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={[...(round?.courts.flatMap(p => p.map(t => t.id)) || []), ...liveAdditions.flatMap(la => [la.teamId1, la.teamId2])]} usedCourtNumbers={[...(round?.courts.map((_, i) => String(courtNumbers[i] ?? i + 1)) || []), ...liveAdditions.map(la => String(la.courtNumber))]} onSave={onAddLiveGame} onClose={closeModal} />}
+      {editGameTarget && history[editGameTarget.ri] && <EditGameModal game={history[editGameTarget.ri].games[editGameTarget.gameIdx]} roundEntry={history[editGameTarget.ri]} allTeamIds={activeTeamIds} label={`Round ${history[editGameTarget.ri].roundNum} · Court ${history[editGameTarget.ri].games[editGameTarget.gameIdx].courtNumber}`} scoreOnly={hasPermission(role, 'canEditHistoryScores') && !hasPermission(role, 'canFullEditHistory')} onSave={d => onEditSave(editGameTarget.ri, editGameTarget.gameIdx, d)} onClose={closeModal} />}
+      {editActiveCourtIdx !== null && round && <EditActiveCourtModal courtIdx={editActiveCourtIdx} courtNumbers={courtNumbers} currentCourts={round.courts} allTeamIds={activeTeamIds} hasPending={!!pending[courtKey(editActiveCourtIdx)]} onSave={onEditActiveCourt} onClose={closeModal} />}
+      {editLiveIdxVal !== null && liveAdditions[editLiveIdxVal] && <EditActiveCourtModal courtIdx={0} courtNumbers={[liveAdditions[editLiveIdxVal].courtNumber]} currentCourts={[[tournamentTeams.find(t => t.id === liveAdditions[editLiveIdxVal].teamId1), tournamentTeams.find(t => t.id === liveAdditions[editLiveIdxVal].teamId2)]]} allTeamIds={activeTeamIds} hasPending={!!pending[`live_${editLiveIdxVal}`]} onSave={onEditLiveAddition} onClose={closeModal} />}
+    </>
+  );
+}

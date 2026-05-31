@@ -1,5 +1,4 @@
 export const CONNECT_TIMEOUT_MS = 6000;
-export const SAVE_KEY = 'pickleball_tournament_v1';
 
 // Key helpers at module level so they are never recreated inside renders
 export const courtKey = idx => `court_${idx}`;

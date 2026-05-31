@@ -7,6 +7,7 @@ import { courtKey, liveKey } from '../constants';
 import { rebuildStandings } from '../algorithms/standings';
 import { generateRound } from '../algorithms/pairing';
 import { generateRoundRobinSchedule } from '../algorithms/roundRobin';
+import { buildSnapshot } from '../snapshot';
 
 // Owns the active-round lifecycle: result submission, round generation/cancel/regenerate,
 // round completion (auto-detects when all courts are filled), and Round Robin management.
@@ -34,7 +35,7 @@ export function useRoundManagement({
   setCancelledRoundNums, setBackupRoundNums,
 
   // Callbacks
-  applyTimerState, setCriticalError, onFirebaseError,
+  applyTimerState, computeSecsLeft, setCriticalError, onFirebaseError,
   onRequirePin, // (purpose) => void — open PIN modal from App
 }) {
   // ── Result submission ─────────────────────────────────────────────────────
@@ -44,7 +45,7 @@ export function useRoundManagement({
       const np = { ...prev, [key]: result };
       pendingRef.current = np;
       if (hasPermission(roleRef.current, 'canSubmitResults')) {
-        pushAtomicUpdate({ [`pendingResults/${key}`]: result }, err => onFirebaseError(err));
+        pushAtomicUpdate({ [`pendingResults/${key}`]: result }, onFirebaseError);
       }
       return np;
     });
@@ -56,7 +57,7 @@ export function useRoundManagement({
       const np = { ...prev, [key]: result };
       pendingRef.current = np;
       if (hasPermission(roleRef.current, 'canSubmitResults')) {
-        pushAtomicUpdate({ [`pendingResults/${key}`]: result }, err => onFirebaseError(err));
+        pushAtomicUpdate({ [`pendingResults/${key}`]: result }, onFirebaseError);
       }
       return np;
     });
@@ -67,7 +68,7 @@ export function useRoundManagement({
     const np = { ...pendingRef.current }; delete np[k];
     pendingRef.current = np; setPending(np);
     if (hasPermission(roleRef.current, 'canSubmitResults')) {
-      pushAtomicUpdate({ [`pendingResults/${k}`]: null }, err => onFirebaseError(err));
+      pushAtomicUpdate({ [`pendingResults/${k}`]: null }, onFirebaseError);
     }
   }, [pendingRef, roleRef, onFirebaseError, setPending]);
 
@@ -76,7 +77,7 @@ export function useRoundManagement({
     const np = { ...pendingRef.current }; delete np[k];
     pendingRef.current = np; setPending(np);
     if (hasPermission(roleRef.current, 'canSubmitResults')) {
-      pushAtomicUpdate({ [`pendingResults/${k}`]: null }, err => onFirebaseError(err));
+      pushAtomicUpdate({ [`pendingResults/${k}`]: null }, onFirebaseError);
     }
   }, [pendingRef, roleRef, onFirebaseError, setPending]);
 
@@ -100,24 +101,14 @@ export function useRoundManagement({
     const ns = rebuildStandings(s.activeTeamIds, nh);
     if (hasPermission(roleRef.current, 'canSubmitResults')) {
       const bm = breakModeRef.current;
-      const completeSecs = bm && timerRunningRef.current && timerStartedAtRef.current
-        ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000))
-        : timerPausedSecsRef.current;
-      const snap = {
-        phase: 'play', activeTeamIds: s.activeTeamIds, courtNumbers: s.courtNumbers,
-        teamRegistry: s.tournamentTeams, tournamentTitle: s.tournamentTitle,
-        timerDuration: s.timerDuration, timerDefaultMins: s.timerDefaultMins,
-        history: nh, roundNum: s.roundNum, pausedIds: s.pausedIds, roundComplete: true,
+      const completeSecs = computeSecsLeft();
+      const snap = buildSnapshot(s, {
+        history: nh, roundComplete: true,
         timerRunning: bm ? timerRunningRef.current : false,
         timerStartedAt: bm ? timerStartedAtRef.current : null,
         timerPausedSecsLeft: bm ? completeSecs : s.timerDuration,
-        roundData: null, breakMode: bm,
-        tournamentMode: s.tournamentMode, roundRobinSchedule: s.roundRobinSchedule,
-        roundRobinCourts: s.roundRobinCourts, roundRobinStartRoundNum: s.roundRobinStartRoundNum,
-        roundRobinStartSnapshot: s.roundRobinStartSnapshot, roundRobinEndSnapshot: s.roundRobinEndSnapshot,
-        activeRoundExtras: [], liveAdditions: [], nextRoundPresets: s.nextRoundPresets,
-        tournamentFinished: s.tournamentFinished, savedAt: Date.now(),
-      };
+        breakMode: bm,
+      });
       pushSnapshot(snap, err => err && setCriticalError('Round result failed to save — tap Retry.', snap));
     }
     setHistory(nh); setStandings(ns); setRound(null); setRoundComplete(true);
@@ -135,23 +126,10 @@ export function useRoundManagement({
     historyLengthRef.current = history.length;
     const latestRound = history[history.length - 1];
     const rn = latestRound.roundNum;
-    const backupSnap = {
-      phase: 'play', activeTeamIds: s.activeTeamIds, courtNumbers: s.courtNumbers,
-      socialCourts: s.socialCourts, teamRegistry: s.tournamentTeams,
-      tournamentTitle: s.tournamentTitle, timerDuration: s.timerDuration,
-      timerDefaultMins: s.timerDefaultMins, history, roundNum: rn,
-      pausedIds: s.pausedIds, roundComplete: true,
-      timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s.timerDuration,
-      roundData: null, breakMode: breakModeRef.current, finalRound: false,
-      targetRounds: s.targetRounds, tournamentMode: s.tournamentMode,
-      roundRobinSchedule: s.roundRobinSchedule, roundRobinCourts: s.roundRobinCourts,
-      roundRobinStartRoundNum: s.roundRobinStartRoundNum,
-      roundRobinStartSnapshot: s.roundRobinStartSnapshot,
-      roundRobinEndSnapshot: s.roundRobinEndSnapshot,
-      activeRoundExtras: [], liveAdditions: [], nextRoundPresets: [],
-      tournamentFinished: s.tournamentFinished, cancelledRoundNums: s.cancelledRoundNums,
-      savedAt: Date.now(),
-    };
+    const backupSnap = buildSnapshot(s, {
+      history, roundNum: rn, roundComplete: true,
+      breakMode: breakModeRef.current, nextRoundPresets: [],
+    });
     writeBackup(rn, backupSnap);
     setBackupRoundNums(prev => new Set([...prev, rn]));
   }, [history]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -167,7 +145,7 @@ export function useRoundManagement({
     const nrWithNums = { ...nr, courtNums: roundCourtNums };
     if (hasPermission(roleRef.current, 'canGenerateRound')) {
       const rd = { courtTeamIds: nr.courts.map(p => p.map(t => t.id)), byeIds: nr.bye.map(t => t.id), pausedTeamIds: (nr.paused || []).map(t => t.id), courtNums: roundCourtNums };
-      pushAtomicUpdate({ roundData: rd, pendingResults: null }, err => onFirebaseError(err));
+      pushAtomicUpdate({ roundData: rd, pendingResults: null }, onFirebaseError);
     }
     setRound(nrWithNums);
     pendingRef.current = {}; setPending({}); setRoundKey(k => k + 1); setLiveAdditions([]);
@@ -206,33 +184,23 @@ export function useRoundManagement({
     const bm = breakModeRef.current;
     if (hasPermission(roleRef.current, 'canGenerateRound')) {
       const rd = { courtTeamIds: mergedNr.courts.map(p => p.map(t => t.id)), byeIds: nr.bye.map(t => t.id), pausedTeamIds: (nr.paused || []).map(t => t.id), courtNums: roundCourtNums };
-      const genSecs = bm && timerRunningRef.current && timerStartedAtRef.current
-        ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000))
-        : timerPausedSecsRef.current;
+      const genSecs = computeSecsLeft();
       const sa = bm ? timerStartedAtRef.current : (s.timerDuration > 0 ? Date.now() : null);
-      const snap = {
-        phase: 'play', activeTeamIds: s.activeTeamIds, courtNumbers: s.courtNumbers,
-        socialCourts: s.socialCourts, teamRegistry: s.tournamentTeams,
-        tournamentTitle: s.tournamentTitle, timerDuration: s.timerDuration,
-        timerDefaultMins: s.timerDefaultMins, history: s.history, roundNum: newRN,
-        pausedIds: s.pausedIds, roundComplete: false,
+      const snap = buildSnapshot(s, {
+        roundNum: newRN,
         timerRunning: bm ? timerRunningRef.current : s.timerDuration > 0,
         timerStartedAt: sa, timerPausedSecsLeft: bm ? genSecs : s.timerDuration,
-        roundData: rd, breakMode: bm, finalRound: false, targetRounds: s.targetRounds,
-        tournamentMode: s.tournamentMode, roundRobinSchedule: s.roundRobinSchedule,
-        roundRobinCourts: s.roundRobinCourts, roundRobinStartRoundNum: s.roundRobinStartRoundNum,
-        roundRobinStartSnapshot: s.roundRobinStartSnapshot, roundRobinEndSnapshot: s.roundRobinEndSnapshot,
-        activeRoundExtras: s.activeRoundExtras, liveAdditions: [], nextRoundPresets: [],
-        tournamentFinished: s.tournamentFinished, savedAt: Date.now(),
-      };
+        roundData: rd, breakMode: bm,
+        activeRoundExtras: s.activeRoundExtras, nextRoundPresets: [],
+      });
       lastSeenRoundNum.current = newRN;
-      pushSnapshot(snap, err => onFirebaseError(err));
+      pushSnapshot(snap, onFirebaseError);
     }
     setRound(mergedNr); setRoundNum(newRN);
     pendingRef.current = {}; setPending({}); setRoundKey(k => k + 1); setRoundComplete(false);
     setFinalRound(false); setActiveRoundExtras([]); setNextRoundPresets([]);
     if (!bm) { const sa = s.timerDuration > 0 ? Date.now() : null; applyTimerState(s.timerDuration > 0, sa, s.timerDuration); }
-  }, [stateRef, roleRef, breakModeRef, timerRunningRef, timerStartedAtRef, timerPausedSecsRef, pendingRef, lastSeenRoundNum, setRound, setRoundNum, setPending, setRoundKey, setRoundComplete, setFinalRound, setActiveRoundExtras, setNextRoundPresets, applyTimerState, onFirebaseError]);
+  }, [stateRef, roleRef, breakModeRef, timerRunningRef, timerStartedAtRef, timerPausedSecsRef, pendingRef, lastSeenRoundNum, setRound, setRoundNum, setPending, setRoundKey, setRoundComplete, setFinalRound, setActiveRoundExtras, setNextRoundPresets, applyTimerState, computeSecsLeft, onFirebaseError]);
 
   // ── Round cancellation ────────────────────────────────────────────────────
   const doCancelRound = useCallback(() => {
@@ -241,31 +209,21 @@ export function useRoundManagement({
     const prevRC = s.history.length > 0;
     const newCancelled = [...s.cancelledRoundNums, s.roundNum];
     const bm = breakModeRef.current;
-    const cancelSecs = bm && timerRunningRef.current && timerStartedAtRef.current
-      ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000))
-      : timerPausedSecsRef.current;
-    const snap = {
-      phase: 'play', activeTeamIds: s.activeTeamIds, courtNumbers: s.courtNumbers,
-      teamRegistry: s.tournamentTeams, tournamentTitle: s.tournamentTitle,
-      timerDuration: s.timerDuration, timerDefaultMins: s.timerDefaultMins,
-      history: s.history, roundNum: prevRN, pausedIds: s.pausedIds, roundComplete: prevRC,
+    const cancelSecs = computeSecsLeft();
+    const snap = buildSnapshot(s, {
+      roundNum: prevRN, roundComplete: prevRC,
       timerRunning: bm ? timerRunningRef.current : false,
       timerStartedAt: bm ? timerStartedAtRef.current : null,
       timerPausedSecsLeft: bm ? cancelSecs : s.timerDuration,
-      roundData: null, breakMode: bm, targetRounds: s.targetRounds,
-      tournamentMode: s.tournamentMode, roundRobinSchedule: s.roundRobinSchedule,
-      roundRobinCourts: s.roundRobinCourts, roundRobinStartRoundNum: s.roundRobinStartRoundNum,
-      roundRobinStartSnapshot: s.roundRobinStartSnapshot, roundRobinEndSnapshot: s.roundRobinEndSnapshot,
-      activeRoundExtras: [], liveAdditions: [], nextRoundPresets: s.nextRoundPresets,
-      tournamentFinished: s.tournamentFinished, cancelledRoundNums: newCancelled, savedAt: Date.now(),
-    };
+      breakMode: bm, cancelledRoundNums: newCancelled,
+    });
     lastSeenRoundNum.current = prevRN;
-    pushSnapshot(snap, err => onFirebaseError(err));
+    pushSnapshot(snap, onFirebaseError);
     setCancelledRoundNums(newCancelled); setRound(null); setRoundNum(prevRN); setRoundComplete(prevRC);
     pendingRef.current = {}; setPending({}); setActiveRoundExtras([]); setRoundKey(k => k + 1);
     setTimerAlarmed(false);
     if (!bm) applyTimerState(false, null, s.timerDuration);
-  }, [stateRef, breakModeRef, timerRunningRef, timerStartedAtRef, timerPausedSecsRef, pendingRef, lastSeenRoundNum, setCancelledRoundNums, setRound, setRoundNum, setRoundComplete, setPending, setActiveRoundExtras, setRoundKey, setTimerAlarmed, applyTimerState, onFirebaseError]);
+  }, [stateRef, breakModeRef, timerRunningRef, timerStartedAtRef, timerPausedSecsRef, pendingRef, lastSeenRoundNum, setCancelledRoundNums, setRound, setRoundNum, setRoundComplete, setPending, setActiveRoundExtras, setRoundKey, setTimerAlarmed, applyTimerState, computeSecsLeft, onFirebaseError]);
 
   // ── Round Robin ───────────────────────────────────────────────────────────
   const rrMatchKey = useCallback((sr, mi) => `rr_${sr}_${mi}`, []);
@@ -284,7 +242,7 @@ export function useRoundManagement({
     Object.keys(pendingRef.current).forEach(k => { if (!k.startsWith('rr_')) cleared[k] = pendingRef.current[k]; });
     pendingRef.current = cleared; setPending(cleared);
     if (hasPermission(roleRef.current, 'canSwitchTournamentMode')) {
-      pushAtomicUpdate({ tournamentMode: 'swiss', roundRobinSchedule: null, roundRobinCourts: null, roundRobinStartRoundNum: null, roundRobinEndSnapshot: endSnap, roundNum: restoredRoundNum, pendingResults: null }, err => onFirebaseError(err));
+      pushAtomicUpdate({ tournamentMode: 'swiss', roundRobinSchedule: null, roundRobinCourts: null, roundRobinStartRoundNum: null, roundRobinEndSnapshot: endSnap, roundNum: restoredRoundNum, pendingResults: null }, onFirebaseError);
     }
   }, [stateRef, roleRef, pendingRef, lastSeenRoundNum, setTournamentMode, setRoundRobinSchedule, setRoundRobinCourts, setRoundRobinStartRoundNum, setRoundRobinEndSnapshot, setRoundNum, setPending, onFirebaseError]);
 
@@ -301,7 +259,7 @@ export function useRoundManagement({
     setTournamentMode('roundrobin'); setRoundRobinSchedule(schedule); setRoundRobinCourts(courts);
     setRoundRobinStartRoundNum(rrStart); setRoundRobinStartSnapshot(snapshot); setRoundRobinEndSnapshot(null);
     if (hasPermission(roleRef.current, 'canSwitchTournamentMode')) {
-      pushAtomicUpdate({ tournamentMode: 'roundrobin', roundNum: rrStart, roundRobinSchedule: schedule, roundRobinCourts: courts, roundRobinStartRoundNum: rrStart, roundRobinStartSnapshot: snapshot, roundRobinEndSnapshot: null, roundData: null, roundComplete: false, pendingResults: null }, err => onFirebaseError(err));
+      pushAtomicUpdate({ tournamentMode: 'roundrobin', roundNum: rrStart, roundRobinSchedule: schedule, roundRobinCourts: courts, roundRobinStartRoundNum: rrStart, roundRobinStartSnapshot: snapshot, roundRobinEndSnapshot: null, roundData: null, roundComplete: false, pendingResults: null }, onFirebaseError);
     }
     setRoundNum(rrStart); lastSeenRoundNum.current = rrStart;
     pendingRef.current = {}; setPending({}); setRound(null); setRoundComplete(false);
@@ -314,7 +272,7 @@ export function useRoundManagement({
       pendingRef.current = np;
       const s = stateRef.current;
       if (hasPermission(roleRef.current, 'canSubmitResults')) {
-        pushAtomicUpdate({ [`pendingResults/${key}`]: result }, err => onFirebaseError(err));
+        pushAtomicUpdate({ [`pendingResults/${key}`]: result }, onFirebaseError);
       }
       const schedRound = s.roundRobinSchedule?.[srIdx] || [];
       const allFilled = schedRound.every((_, mi) => np[rrMatchKey(srIdx, mi)]);
@@ -342,9 +300,7 @@ export function useRoundManagement({
         const newRoundNum = allDone ? targetRoundNum : Math.max(s.roundNum || 0, targetRoundNum + 1);
         if (hasPermission(roleRef.current, 'canSubmitResults')) {
           const bm = breakModeRef.current;
-          const rrSecs = bm && timerRunningRef.current && timerStartedAtRef.current
-            ? Math.max(0, timerPausedSecsRef.current - Math.floor((Date.now() - timerStartedAtRef.current) / 1000))
-            : timerPausedSecsRef.current;
+          const rrSecs = computeSecsLeft();
           const pendingClear = {};
           schedRound.forEach((_, mi) => { pendingClear[`pendingResults/${rrMatchKey(srIdx, mi)}`] = null; });
           pushAtomicUpdate({
@@ -354,7 +310,7 @@ export function useRoundManagement({
             timerPausedSecsLeft: bm ? rrSecs : timerDurationRef.current,
             ...pendingClear,
             ...(endSnap ? { roundRobinEndSnapshot: endSnap } : {}),
-          }, err => onFirebaseError(err));
+          }, onFirebaseError);
         }
         setRoundNum(newRoundNum); lastSeenRoundNum.current = newRoundNum;
         setTimerAlarmed(false);
@@ -363,7 +319,7 @@ export function useRoundManagement({
       }
       return np;
     });
-  }, [rrMatchKey, stateRef, roleRef, pendingRef, breakModeRef, timerRunningRef, timerStartedAtRef, timerPausedSecsRef, timerDurationRef, lastSeenRoundNum, setPending, setHistory, setStandings, setRoundRobinEndSnapshot, setRoundNum, setTimerAlarmed, applyTimerState, onFirebaseError]);
+  }, [rrMatchKey, stateRef, roleRef, pendingRef, breakModeRef, timerRunningRef, timerStartedAtRef, timerPausedSecsRef, timerDurationRef, lastSeenRoundNum, setPending, setHistory, setStandings, setRoundRobinEndSnapshot, setRoundNum, setTimerAlarmed, applyTimerState, computeSecsLeft, onFirebaseError]);
 
   return {
     handleResult,

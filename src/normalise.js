@@ -40,6 +40,10 @@ export function normaliseSnapshot(s) {
     courtTeamIds:   toArr(s.roundData.courtTeamIds).map(p => toArr(p)),
     byeIds:         toArr(s.roundData.byeIds),
     pausedTeamIds:  toArr(s.roundData.pausedTeamIds),
+    // Preserve per-round court labels. Left undefined (not []) when absent so the
+    // `roundData.courtNums || courtNumbers.slice(...)` fallback still applies to
+    // legacy snapshots written before this field existed.
+    ...(s.roundData.courtNums ? { courtNums: toArr(s.roundData.courtNums) } : {}),
   } : null;
 
   const rrSched    = s.roundRobinSchedule     ? toArr(s.roundRobinSchedule).map(r => toArr(r).map(p => toArr(p))) : null;

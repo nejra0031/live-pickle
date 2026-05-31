@@ -1,86 +1,136 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useReducer, useCallback, useMemo } from 'react';
 import { TeamRegistryContext } from './context/TeamRegistryContext';
 import { setModuleRegistry } from './constants';
 import { courtKey } from './constants';
 import { db, ref, set as fbSet, update as fbUpdate, onValue, off, get, pushSnapshot, pushAtomicUpdate, fetchBackup, clearBackups, tournamentRef } from './firebase';
-import { ROLES, ROLE_MAP, hasPermission } from './roleConfig';
+import { hasPermission } from './roleConfig';
 import { normaliseSnapshot } from './normalise';
 import { mkStandings, rerank, rebuildStandings } from './algorithms/standings';
+import { buildSnapshot, snapshotToState } from './snapshot';
+import { reindexPendingAfterRemoval } from './pending';
 import { generateRound } from './algorithms/pairing';
-import { generateTPTSchedule, buildTPTStandings } from './algorithms/threePlayerTeam';
+import { buildTPTStandings } from './algorithms/threePlayerTeam';
 import useOnline from './hooks/useOnline';
 import { useFirebaseSync } from './hooks/useFirebaseSync';
 import { useRoundTimer } from './hooks/useRoundTimer';
 import { useRoundManagement } from './hooks/useRoundManagement';
 import { useModalState } from './hooks/useModalState';
+import { useTPTState } from './hooks/useTPTState';
+import { useTPTManagement } from './hooks/useTPTManagement';
 import SetupScreen from './setup/SetupScreen';
 import StandingsTab from './tabs/StandingsTab';
 import HistoryTab from './tabs/HistoryTab';
 import PlayTab from './tabs/PlayTab';
-import PinModal from './modals/PinModal';
-import ConfirmModal from './modals/ConfirmModal';
-import BreakModal from './modals/BreakModal';
-import TimerSettingsModal from './modals/TimerSettingsModal';
-import ManageTeamsModal from './modals/ManageTeamsModal';
-import ManageTPTTeamsModal from './modals/ManageTPTTeamsModal';
-import ManageCourtsModal from './modals/ManageCourtsModal';
-import SelectRoundRobinTeamsModal from './modals/SelectRoundRobinTeamsModal';
-import AddGameModal from './modals/AddGameModal';
-import PresetMatchModal from './modals/PresetMatchModal';
-import EditGameModal from './modals/EditGameModal';
-import EditActiveCourtModal from './modals/EditActiveCourtModal';
-import ballIcon from '/ball.png';
+import ModalRoot from './modals/ModalRoot';
+import AppHeader from './components/AppHeader';
+import StatusBanners from './components/StatusBanners';
+
+// The tournament-data fields that must always be readable as one object by the
+// management hooks (via roundMgmtStateRef). Holding them in a reducer makes that
+// ref robust-by-construction — no hand-maintained assembly that can drift.
+const TOURNAMENT_INITIAL = {
+  tournamentTitle: 'Tournament',
+  activeTeamIds: [],
+  tournamentTeams: [],
+  courtNumbers: [],
+  timerDuration: 0,
+  timerDefaultMins: 12,
+  history: [],
+  round: null,
+  roundNum: 1,
+  pending: {},
+  roundComplete: false,
+  pausedIds: [],
+  tournamentMode: 'swiss',
+  roundRobinSchedule: null,
+  roundRobinCourts: null,
+  roundRobinStartRoundNum: null,
+  roundRobinStartSnapshot: null,
+  roundRobinEndSnapshot: null,
+  activeRoundExtras: [],
+  liveAdditions: [],
+  nextRoundPresets: [],
+  tournamentFinished: false,
+  cancelledRoundNums: [],
+  finalRound: false,
+  targetRounds: 0,
+  socialCourts: [],
+};
+
+// SET applies one field; `value` may be a value or an updater fn (matching
+// useState's API). Unchanged values bail out to preserve useState's
+// reference-equality re-render skip.
+function tournamentReducer(state, action) {
+  if (action.type === 'SET') {
+    const prev = state[action.key];
+    const next = typeof action.value === 'function' ? action.value(prev) : action.value;
+    if (Object.is(next, prev)) return state;
+    return { ...state, [action.key]: next };
+  }
+  if (action.type === 'LOAD') return { ...state, ...action.values };
+  return state;
+}
 
 export default function App({ viewerOnly = false }) {
   const online = useOnline();
 
   // ── Phase & identity ──────────────────────────────────────────────────────
   const [phase, setPhase] = useState('loading');
-  const [tournamentTitle, setTournamentTitle] = useState('Tournament');
-  useEffect(() => { document.title = tournamentTitle; }, [tournamentTitle]);
 
-  // ── Tournament data ───────────────────────────────────────────────────────
-  const [activeTeamIds, setActiveTeamIds] = useState([]);
-  const [tournamentTeams, setTournamentTeams] = useState([]);
+  // ── Tournament data (single reducer; roundMgmtStateRef below == this state) ──
+  const [tstate, dispatch] = useReducer(tournamentReducer, TOURNAMENT_INITIAL);
+  const {
+    tournamentTitle, activeTeamIds, tournamentTeams, courtNumbers, timerDuration, timerDefaultMins,
+    history, round, roundNum, pending, roundComplete, pausedIds, tournamentMode,
+    roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot,
+    roundRobinEndSnapshot, activeRoundExtras, liveAdditions, nextRoundPresets, tournamentFinished,
+    cancelledRoundNums, finalRound, targetRounds, socialCourts,
+  } = tstate;
+
+  // Setter wrappers — keep every existing setX(...) call site byte-identical.
+  const setTournamentTitle         = useCallback(v => dispatch({ type: 'SET', key: 'tournamentTitle', value: v }), []);
+  const setActiveTeamIds           = useCallback(v => dispatch({ type: 'SET', key: 'activeTeamIds', value: v }), []);
+  const setTournamentTeams         = useCallback(v => dispatch({ type: 'SET', key: 'tournamentTeams', value: v }), []);
+  const setCourtNumbers            = useCallback(v => dispatch({ type: 'SET', key: 'courtNumbers', value: v }), []);
+  const setTimerDuration           = useCallback(v => dispatch({ type: 'SET', key: 'timerDuration', value: v }), []);
+  const setTimerDefaultMins        = useCallback(v => dispatch({ type: 'SET', key: 'timerDefaultMins', value: v }), []);
+  const setHistory                 = useCallback(v => dispatch({ type: 'SET', key: 'history', value: v }), []);
+  const setRound                   = useCallback(v => dispatch({ type: 'SET', key: 'round', value: v }), []);
+  const setRoundNum                = useCallback(v => dispatch({ type: 'SET', key: 'roundNum', value: v }), []);
+  const setPending                 = useCallback(v => dispatch({ type: 'SET', key: 'pending', value: v }), []);
+  const setRoundComplete           = useCallback(v => dispatch({ type: 'SET', key: 'roundComplete', value: v }), []);
+  const setPausedIds               = useCallback(v => dispatch({ type: 'SET', key: 'pausedIds', value: v }), []);
+  const setTournamentMode          = useCallback(v => dispatch({ type: 'SET', key: 'tournamentMode', value: v }), []);
+  const setRoundRobinSchedule      = useCallback(v => dispatch({ type: 'SET', key: 'roundRobinSchedule', value: v }), []);
+  const setRoundRobinCourts        = useCallback(v => dispatch({ type: 'SET', key: 'roundRobinCourts', value: v }), []);
+  const setRoundRobinStartRoundNum = useCallback(v => dispatch({ type: 'SET', key: 'roundRobinStartRoundNum', value: v }), []);
+  const setRoundRobinStartSnapshot = useCallback(v => dispatch({ type: 'SET', key: 'roundRobinStartSnapshot', value: v }), []);
+  const setRoundRobinEndSnapshot   = useCallback(v => dispatch({ type: 'SET', key: 'roundRobinEndSnapshot', value: v }), []);
+  const setActiveRoundExtras       = useCallback(v => dispatch({ type: 'SET', key: 'activeRoundExtras', value: v }), []);
+  const setLiveAdditions           = useCallback(v => dispatch({ type: 'SET', key: 'liveAdditions', value: v }), []);
+  const setNextRoundPresets        = useCallback(v => dispatch({ type: 'SET', key: 'nextRoundPresets', value: v }), []);
+  const setTournamentFinished      = useCallback(v => dispatch({ type: 'SET', key: 'tournamentFinished', value: v }), []);
+  const setCancelledRoundNums      = useCallback(v => dispatch({ type: 'SET', key: 'cancelledRoundNums', value: v }), []);
+  const setFinalRound              = useCallback(v => dispatch({ type: 'SET', key: 'finalRound', value: v }), []);
+  const setTargetRounds            = useCallback(v => dispatch({ type: 'SET', key: 'targetRounds', value: v }), []);
+  const setSocialCourts            = useCallback(v => dispatch({ type: 'SET', key: 'socialCourts', value: v }), []);
+
+  useEffect(() => { document.title = tournamentTitle; }, [tournamentTitle]);
   useEffect(() => { setModuleRegistry(tournamentTeams); }, [tournamentTeams]);
 
-  const [courtNumbers,      setCourtNumbers]      = useState([]);
-  const [timerDuration,     setTimerDuration]      = useState(0);
-  const [timerDefaultMins,  setTimerDefaultMins]   = useState(12);
-  const [history,           setHistory]            = useState([]);
-  const [standings,         setStandings]          = useState([]);
-  const [round,             setRound]              = useState(null);
-  const [roundNum,          setRoundNum]           = useState(1);
-  const [pending,           setPending]            = useState({});
-  const pendingRef                                  = useRef({});
-  const roundCompletingRef                          = useRef(false);
-  const [roundComplete,     setRoundComplete]      = useState(false);
-  const [roundKey,          setRoundKey]           = useState(0);
-  const [pausedIds,         setPausedIds]          = useState([]);
-  const [tournamentMode,    setTournamentMode]      = useState('swiss');
-  const [roundRobinSchedule,        setRoundRobinSchedule]        = useState(null);
-  const [roundRobinCourts,          setRoundRobinCourts]          = useState(null);
-  const [roundRobinStartRoundNum,   setRoundRobinStartRoundNum]   = useState(null);
-  const [roundRobinStartSnapshot,   setRoundRobinStartSnapshot]   = useState(null);
-  const [roundRobinEndSnapshot,     setRoundRobinEndSnapshot]     = useState(null);
-  const [activeRoundExtras, setActiveRoundExtras] = useState([]);
-  const [liveAdditions,     setLiveAdditions]     = useState([]);
-  const [nextRoundPresets,  setNextRoundPresets]  = useState([]);
-  const [tournamentFinished,setTournamentFinished] = useState(false);
-  const [breakMode,         setBreakMode]          = useState(null);
-  const [cancelledRoundNums,setCancelledRoundNums] = useState([]);
-  const [finalRound,        setFinalRound]         = useState(false);
-  const [targetRounds,      setTargetRounds]       = useState(0);
-  const [socialCourts,      setSocialCourts]       = useState([]);
+  // Tournament state that is NOT read through roundMgmtStateRef stays as useState.
+  const [standings, setStandings] = useState([]);
+  const [roundKey,  setRoundKey]  = useState(0);
+  const [breakMode, setBreakMode] = useState(null);
+  const pendingRef         = useRef({});
+  const roundCompletingRef = useRef(false);
 
   // ── TPT state ─────────────────────────────────────────────────────────────
-  const [tptTeams,    setTPTTeams]    = useState({});
-  const [tptPlayers,  setTPTPlayers]  = useState({});
-  const [tptSchedule, setTPTSchedule] = useState([]);
-  const [tptResults,  setTPTResults]  = useState({});
-  const tptResultsRef  = useRef({});
-  const tptScheduleRef = useRef([]);
-  const tptRoundCompletingRef = useRef(false);
+  const {
+    tptTeams, setTPTTeams, tptPlayers, setTPTPlayers,
+    tptSchedule, setTPTSchedule, tptResults, setTPTResults,
+    tptResultsRef, tptScheduleRef, tptRoundCompletingRef,
+  } = useTPTState();
 
   // Auto-enable finalRound when next round equals the target
   useEffect(() => {
@@ -88,7 +138,7 @@ export default function App({ viewerOnly = false }) {
     const nextRN = roundNum === 0 ? 1 : roundNum + 1;
     if (nextRN === targetRounds) {
       setFinalRound(true);
-      pushAtomicUpdate({ finalRound: true }, err => setFirebaseError(err));
+      pushAtomicUpdate({ finalRound: true }, setFirebaseError);
     }
   }, [targetRounds, roundNum]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -127,6 +177,13 @@ export default function App({ viewerOnly = false }) {
     pushSnapshot(snap, err => { if (err) setCriticalError('Retry failed — check your connection.', snap); else dismissError(); });
   }, [dismissError, setCriticalError]);
 
+  // Permission-gated atomic write: only writes if the current role holds `perm`.
+  // `perm` may be a single permission or an array (writes if the role holds ANY).
+  const gatedUpdate = useCallback((perm, fields) => {
+    const perms = Array.isArray(perm) ? perm : [perm];
+    if (perms.some(p => hasPermission(roleRef.current, p))) pushAtomicUpdate(fields, setFirebaseError);
+  }, []);
+
   const [headerHidden, setHeaderHidden] = useState(false);
   const headerRef    = useRef(null);
   const [headerHeight, setHeaderHeight] = useState(140);
@@ -156,8 +213,7 @@ export default function App({ viewerOnly = false }) {
 
   const updateAllStates = useCallback((s) => {
     if (!s || s.phase === 'waiting') { setPhase(p => p === 'play' ? 'waiting' : p); return; }
-    if (s.teamRegistry && s.teamRegistry.length > 0) setTournamentTeams(s.teamRegistry);
-    if (s.tournamentTitle) { setTournamentTitle(s.tournamentTitle); document.title = s.tournamentTitle; }
+    if (s.tournamentTitle) document.title = s.tournamentTitle;
     const ns = rebuildStandings(s.activeTeamIds, s.history);
     let nr;
     if (s.roundData && s.roundData.courtTeamIds) {
@@ -168,26 +224,11 @@ export default function App({ viewerOnly = false }) {
     } else {
       nr = generateRound(ns, s.courtNumbers.length, s.history.length, s.history, s.pausedIds || []);
     }
-    setActiveTeamIds(s.activeTeamIds); setCourtNumbers(s.courtNumbers);
-    setTimerDuration(s.timerDuration || 0); setTimerDefaultMins(s.timerDefaultMins || 12);
-    setHistory(s.history); setStandings(ns); setRound(nr); setRoundNum(s.roundNum);
-    setPausedIds(s.pausedIds || []); setRoundComplete(s.roundComplete || false);
-    setTournamentMode(s.tournamentMode || 'swiss');
-    setRoundRobinSchedule(s.roundRobinSchedule || null);
-    setRoundRobinCourts(s.roundRobinCourts || null);
-    setRoundRobinStartRoundNum(s.roundRobinStartRoundNum ?? null);
-    setRoundRobinStartSnapshot(s.roundRobinStartSnapshot || null);
-    setRoundRobinEndSnapshot(s.roundRobinEndSnapshot || null);
-    setActiveRoundExtras(s.activeRoundExtras || []);
-    setLiveAdditions(s.liveAdditions || []);
-    setNextRoundPresets(s.nextRoundPresets || []);
-    setTournamentFinished(!!s.tournamentFinished);
+    // One dispatch loads all reducer fields (snapshotToState is the read-side
+    // mirror of buildSnapshot). standings/breakMode are useState, set separately.
+    dispatch({ type: 'LOAD', values: snapshotToState(s, { round: nr }) });
+    setStandings(ns);
     setBreakMode(s.breakMode || null);
-    setCancelledRoundNums(s.cancelledRoundNums || []);
-    const validSocial = (s.socialCourts || []).filter(c => (s.courtNumbers || []).includes(c));
-    setSocialCourts(validSocial);
-    setFinalRound(!!s.finalRound);
-    setTargetRounds(s.targetRounds || 0);
     if (s.tptTeams)    { setTPTTeams(s.tptTeams);    }
     if (s.players)     { setTPTPlayers(s.players);   }
     if (s.tptSchedule) { setTPTSchedule(s.tptSchedule); tptScheduleRef.current = s.tptSchedule; }
@@ -228,17 +269,10 @@ export default function App({ viewerOnly = false }) {
     prevOtherAdminCountRef.current = otherCount;
   }, [presence]);
 
-  // ── stateRef — kept current every render for useRoundManagement ───────────
-  const roundMgmtStateRef = useRef({});
-  roundMgmtStateRef.current = {
-    activeTeamIds, history, courtNumbers, socialCourts,
-    tournamentTeams, tournamentTitle, timerDuration, timerDefaultMins,
-    roundNum, pausedIds, round, pending, liveAdditions, activeRoundExtras,
-    nextRoundPresets, finalRound, targetRounds, roundComplete,
-    tournamentMode, roundRobinSchedule, roundRobinCourts,
-    roundRobinStartRoundNum, roundRobinStartSnapshot, roundRobinEndSnapshot,
-    tournamentFinished, cancelledRoundNums,
-  };
+  // ── stateRef for the management hooks — IS the reducer state, so it can never
+  //    drift out of sync with a forgotten field. ─────────────────────────────
+  const roundMgmtStateRef = useRef(tstate);
+  roundMgmtStateRef.current = tstate;
 
   // ── Round management hook ─────────────────────────────────────────────────
   const {
@@ -258,7 +292,7 @@ export default function App({ viewerOnly = false }) {
     setTournamentMode, setRoundRobinSchedule, setRoundRobinCourts,
     setRoundRobinStartRoundNum, setRoundRobinStartSnapshot, setRoundRobinEndSnapshot,
     setCancelledRoundNums, setBackupRoundNums,
-    applyTimerState, setCriticalError, onFirebaseError: setFirebaseError,
+    applyTimerState, computeSecsLeft, setCriticalError, onFirebaseError: setFirebaseError,
     onRequirePin: useCallback((purpose) => openModal('pin', { purpose }), [openModal]),
   });
 
@@ -291,8 +325,13 @@ export default function App({ viewerOnly = false }) {
     const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     tournamentIdRef.current = tid;
     const tr = numRounds || 0;
-    const snap = { phase: 'play', _tournamentId: tid, activeTeamIds: teamIds, courtNumbers: courts, socialCourts: [], teamRegistry: allTeams, tournamentTitle: resolvedTitle, timerDuration: durSecs, timerDefaultMins: durSecs > 0 ? Math.round(durSecs / 60) : 12, history: [], roundNum: 0, pausedIds: [], timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: durSecs, roundData: null, roundComplete: false, tournamentMode: 'swiss', roundRobinSchedule: null, roundRobinCourts: null, roundRobinStartRoundNum: null, roundRobinStartSnapshot: null, roundRobinEndSnapshot: null, activeRoundExtras: [], tournamentFinished: false, targetRounds: tr, savedAt: Date.now() };
-    pushSnapshot(snap, err => setFirebaseError(err)); setRole('admin');
+    const snap = buildSnapshot({
+      activeTeamIds: teamIds, courtNumbers: courts, socialCourts: [],
+      tournamentTeams: allTeams, tournamentTitle: resolvedTitle,
+      timerDuration: durSecs, timerDefaultMins: durSecs > 0 ? Math.round(durSecs / 60) : 12,
+      history: [], roundNum: 0, pausedIds: [], targetRounds: tr, tournamentMode: 'swiss',
+    }, { _tournamentId: tid });
+    pushSnapshot(snap, setFirebaseError); setRole('admin');
     setActiveTeamIds(teamIds); setCourtNumbers(courts); setTimerDuration(durSecs);
     setStandings(s); setRound(null); setRoundNum(0); setHistory([]);
     lastSeenRoundNum.current = 0; pendingRef.current = {}; setPending({}); setPausedIds([]); setRoundKey(0); setRoundComplete(false);
@@ -301,86 +340,20 @@ export default function App({ viewerOnly = false }) {
     setPhase('play'); setActiveTab('play');
   }, [applyTimerState]);
 
-  const handleStartTPT = useCallback((tptTeamsData, playersData, courts, durSecs, title) => {
-    const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-    tournamentIdRef.current = tid;
-    const schedule = generateTPTSchedule(Object.keys(tptTeamsData));
-    const resolvedTitle = title || 'Tournament';
-    setTournamentTitle(resolvedTitle);
-    document.title = resolvedTitle;
-    const snap = {
-      phase: 'play', _tournamentId: tid,
-      tournamentMode: 'tpt', tournamentTitle: resolvedTitle,
-      courtNumbers: courts, socialCourts: [],
-      timerDuration: durSecs, timerDefaultMins: durSecs > 0 ? Math.round(durSecs / 60) : 12,
-      tptTeams: tptTeamsData, players: playersData,
-      tptSchedule: schedule, tptResults: {},
-      history: [], roundNum: 0,
-      activeTeamIds: [], teamRegistry: [], pausedIds: [],
-      timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: durSecs,
-      roundData: null, roundComplete: false, savedAt: Date.now(),
-    };
-    pushSnapshot(snap, err => setFirebaseError(err));
-    setRole('admin');
-    setTPTTeams(tptTeamsData); setTPTPlayers(playersData);
-    setTPTSchedule(schedule); tptScheduleRef.current = schedule;
-    setTPTResults({}); tptResultsRef.current = {};
-    tptRoundCompletingRef.current = false;
-    setCourtNumbers(courts); setTimerDuration(durSecs);
-    setHistory([]); setRoundNum(0); setActiveTeamIds([]); setStandings([]);
-    setTournamentMode('tpt'); setRound(null); setPausedIds([]);
-    lastSeenRoundNum.current = 0; pendingRef.current = {}; setPending({}); setRoundKey(0); setRoundComplete(false);
-    setRoundRobinSchedule(null); setRoundRobinCourts(null); setRoundRobinStartRoundNum(null);
-    setRoundRobinStartSnapshot(null); setRoundRobinEndSnapshot(null);
-    setActiveRoundExtras([]); setTournamentFinished(false); setSocialCourts([]);
-    setTimerAlarmed(false); applyTimerState(false, null, durSecs);
-    setPhase('play'); setActiveTab('play');
-  }, [applyTimerState]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleTPTResult = useCallback((schedRoundIdx, matchupIdx, gameIdx, result) => {
-    if (!hasPermission(roleRef.current, 'canSubmitResults')) return;
-    const key = `${schedRoundIdx}_${matchupIdx}_${gameIdx}`;
-    const newResults = { ...tptResultsRef.current, [key]: result };
-    setTPTResults(newResults);
-    tptResultsRef.current = newResults;
-
-    const schedRound = tptScheduleRef.current[schedRoundIdx];
-    if (!schedRound) { pushAtomicUpdate({ [`tptResults/${key}`]: result }, err => setFirebaseError(err)); return; }
-
-    const allDone = !tptRoundCompletingRef.current &&
-      schedRound.matchups.every((_, mi2) => [0, 1, 2].every(gi => !!newResults[`${schedRoundIdx}_${mi2}_${gi}`]));
-
-    if (!allDone) {
-      pushAtomicUpdate({ [`tptResults/${key}`]: result }, err => setFirebaseError(err));
-      return;
-    }
-
-    tptRoundCompletingRef.current = true;
-    const curRoundNum = roundMgmtStateRef.current.roundNum;
-    const newRoundNum = curRoundNum + 1;
-    const histEntry = {
-      roundNum: newRoundNum,
-      games: [], bye: [], paused: [],
-      tptMatchups: schedRound.matchups.map((matchup, mi) => ({
-        teamAId: matchup.teamAId, teamBId: matchup.teamBId,
-        games: [0, 1, 2].map(gi => newResults[`${schedRoundIdx}_${mi}_${gi}`] || null),
-      })),
-      ...(schedRound.byeTeamId ? { tptByeTeamId: schedRound.byeTeamId } : {}),
-    };
-    const newHistory = [...roundMgmtStateRef.current.history, histEntry];
-    pushAtomicUpdate(
-      { [`tptResults/${key}`]: result, history: newHistory, roundNum: newRoundNum },
-      err => { if (err) setFirebaseError(err); }
-    );
-    setHistory(newHistory);
-    setRoundNum(newRoundNum);
-    tptRoundCompletingRef.current = false;
-  }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleManageTPTTeamsSave = useCallback((newTPTTeams, newPlayers) => {
-    setTPTTeams(newTPTTeams); setTPTPlayers(newPlayers); closeModal();
-    pushAtomicUpdate({ tptTeams: newTPTTeams, players: newPlayers }, err => setFirebaseError(err));
-  }, [closeModal]);
+  const { handleStartTPT, handleTPTResult, handleManageTPTTeamsSave } = useTPTManagement({
+    stateRef: roundMgmtStateRef,
+    tournamentIdRef, lastSeenRoundNum, pendingRef, roleRef,
+    tptResultsRef, tptScheduleRef, tptRoundCompletingRef,
+    setTPTTeams, setTPTPlayers, setTPTSchedule, setTPTResults,
+    setTournamentTitle, setRole, setCourtNumbers, setTimerDuration,
+    setHistory, setRoundNum, setActiveTeamIds, setStandings,
+    setTournamentMode, setRound, setPausedIds, setPending, setRoundKey, setRoundComplete,
+    setRoundRobinSchedule, setRoundRobinCourts, setRoundRobinStartRoundNum,
+    setRoundRobinStartSnapshot, setRoundRobinEndSnapshot,
+    setActiveRoundExtras, setTournamentFinished, setSocialCourts,
+    setPhase, setActiveTab,
+    applyTimerState, setTimerAlarmed, onFirebaseError: setFirebaseError, closeModal,
+  });
 
   const doRevertToRound = useCallback(async () => {
     const target = modal.data?.roundNum;
@@ -391,7 +364,7 @@ export default function App({ viewerOnly = false }) {
       if (!data) { setFirebaseError('Backup not found for this round.'); closeModal(); return; }
       const { _backupAt, ...snapData } = data;
       const normalised = normaliseSnapshot(snapData);
-      pushSnapshot(snapData, err => setFirebaseError(err));
+      pushSnapshot(snapData, setFirebaseError);
       updateAllStates(normalised);
       setActiveTab('play');
     } catch {
@@ -403,16 +376,16 @@ export default function App({ viewerOnly = false }) {
   const handleBreakStart = useCallback((message, durationSecs) => {
     const bm = { message, endAt: Date.now() + durationSecs * 1000 };
     setBreakMode(bm); closeModal();
-    if (hasPermission(roleRef.current, 'canBreakTournament')) pushAtomicUpdate({ breakMode: bm }, err => setFirebaseError(err));
+    gatedUpdate('canBreakTournament', { breakMode: bm });
   }, [closeModal, roleRef]);
 
   const handleBreakEnd = useCallback(() => {
     setBreakMode(null);
-    if (hasPermission(roleRef.current, 'canBreakTournament')) pushAtomicUpdate({ breakMode: null }, err => setFirebaseError(err));
+    gatedUpdate('canBreakTournament', { breakMode: null });
   }, [roleRef]);
 
   const doReset = useCallback(() => {
-    pushSnapshot(null, err => setFirebaseError(err)); clearBackups();
+    pushSnapshot(null, setFirebaseError); clearBackups();
     setBackupRoundNums(new Set()); historyLengthRef.current = 0;
     lastSeenRoundNum.current = -1; setPhase('setup'); setRole(null);
     setHistory([]); setStandings([]); setRound(null); setPausedIds([]);
@@ -450,35 +423,27 @@ export default function App({ viewerOnly = false }) {
       const newCourtNums = (round.courtNums || courtNumbers).filter((_, i) => i !== idx);
       const newRound     = { ...round, courts: newCourts, bye: newBye, courtNums: newCourtNums };
       setRound(newRound);
-      const np = {};
-      Object.keys(pendingRef.current).forEach(k => {
-        if (k.startsWith('court_')) { const ki = parseInt(k.replace('court_', '')); if (ki < idx) np[k] = pendingRef.current[k]; else if (ki > idx) np[`court_${ki - 1}`] = pendingRef.current[k]; }
-        else { np[k] = pendingRef.current[k]; }
-      });
+      const np = reindexPendingAfterRemoval(pendingRef.current, 'court_', [idx]);
       pendingRef.current = np; setPending(np);
       if (hasPermission(roleRef.current, 'canEditActiveCourt')) {
         const rd = { courtTeamIds: newCourts.map(p => p.map(t => t.id)), byeIds: newBye.map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id), courtNums: newCourtNums };
-        pushAtomicUpdate({ roundData: rd, pendingResults: np }, err => setFirebaseError(err));
+        pushAtomicUpdate({ roundData: rd, pendingResults: np }, setFirebaseError);
       }
     }
     else if (purpose === 'removeLiveAddition' && payload.removeLiveIdx !== null) {
       const i = payload.removeLiveIdx;
       setLiveAdditions(prev => {
         const nl = prev.filter((_, j) => j !== i);
-        const np = {};
-        Object.keys(pendingRef.current).forEach(k => {
-          if (k.startsWith('live_')) { const ki = parseInt(k.replace('live_', '')); if (ki < i) np[k] = pendingRef.current[k]; else if (ki > i) np[`live_${ki - 1}`] = pendingRef.current[k]; }
-          else { np[k] = pendingRef.current[k]; }
-        });
+        const np = reindexPendingAfterRemoval(pendingRef.current, 'live_', [i]);
         pendingRef.current = np; setPending(np);
-        if (hasPermission(roleRef.current, 'canEditActiveCourt')) pushAtomicUpdate({ liveAdditions: nl, pendingResults: np }, err => setFirebaseError(err));
+        gatedUpdate('canEditActiveCourt', { liveAdditions: nl, pendingResults: np });
         return nl;
       });
     }
     else if (purpose === 'removeActiveRoundExtra' && payload.removeActiveRoundExtraIdx !== null) {
       setActiveRoundExtras(prev => {
         const ne = prev.filter((_, i) => i !== payload.removeActiveRoundExtraIdx);
-        if (hasPermission(roleRef.current, 'canEditActiveCourt')) pushAtomicUpdate({ activeRoundExtras: ne }, err => setFirebaseError(err));
+        gatedUpdate('canEditActiveCourt', { activeRoundExtras: ne });
         return ne;
       });
     }
@@ -489,7 +454,7 @@ export default function App({ viewerOnly = false }) {
     setTournamentTeams(newRegistry); setModuleRegistry(newRegistry); setActiveTeamIds(newActiveIds);
     const ns = rebuildStandings(newActiveIds, history);
     setStandings(ns); closeModal();
-    if (hasPermission(roleRef.current, 'canEditTeams')) pushAtomicUpdate({ teamRegistry: newRegistry, activeTeamIds: newActiveIds }, err => setFirebaseError(err));
+    gatedUpdate('canEditTeams', { teamRegistry: newRegistry, activeTeamIds: newActiveIds });
   }, [history, closeModal, roleRef]);
 
   const handleManageCourtsSave = useCallback((newCourts, newSocialCourts) => {
@@ -508,14 +473,7 @@ export default function App({ viewerOnly = false }) {
         if (removedIndices.size > 0) {
           const newBye = [...(round.bye || []), ...extraBye];
           setRound({ ...round, courts: newRoundCourts, courtNums: newRoundNums, bye: newBye });
-          const sortedRemoved = [...removedIndices].sort((a, b) => a - b);
-          const np = {};
-          Object.keys(pendingRef.current).forEach(k => {
-            if (k.startsWith('court_')) {
-              const ki = parseInt(k.replace('court_', ''));
-              if (!removedIndices.has(ki)) { const shift = sortedRemoved.filter(r => r < ki).length; np[`court_${ki - shift}`] = pendingRef.current[k]; }
-            } else { np[k] = pendingRef.current[k]; }
-          });
+          const np = reindexPendingAfterRemoval(pendingRef.current, 'court_', removedIndices);
           pendingRef.current = np; setPending(np);
           if (hasPermission(roleRef.current, 'canEditCourts')) {
             upd.roundData = { courtTeamIds: newRoundCourts.map(p => p.map(t => t.id)), byeIds: newBye.map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id), courtNums: newRoundNums };
@@ -532,13 +490,13 @@ export default function App({ viewerOnly = false }) {
       setRoundRobinCourts(mapped); upd.roundRobinCourts = mapped;
     }
     setCourtNumbers(newCourts); setSocialCourts(newSocialCourts); closeModal();
-    if (hasPermission(roleRef.current, 'canEditCourts')) pushAtomicUpdate(upd, err => setFirebaseError(err));
+    gatedUpdate('canEditCourts', upd);
   }, [round, socialCourts, courtNumbers, tournamentMode, roundRobinCourts, pendingRef, roleRef, closeModal]);
 
   const handleTogglePause = useCallback(id => {
     setPausedIds(prev => {
       const np = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
-      if (hasPermission(roleRef.current, 'canTogglePause')) pushAtomicUpdate({ pausedIds: np }, err => setFirebaseError(err));
+      gatedUpdate('canTogglePause', { pausedIds: np });
       return np;
     });
   }, [roleRef]);
@@ -548,7 +506,7 @@ export default function App({ viewerOnly = false }) {
       const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: h.games.map((g, gi) => gi !== gameIdx ? g : { ...ng }), bye: newBye });
       const ns = rebuildStandings(activeTeamIds, nh);
       setStandings(ns);
-      if (hasPermission(roleRef.current, 'canEditHistoryScores') || hasPermission(roleRef.current, 'canFullEditHistory')) pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
+      gatedUpdate(['canEditHistoryScores', 'canFullEditHistory'], { history: nh });
       return nh;
     });
     closeModal();
@@ -573,7 +531,7 @@ export default function App({ viewerOnly = false }) {
     pendingRef.current = np; setPending(np);
     if (hasPermission(roleRef.current, 'canEditActiveCourt')) {
       const rd = { courtTeamIds: newCourts.map(p => p.map(t => t.id)), byeIds: newByeTeams.map(t => t.id), pausedTeamIds: (round.paused || []).map(t => t.id), ...(newCourtNums ? { courtNums: newCourtNums } : {}) };
-      pushAtomicUpdate({ roundData: rd, courtNumbers: newCourtNumbers, [`pendingResults/${courtKey(courtIdx)}`]: null }, err => setFirebaseError(err));
+      pushAtomicUpdate({ roundData: rd, courtNumbers: newCourtNumbers, [`pendingResults/${courtKey(courtIdx)}`]: null }, setFirebaseError);
     }
     closeModal();
   }, [round, tournamentTeams, courtNumbers, activeTeamIds, liveAdditions, pendingRef, roleRef, closeModal]);
@@ -586,20 +544,20 @@ export default function App({ viewerOnly = false }) {
     const np = { ...pendingRef.current };
     delete np[`live_${liveIdx}`];
     pendingRef.current = np; setPending(np);
-    if (hasPermission(roleRef.current, 'canEditActiveCourt')) pushAtomicUpdate({ liveAdditions: nl, [`pendingResults/live_${liveIdx}`]: null }, err => setFirebaseError(err));
+    gatedUpdate('canEditActiveCourt', { liveAdditions: nl, [`pendingResults/live_${liveIdx}`]: null });
     closeModal();
   }, [modal, liveAdditions, pendingRef, roleRef, closeModal]);
 
   const handleAddGameSave = useCallback((target, game) => {
     if (target === 'active') {
       if (round) {
-        setActiveRoundExtras(prev => { const ne = [...prev, game]; if (hasPermission(roleRef.current, 'canEditActiveCourt')) pushAtomicUpdate({ activeRoundExtras: ne }, err => setFirebaseError(err)); return ne; });
+        setActiveRoundExtras(prev => { const ne = [...prev, game]; gatedUpdate('canEditActiveCourt', { activeRoundExtras: ne }); return ne; });
       } else if (history.length > 0) {
         const ri = history.length - 1;
         setHistory(prev => {
           const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: [...h.games, game] });
           const ns = rebuildStandings(activeTeamIds, nh); setStandings(ns);
-          if (hasPermission(roleRef.current, 'canFullEditHistory')) pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
+          gatedUpdate('canFullEditHistory', { history: nh });
           return nh;
         });
       } else { return; }
@@ -608,7 +566,7 @@ export default function App({ viewerOnly = false }) {
       setHistory(prev => {
         const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: [...h.games, game] });
         const ns = rebuildStandings(activeTeamIds, nh); setStandings(ns);
-        if (hasPermission(roleRef.current, 'canFullEditHistory')) pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
+        gatedUpdate('canFullEditHistory', { history: nh });
         return nh;
       });
     }
@@ -619,7 +577,7 @@ export default function App({ viewerOnly = false }) {
     const trimmed = String(newCourtNum).trim(); if (!trimmed) return;
     setHistory(prev => {
       const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: h.games.map((g, j) => j !== gi ? g : { ...g, courtNumber: trimmed }) });
-      if (hasPermission(roleRef.current, 'canFullEditHistory')) pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
+      gatedUpdate('canFullEditHistory', { history: nh });
       return nh;
     });
   }, [roleRef]);
@@ -627,15 +585,44 @@ export default function App({ viewerOnly = false }) {
   const handleFinishTournament = useCallback(() => {
     const s = computeSecsLeft(); applyTimerState(false, null, s);
     setBreakMode(null); setTournamentFinished(true);
-    if (hasPermission(roleRef.current, 'canFinishTournament')) pushAtomicUpdate({ tournamentFinished: true, timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s, breakMode: null }, err => setFirebaseError(err));
+    gatedUpdate('canFinishTournament', { tournamentFinished: true, timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s, breakMode: null });
   }, [computeSecsLeft, applyTimerState, roleRef]);
 
   const handleResumeTournament = useCallback(() => {
     setTournamentFinished(false);
-    if (hasPermission(roleRef.current, 'canFinishTournament')) pushAtomicUpdate({ tournamentFinished: false }, err => setFirebaseError(err));
+    gatedUpdate('canFinishTournament', { tournamentFinished: false });
   }, [roleRef]);
 
   const handleContinueSwissAfterRR = useCallback(() => { doExitRoundRobin('completed'); }, [doExitRoundRobin]);
+
+  // ── Inline modal-action handlers (extracted for ModalRoot) ─────────────────
+  const handleConfirmRemoveGame = useCallback(() => {
+    const { ri, gameIdx } = modal.data || {};
+    if (ri == null) return;
+    setHistory(prev => {
+      const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: h.games.filter((_, gi) => gi !== gameIdx) });
+      const ns = rebuildStandings(activeTeamIds, nh); setStandings(ns);
+      if (roleRef.current === 'admin') pushAtomicUpdate({ history: nh }, setFirebaseError);
+      return nh;
+    });
+    closeModal();
+  }, [modal.data, activeTeamIds, roleRef, closeModal]);
+
+  const handleTimerSettingsSave = useCallback((m) => {
+    setTimerDefaultMins(m); setTimerDuration(m * 60);
+    gatedUpdate('canEditTimer', { timerDefaultMins: m, timerDuration: m * 60 });
+    closeModal();
+  }, [gatedUpdate, closeModal]);
+
+  const handleAddPreset = useCallback((p) => {
+    setNextRoundPresets(prev => { const np = [...prev, p]; gatedUpdate('canPresetMatch', { nextRoundPresets: np }); return np; });
+    closeModal();
+  }, [gatedUpdate, closeModal]);
+
+  const handleAddLiveGame = useCallback((la) => {
+    setLiveAdditions(prev => { const nl = [...prev, la]; gatedUpdate('canLiveAddGame', { liveAdditions: nl }); return nl; });
+    closeModal();
+  }, [gatedUpdate, closeModal]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const addGameData = useMemo(() => {
@@ -652,125 +639,42 @@ export default function App({ viewerOnly = false }) {
     return { target, usedCourts, usedTeams, label, defaultCourt: defaultCourt || '' };
   }, [modal, round, roundNum, history, courtNumbers, liveAdditions, activeRoundExtras]);
 
-  // ── PIN modal helpers ─────────────────────────────────────────────────────
-  const pinPurpose = modal.open === 'pin' ? modal.data?.purpose : null;
-  const pinTitle   = pinPurpose === 'login' ? 'Login' : pinPurpose === 'reset' ? 'PIN required to reset' : pinPurpose === 'exitRR' ? 'PIN required to exit Round Robin' : pinPurpose === 'cancelRound' ? 'PIN required to cancel round' : pinPurpose === 'regenerate' ? 'PIN required to regenerate round' : pinPurpose === 'revertToRound' ? `PIN required to revert to Round ${modal.data?.revertTarget}` : pinPurpose?.startsWith('remove') ? 'PIN required to remove' : 'PIN required';
-
-  const pinCheckFn = (() => {
-    if (!pinPurpose) return null;
-    if (pinPurpose === 'login') {
-      if (ROLES.some(r => !pinsLoaded[r.id])) return null;
-      return (hash) => { for (const r of ROLES) { if (pins[r.id] && hash === pins[r.id]) return r.id; } return null; };
-    }
-    const selfAuth  = pinPurpose === 'exitRR' && hasPermission(role, 'canExitRRWithOwnPin');
-    const pinRoleId = selfAuth ? role : 'admin';
-    if (!pinsLoaded[pinRoleId]) return null;
-    return (hash) => (pins[pinRoleId] && hash === pins[pinRoleId]) ? pinRoleId : null;
-  })();
-  const pinLoadError = pinPurpose === 'login'
-    ? ROLES.some(r => pinsLoadError[r.id])
-    : !!(pinsLoadError[pinPurpose === 'exitRR' && hasPermission(role, 'canExitRRWithOwnPin') ? role : 'admin']);
-
-  // ── Modal data extraction helpers ─────────────────────────────────────────
-  const editGameTarget    = modal.open === 'editGame'         ? modal.data : null;
-  const editActiveCourtIdx= modal.open === 'editActiveCourt'  ? modal.data : null;
-  const editLiveIdxVal    = modal.open === 'editLive'         ? modal.data : null;
-
   return (
     <TeamRegistryContext.Provider value={tournamentTeams}>
       <div className="min-h-screen" style={{ background: '#fff', fontFamily: "'Trebuchet MS',sans-serif", color: '#1e293b' }}>
 
-        {/* ── Modals ── */}
-        {modal.open === 'pin' && <PinModal title={pinTitle} checkPin={pinCheckFn} pinLoadError={pinLoadError} onSuccess={handlePinSuccess} onClose={() => { closeModal(); }} />}
-        {modal.open === 'tournamentSwapped' && <ConfirmModal title="Tournament changed" message="A new tournament was started from another device. This tab is now showing the new tournament. Reload the page to ensure everything is in sync." confirmLabel="Reload" onConfirm={() => window.location.reload()} onClose={closeModal} />}
-        {modal.open === 'confirmReset' && <ConfirmModal title="Back to Setup" message="This will end the current tournament and reset all data. Are you sure?" confirmLabel="Reset" onConfirm={() => { closeModal(); openModal('pin', { purpose: 'reset' }); }} onClose={closeModal} />}
-        {modal.open === 'confirmRemoveGame' && modal.data && (
-          <ConfirmModal title="Remove game?" message="This will permanently delete this game from history and recalculate standings. Cannot be undone." confirmLabel="Delete"
-            onConfirm={() => {
-              const { ri, gameIdx } = modal.data;
-              setHistory(prev => {
-                const nh = prev.map((h, i) => i !== ri ? h : { ...h, games: h.games.filter((_, gi) => gi !== gameIdx) });
-                const ns = rebuildStandings(activeTeamIds, nh); setStandings(ns);
-                if (roleRef.current === 'admin') pushAtomicUpdate({ history: nh }, err => setFirebaseError(err));
-                return nh;
-              });
-              closeModal();
-            }}
-            onClose={closeModal} />
-        )}
-        {modal.open === 'confirmRevert' && modal.data?.roundNum != null && (
-          <ConfirmModal title={`Revert to Round ${modal.data.roundNum}?`} message={`This will restore the tournament to the state it was in right after Round ${modal.data.roundNum} completed. All rounds played after that will be lost. This cannot be undone.`} confirmLabel="Revert" onConfirm={doRevertToRound} onClose={closeModal} />
-        )}
-        {modal.open === 'break' && <BreakModal onStart={handleBreakStart} onClose={closeModal} />}
-        {modal.open === 'timerSettings' && <TimerSettingsModal currentMins={timerDefaultMins} onSave={m => { setTimerDefaultMins(m); setTimerDuration(m * 60); if (hasPermission(roleRef.current, 'canEditTimer')) pushAtomicUpdate({ timerDefaultMins: m, timerDuration: m * 60 }, err => setFirebaseError(err)); closeModal(); }} onClose={closeModal} />}
-        {modal.open === 'manageTeams' && tournamentMode !== 'tpt' && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={handleTogglePause} onSave={handleManageTeamsSave} onClose={closeModal} canEditRoster={hasPermission(role, 'canEditTeams')} />}
-        {modal.open === 'manageTeams' && tournamentMode === 'tpt' && isAdmin && <ManageTPTTeamsModal tptTeams={tptTeams} tptPlayers={tptPlayers} onSave={handleManageTPTTeamsSave} onClose={closeModal} />}
-        {modal.open === 'manageCourts' && <ManageCourtsModal courtNumbers={courtNumbers} socialCourts={socialCourts} rrCourtCount={tournamentMode === 'roundrobin' ? (roundRobinCourts?.length ?? 0) : 0} onSave={handleManageCourtsSave} onClose={closeModal} />}
-        {modal.open === 'selectRRTeams' && <SelectRoundRobinTeamsModal rankedTeamIds={ranked.map(t => t.id)} tournamentCourts={courtNumbers} onConfirm={handleStartRoundRobin} onClose={closeModal} />}
-        {modal.open === 'addGame' && addGameData && <AddGameModal allTeamIds={activeTeamIds} defaultCourt={addGameData.defaultCourt} courtNumbers={courtNumbers} usedCourtNumbers={addGameData.usedCourts} usedTeamIds={addGameData.usedTeams} label={addGameData.label} onSave={g => handleAddGameSave(addGameData.target, g)} onClose={closeModal} />}
-        {modal.open === 'presetMatch' && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={nextRoundPresets.flatMap(p => [p.teamId1, p.teamId2])} usedCourtNumbers={nextRoundPresets.map(p => String(p.courtNumber))} onSave={p => { setNextRoundPresets(prev => { const np = [...prev, p]; if (hasPermission(roleRef.current, 'canPresetMatch')) pushAtomicUpdate({ nextRoundPresets: np }, err => setFirebaseError(err)); return np; }); closeModal(); }} onClose={closeModal} />}
-        {modal.open === 'liveAddGame' && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={[...(round?.courts.flatMap(p => p.map(t => t.id)) || []), ...liveAdditions.flatMap(la => [la.teamId1, la.teamId2])]} usedCourtNumbers={[...(round?.courts.map((_, i) => String(courtNumbers[i] ?? i + 1)) || []), ...liveAdditions.map(la => String(la.courtNumber))]} onSave={la => { setLiveAdditions(prev => { const nl = [...prev, la]; if (hasPermission(roleRef.current, 'canLiveAddGame')) pushAtomicUpdate({ liveAdditions: nl }, err => setFirebaseError(err)); return nl; }); closeModal(); }} onClose={closeModal} />}
-        {editGameTarget && history[editGameTarget.ri] && <EditGameModal game={history[editGameTarget.ri].games[editGameTarget.gameIdx]} roundEntry={history[editGameTarget.ri]} allTeamIds={activeTeamIds} label={`Round ${history[editGameTarget.ri].roundNum} · Court ${history[editGameTarget.ri].games[editGameTarget.gameIdx].courtNumber}`} scoreOnly={hasPermission(role, 'canEditHistoryScores') && !hasPermission(role, 'canFullEditHistory')} onSave={d => handleEditSave(editGameTarget.ri, editGameTarget.gameIdx, d)} onClose={closeModal} />}
-        {editActiveCourtIdx !== null && round && <EditActiveCourtModal courtIdx={editActiveCourtIdx} courtNumbers={courtNumbers} currentCourts={round.courts} allTeamIds={activeTeamIds} hasPending={!!pending[courtKey(editActiveCourtIdx)]} onSave={handleEditActiveCourt} onClose={closeModal} />}
-        {editLiveIdxVal !== null && liveAdditions[editLiveIdxVal] && <EditActiveCourtModal courtIdx={0} courtNumbers={[liveAdditions[editLiveIdxVal].courtNumber]} currentCourts={[[tournamentTeams.find(t => t.id === liveAdditions[editLiveIdxVal].teamId1), tournamentTeams.find(t => t.id === liveAdditions[editLiveIdxVal].teamId2)]]} allTeamIds={activeTeamIds} hasPending={!!pending[`live_${editLiveIdxVal}`]} onSave={handleEditLiveAddition} onClose={closeModal} />}
+        <ModalRoot
+          modal={modal} openModal={openModal} closeModal={closeModal}
+          pins={pins} pinsLoaded={pinsLoaded} pinsLoadError={pinsLoadError} role={role} onPinSuccess={handlePinSuccess}
+          doRevertToRound={doRevertToRound} onBreakStart={handleBreakStart} onConfirmRemoveGame={handleConfirmRemoveGame}
+          timerDefaultMins={timerDefaultMins} onTimerSettingsSave={handleTimerSettingsSave}
+          isAdmin={isAdmin} tournamentMode={tournamentMode}
+          activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds}
+          courtNumbers={courtNumbers} socialCourts={socialCourts} roundRobinCourts={roundRobinCourts} ranked={ranked}
+          round={round} liveAdditions={liveAdditions} nextRoundPresets={nextRoundPresets} history={history} pending={pending}
+          tptTeams={tptTeams} tptPlayers={tptPlayers}
+          onTogglePause={handleTogglePause} onManageTeamsSave={handleManageTeamsSave}
+          onManageTPTTeamsSave={handleManageTPTTeamsSave} onManageCourtsSave={handleManageCourtsSave}
+          onStartRoundRobin={handleStartRoundRobin} addGameData={addGameData} onAddGameSave={handleAddGameSave}
+          onAddPreset={handleAddPreset} onAddLiveGame={handleAddLiveGame}
+          onEditSave={handleEditSave} onEditActiveCourt={handleEditActiveCourt} onEditLiveAddition={handleEditLiveAddition}
+        />
 
-        {/* ── Floating show-header pill ── */}
-        {headerHidden && <button onClick={() => setHeaderHidden(false)} style={{ position: 'fixed', top: 8, right: 8, zIndex: 50, padding: '6px 14px', borderRadius: 999, fontWeight: 700, fontSize: 12, cursor: 'pointer', background: 'rgba(15,76,117,0.9)', color: '#fff', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}>▼ Show header</button>}
+        <AppHeader
+          headerRef={headerRef} headerHidden={headerHidden}
+          onShowHeader={() => setHeaderHidden(false)} onHideHeader={() => setHeaderHidden(true)}
+          tournamentTitle={tournamentTitle} firebaseConnected={firebaseConnected}
+          phase={phase} role={role} presence={presence} online={online} viewerOnly={viewerOnly}
+          onLoginToggle={() => { if (role) setRole(null); else openModal('pin', { purpose: 'login' }); }}
+          activeTab={activeTab} onTabChange={setActiveTab}
+        />
 
-        {/* ── Fixed header ── */}
-        <div ref={headerRef} style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 40, background: '#fff', borderBottom: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: headerHidden ? 'none' : undefined }}>
-          <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 clamp(12px,3vw,20px)' }}>
-            <div className="flex items-center gap-3 py-3">
-              <img src={ballIcon} alt="pickleball" style={{ width: 'clamp(36px,7vw,52px)', height: 'clamp(36px,7vw,52px)', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-              <div className="flex-1 min-w-0">
-                <h1 className="font-black tracking-tight leading-tight truncate" style={{ fontSize: 'clamp(16px,4vw,26px)', color: '#0f4c75' }}>{tournamentTitle}</h1>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {firebaseConnected && <span style={{ background: '#16a34a', color: '#fff', fontSize: 'clamp(8px,1.8vw,10px)', fontWeight: 800, padding: '1px 6px', borderRadius: 4, letterSpacing: '0.06em' }}>LIVE</span>}
-                  {phase === 'play' && <span className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>{ROLE_MAP[role]?.title ?? 'Viewer'}</span>}
-                  {phase === 'setup' && <span className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>Setup</span>}
-                  {Object.values(presence).some(v => v > 0) && <span className="text-slate-400" style={{ fontSize: 'clamp(9px,2vw,11px)' }}>{[...ROLES.map(r => { const n = presence[r.id] ?? 0; return n > 0 ? `${n} ${r.title.toLowerCase()}${n !== 1 ? 's' : ''}` : null; }).filter(Boolean), `${presence.viewer ?? 0} viewer${(presence.viewer ?? 0) !== 1 ? 's' : ''}`].join(' · ')}</span>}
-                  {!online && <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#dc2626', fontWeight: 700 }}>● Offline</span>}
-                </div>
-              </div>
-              {!viewerOnly && (
-                <button onClick={() => { if (role) setRole(null); else openModal('pin', { purpose: 'login' }); }}
-                  style={{ flexShrink: 0, fontSize: 'clamp(10px,2.5vw,13px)', padding: '6px 10px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: ROLE_MAP[role]?.btnBg ?? 'rgba(0,0,0,0.06)', color: ROLE_MAP[role]?.btnColor ?? '#64748b', border: `1px solid ${ROLE_MAP[role]?.btnBorder ?? 'rgba(0,0,0,0.12)'}` }}>
-                  {role ? `${ROLE_MAP[role]?.icon ?? ''} ${ROLE_MAP[role]?.title ?? role}` : '🔒 Login'}
-                </button>
-              )}
-              <button onClick={() => setHeaderHidden(true)} title="Hide header"
-                style={{ flexShrink: 0, fontSize: 13, padding: '6px 8px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: 'rgba(0,0,0,0.04)', color: '#94a3b8', border: '1px solid rgba(0,0,0,0.08)' }}>▲</button>
-            </div>
-            {phase === 'play' && (
-              <div className="flex gap-2 pb-2">
-                {[['play', '🎾 Play'], ['standings', '🏆 Standings'], ['history', '📋 History']].map(([id, label]) => (
-                  <button key={id} onClick={() => setActiveTab(id)} className="flex-1 rounded-xl font-bold"
-                    style={{ padding: 'clamp(6px,1.5vw,10px) 4px', fontSize: 'clamp(11px,2.5vw,14px)', background: activeTab === id ? 'linear-gradient(90deg,#0f4c75,#1a6fa8)' : 'rgba(0,0,0,0.05)', color: activeTab === id ? '#fff' : '#475569', cursor: 'pointer', border: activeTab === id ? 'none' : '1px solid rgba(0,0,0,0.08)' }}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Multi-admin warning ── */}
-        {isAdmin && !multiAdminDismissed && ((presence['admin'] ?? 0) - 1) > 0 && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99, padding: '6px 16px', background: '#d97706', color: '#fff', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <span>⚠️ {(presence['admin'] ?? 0) - 1} other admin session{(presence['admin'] ?? 0) - 1 > 1 ? 's' : ''} active — results from multiple admins are now handled safely.</span>
-            <button onClick={() => setMultiAdminDismissed(true)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 18, lineHeight: 1, padding: '0 2px', flexShrink: 0 }}>×</button>
-          </div>
-        )}
-        {firebaseError && (
-          <div style={{ position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 100, display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 16px', borderRadius: 10, background: '#dc2626', color: '#fff', fontWeight: 700, fontSize: 13, boxShadow: '0 2px 16px rgba(0,0,0,0.3)', maxWidth: 'calc(100vw - 32px)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>⚠️ {firebaseError}</span>
-              {firebaseErrorPersist && retrySnapshotRef.current && <button onClick={retryWrite} style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', color: '#fff', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Retry</button>}
-              <button onClick={dismissError} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: 16, lineHeight: 1 }}>×</button>
-            </div>
-            {firebaseErrorPersist && <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.9 }}>Do not refresh — tournament data is held in memory and will sync when connection is restored.</span>}
-          </div>
-        )}
+        <StatusBanners
+          isAdmin={isAdmin} multiAdminCount={Math.max(0, (presence['admin'] ?? 0) - 1)}
+          multiAdminDismissed={multiAdminDismissed} onDismissMultiAdmin={() => setMultiAdminDismissed(true)}
+          firebaseError={firebaseError} firebaseErrorPersist={firebaseErrorPersist}
+          canRetry={!!retrySnapshotRef.current} onRetry={retryWrite} onDismissError={dismissError}
+        />
 
         {/* ── Scrollable content ── */}
         <div onTouchStart={phase === 'play' ? handleSwipeStart : undefined} onTouchEnd={phase === 'play' ? handleSwipeEnd : undefined}
@@ -798,7 +702,7 @@ export default function App({ viewerOnly = false }) {
                   courtNumbers={courtNumbers} socialCourts={socialCourts} liveAdditions={liveAdditions}
                   pending={pending} role={role} finalRound={finalRound} pausedIds={pausedIds}
                   targetRounds={targetRounds}
-                  setFinalRound={v => { setFinalRound(v); if (hasPermission(roleRef.current, 'canSetFinalRound')) pushAtomicUpdate({ finalRound: v }, err => setFirebaseError(err)); }}
+                  setFinalRound={v => { setFinalRound(v); gatedUpdate('canSetFinalRound', { finalRound: v }); }}
                   history={history} ranked={tournamentMode === 'tpt' ? tptTeamStandings : ranked} activeRoundExtras={activeRoundExtras}
                   nextRoundPresets={nextRoundPresets} roundKey={roundKey}
                   timerSecsLeft={timerSecsLeft} timerDuration={timerDuration} timerRunning={timerRunning}
@@ -812,7 +716,7 @@ export default function App({ viewerOnly = false }) {
                   onEditLive={idx => openModal('editLive', idx)}
                   onRemoveLive={idx => openModal('pin', { purpose: 'removeLiveAddition', removeLiveIdx: idx })}
                   onUndoResult={handleUndoResult} onUndoLiveResult={handleUndoLiveResult}
-                  onRemovePreset={pi => { setNextRoundPresets(prev => { const np = prev.filter((_, i) => i !== pi); if (hasPermission(roleRef.current, 'canPresetMatch')) pushAtomicUpdate({ nextRoundPresets: np }, err => setFirebaseError(err)); return np; }); }}
+                  onRemovePreset={pi => { setNextRoundPresets(prev => { const np = prev.filter((_, i) => i !== pi); gatedUpdate('canPresetMatch', { nextRoundPresets: np }); return np; }); }}
                   onRemoveExtra={gi => openModal('pin', { purpose: 'removeActiveRoundExtra', removeActiveRoundExtraIdx: gi })}
                   onSelectRRTeams={() => openModal('selectRRTeams')}
                   onPresetMatch={() => openModal('presetMatch')}
