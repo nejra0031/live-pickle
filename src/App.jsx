@@ -373,6 +373,30 @@ export default function App({ viewerOnly = false }) {
     closeModal();
   }, [modal.data, updateAllStates, closeModal]);
 
+  const doRevertToBeginning = useCallback(() => {
+    const s = roundMgmtStateRef.current;
+    const snap = buildSnapshot(s, {
+      history: [], roundNum: 0, pausedIds: [], cancelledRoundNums: [], finalRound: false,
+      activeRoundExtras: [], liveAdditions: [], nextRoundPresets: [],
+      tournamentFinished: false,
+      roundRobinSchedule: null, roundRobinCourts: null,
+      roundRobinStartRoundNum: null, roundRobinStartSnapshot: null, roundRobinEndSnapshot: null,
+    });
+    pushSnapshot(snap, setFirebaseError);
+    clearBackups();
+    setBackupRoundNums(new Set()); historyLengthRef.current = 0;
+    lastSeenRoundNum.current = 0;
+    setHistory([]); setStandings([]); setRound(null); setPausedIds([]);
+    pendingRef.current = {}; setPending({}); setRoundNum(0); setRoundComplete(false);
+    setRoundRobinSchedule(null); setRoundRobinCourts(null); setRoundRobinStartRoundNum(null);
+    setRoundRobinStartSnapshot(null); setRoundRobinEndSnapshot(null);
+    setActiveRoundExtras([]); setLiveAdditions([]); setNextRoundPresets([]);
+    setTournamentFinished(false); setBreakMode(null); setCancelledRoundNums([]);
+    setTPTResults({}); tptResultsRef.current = {}; tptRoundCompletingRef.current = false;
+    setRoundKey(k => k + 1); applyTimerState(false, null, s.timerDuration);
+    closeModal(); setActiveTab('play');
+  }, [roundMgmtStateRef, closeModal, applyTimerState, setBackupRoundNums]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleBreakStart = useCallback((message, durationSecs) => {
     const bm = { message, endAt: Date.now() + durationSecs * 1000 };
     setBreakMode(bm); closeModal();
@@ -408,6 +432,10 @@ export default function App({ viewerOnly = false }) {
     else if (purpose === 'cancelRound') { doCancelRound(); }
     else if (purpose === 'revertToRound') {
       openModal('confirmRevert', { roundNum: payload.revertTarget });
+      return;
+    }
+    else if (purpose === 'revertToBeginning') {
+      openModal('confirmRevertToBeginning');
       return;
     }
     else if (purpose === 'removeGame' && payload.removeGameTarget) {
@@ -646,7 +674,7 @@ export default function App({ viewerOnly = false }) {
         <ModalRoot
           modal={modal} openModal={openModal} closeModal={closeModal}
           pins={pins} pinsLoaded={pinsLoaded} pinsLoadError={pinsLoadError} role={role} onPinSuccess={handlePinSuccess}
-          doRevertToRound={doRevertToRound} onBreakStart={handleBreakStart} onConfirmRemoveGame={handleConfirmRemoveGame}
+          doRevertToRound={doRevertToRound} doRevertToBeginning={doRevertToBeginning} onBreakStart={handleBreakStart} onConfirmRemoveGame={handleConfirmRemoveGame}
           timerDefaultMins={timerDefaultMins} onTimerSettingsSave={handleTimerSettingsSave}
           isAdmin={isAdmin} tournamentMode={tournamentMode}
           activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds}
@@ -742,6 +770,7 @@ export default function App({ viewerOnly = false }) {
                   onEditGame={(ri, gameIdx) => openModal('editGame', { ri, gameIdx })}
                   onRemoveGame={(ri, gameIdx) => { openModal('pin', { purpose: 'removeGame', removeGameTarget: { ri, gameIdx } }); }}
                   onRevertToRound={rn => { openModal('pin', { purpose: 'revertToRound', revertTarget: rn }); }}
+                  onRevertToBeginning={() => { openModal('pin', { purpose: 'revertToBeginning' }); }}
                   onEditCourtNumber={handleEditCourtNumber}
                 />
               )}

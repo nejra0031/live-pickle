@@ -6,7 +6,7 @@ export default function HistoryTab({
   history, activeTeamIds, cancelledRoundNums,
   roundRobinStartSnapshot, roundRobinEndSnapshot,
   canEditScores, canDeleteGame, canFullEdit,
-  backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound, onEditCourtNumber,
+  backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound, onRevertToBeginning, onEditCourtNumber,
   tptTeams = {}, tptPlayers = {},
 }) {
   const teamById = useTeamById();
@@ -140,9 +140,17 @@ export default function HistoryTab({
 
   const isEmpty = history.length === 0 && !roundRobinStartSnapshot && !roundRobinEndSnapshot && cancelledRoundNums.length === 0;
 
+  const hasAnyHistory = history.length > 0 || cancelledRoundNums.length > 0 || !!roundRobinStartSnapshot;
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-2">
+        {canFullEdit && hasAnyHistory ? (
+          <button onClick={onRevertToBeginning}
+            style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(220,38,38,0.07)', color: '#b91c1c', border: '1px solid rgba(220,38,38,0.2)' }}>
+            ↩ Revert to Beginning
+          </button>
+        ) : <span />}
         <button onClick={() => setNewestFirst(p => !p)}
           style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(0,0,0,0.06)', color: '#475569', border: '1px solid rgba(0,0,0,0.1)' }}>
           {newestFirst ? '↓ Newest first' : '↑ Oldest first'}

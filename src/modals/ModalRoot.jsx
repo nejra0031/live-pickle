@@ -20,7 +20,7 @@ export default function ModalRoot({
   // pin
   pins, pinsLoaded, pinsLoadError, role, onPinSuccess,
   // confirm / break / timer
-  doRevertToRound, onBreakStart, onConfirmRemoveGame, timerDefaultMins, onTimerSettingsSave,
+  doRevertToRound, doRevertToBeginning, onBreakStart, onConfirmRemoveGame, timerDefaultMins, onTimerSettingsSave,
   // shared tournament state
   isAdmin, tournamentMode, activeTeamIds, tournamentTeams, pausedIds,
   courtNumbers, socialCourts, roundRobinCourts, ranked,
@@ -70,6 +70,9 @@ export default function ModalRoot({
       )}
       {modal.open === 'confirmRevert' && modal.data?.roundNum != null && (
         <ConfirmModal title={`Revert to Round ${modal.data.roundNum}?`} message={`This will restore the tournament to the state it was in right after Round ${modal.data.roundNum} completed. All rounds played after that will be lost. This cannot be undone.`} confirmLabel="Revert" onConfirm={doRevertToRound} onClose={closeModal} />
+      )}
+      {modal.open === 'confirmRevertToBeginning' && (
+        <ConfirmModal title="Revert to Beginning?" message="This will erase all completed rounds and return the tournament to its state before Round 1 was generated. Teams and courts will be kept. This cannot be undone." confirmLabel="Revert" onConfirm={doRevertToBeginning} onClose={closeModal} />
       )}
       {modal.open === 'break' && <BreakModal onStart={onBreakStart} onClose={closeModal} />}
       {modal.open === 'timerSettings' && <TimerSettingsModal currentMins={timerDefaultMins} onSave={onTimerSettingsSave} onClose={closeModal} />}
