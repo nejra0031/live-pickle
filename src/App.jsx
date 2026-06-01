@@ -386,7 +386,7 @@ export default function App({ viewerOnly = false }) {
     clearBackups();
     setBackupRoundNums(new Set()); historyLengthRef.current = 0;
     lastSeenRoundNum.current = 0;
-    setHistory([]); setStandings([]); setRound(null); setPausedIds([]);
+    setHistory([]); setStandings(rebuildStandings(s.activeTeamIds, [])); setRound(null); setPausedIds([]);
     pendingRef.current = {}; setPending({}); setRoundNum(0); setRoundComplete(false);
     setRoundRobinSchedule(null); setRoundRobinCourts(null); setRoundRobinStartRoundNum(null);
     setRoundRobinStartSnapshot(null); setRoundRobinEndSnapshot(null);
