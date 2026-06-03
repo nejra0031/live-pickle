@@ -56,6 +56,7 @@ export function getTPTGamesForMatchup(teamA, teamB) {
 export function buildTPTStandings(tptTeams, players, tptSchedule, tptResults) {
   const teamMap = {};
   const playerMap = {};
+  const partnershipMap = {}; // key: sorted pids joined by '_'
 
   Object.values(tptTeams).forEach(team => {
     teamMap[team.id] = { id: team.id, name: team.name, color: team.color, text: team.text, wins: 0, losses: 0, scoreDiff: 0, played: 0 };
@@ -63,6 +64,18 @@ export function buildTPTStandings(tptTeams, players, tptSchedule, tptResults) {
     pids.forEach(pid => {
       const p = players[pid];
       if (p) playerMap[pid] = { id: pid, name: p.name, gender: p.gender, teamId: team.id, wins: 0, losses: 0, scoreDiff: 0, played: 0 };
+    });
+    const [m1, m2] = (team.maleIds || []).filter(Boolean);
+    const f = team.femaleId;
+    [
+      { playerIds: [m1, m2].filter(Boolean), type: 'males' },
+      { playerIds: [m1, f].filter(Boolean), type: 'mixed' },
+      { playerIds: [m2, f].filter(Boolean), type: 'mixed' },
+    ].forEach(({ playerIds, type }) => {
+      if (playerIds.length === 2) {
+        const k = [...playerIds].sort().join('_');
+        partnershipMap[k] = { playerIds, type, teamId: team.id, wins: 0, losses: 0, scoreDiff: 0, played: 0 };
+      }
     });
   });
 
@@ -96,6 +109,10 @@ export function buildTPTStandings(tptTeams, players, tptSchedule, tptResults) {
 
     winnerPids.forEach(pid => { if (playerMap[pid]) { playerMap[pid].wins++; playerMap[pid].scoreDiff += diff; playerMap[pid].played++; } });
     loserPids.forEach(pid =>  { if (playerMap[pid]) { playerMap[pid].losses++; playerMap[pid].scoreDiff -= diff; playerMap[pid].played++; } });
+
+    const wk = [...winnerPids].sort().join('_'), lk = [...loserPids].sort().join('_');
+    if (partnershipMap[wk]) { partnershipMap[wk].wins++; partnershipMap[wk].scoreDiff += diff; partnershipMap[wk].played++; }
+    if (partnershipMap[lk]) { partnershipMap[lk].losses++; partnershipMap[lk].scoreDiff -= diff; partnershipMap[lk].played++; }
   });
 
   const teamStandings = Object.values(teamMap).sort((a, b) =>
@@ -103,10 +120,18 @@ export function buildTPTStandings(tptTeams, players, tptSchedule, tptResults) {
   );
 
   const playerStandings = {};
+  const partnershipStandings = {};
   Object.values(tptTeams).forEach(team => {
     const pids = [...(team.maleIds || []), team.femaleId].filter(Boolean);
     playerStandings[team.id] = pids.map(pid => playerMap[pid]).filter(Boolean);
+    const [m1, m2] = (team.maleIds || []).filter(Boolean);
+    const f = team.femaleId;
+    partnershipStandings[team.id] = [
+      [...[m1, m2].filter(Boolean)].sort().join('_'),
+      [...[m1, f].filter(Boolean)].sort().join('_'),
+      [...[m2, f].filter(Boolean)].sort().join('_'),
+    ].map(k => partnershipMap[k]).filter(Boolean);
   });
 
-  return { teamStandings, playerStandings };
+  return { teamStandings, playerStandings, partnershipStandings };
 }
