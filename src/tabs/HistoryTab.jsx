@@ -1,12 +1,14 @@
 import { useState, useRef } from 'react';
 import { useTeamById } from '../context/TeamRegistryContext';
 import { rerank, rebuildStandings } from '../algorithms/standings';
+import { getTPTGamesForMatchup } from '../algorithms/threePlayerTeam';
 
 export default function HistoryTab({
   history, activeTeamIds, cancelledRoundNums,
   roundRobinStartSnapshot, roundRobinEndSnapshot,
   canEditScores, canDeleteGame, canFullEdit,
   backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound, onRevertToBeginning, onEditCourtNumber,
+  onEditTPTGame,
   tptTeams = {}, tptPlayers = {},
 }) {
   const teamById = useTeamById();
@@ -203,6 +205,9 @@ export default function HistoryTab({
                   const teamA = tptTeams[matchup.teamAId];
                   const teamB = tptTeams[matchup.teamBId];
                   if (!teamA || !teamB) return null;
+                  const gameDefs = getTPTGamesForMatchup(teamA, teamB);
+                  const pName = id => tptPlayers[id]?.name ?? '?';
+                  const sideLabel = pids => pids.filter(Boolean).map(pName).join(' & ');
                   return (
                     <div key={mi} className="rounded-xl" style={{ padding: 'clamp(8px,2vw,12px)', border: '1px solid rgba(0,0,0,0.07)', background: 'rgba(0,0,0,0.01)' }}>
                       <div className="flex items-center gap-2" style={{ marginBottom: 'clamp(6px,1.5vw,10px)' }}>
@@ -212,17 +217,27 @@ export default function HistoryTab({
                       </div>
                       {(matchup.games || []).map((game, gi) => {
                         if (!game) return null;
-                        const winTeam = game.winnerTeamId === teamA.id ? teamA : teamB;
-                        const loseTeam = game.winnerTeamId === teamA.id ? teamB : teamA;
-                        const label = gi === 0 ? 'Males' : `Mixed ${gi === 1 ? '①' : '②'}`;
+                        const def = gameDefs[gi];
+                        const gameLabel = gi === 0 ? 'Males' : gi === 1 ? 'Mixed #1' : 'Mixed #2';
+                        const sideALabel = sideLabel(def?.sideA || []);
+                        const sideBLabel = sideLabel(def?.sideB || []);
+                        const aWon = game.winnerTeamId === teamA.id;
+                        const scoreA = aWon ? game.winnerScore : game.loserScore;
+                        const scoreB = aWon ? game.loserScore : game.winnerScore;
                         return (
-                          <div key={gi} className="flex items-center flex-wrap" style={{ gap: 'clamp(4px,1vw,8px)', padding: 'clamp(3px,0.8vw,5px) 0', borderTop: gi > 0 ? '1px solid rgba(0,0,0,0.05)' : undefined }}>
-                            <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: gi === 0 ? '#1d4ed8' : '#be185d', fontWeight: 700, minWidth: 'clamp(34px,8vw,52px)', flexShrink: 0 }}>{label}</span>
-                            <span className="inline-flex items-center rounded-full font-bold" style={{ background: winTeam.color, color: winTeam.text, fontSize: 'clamp(10px,2.5vw,13px)', padding: '2px 8px' }}>{winTeam.name}</span>
-                            <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{game.winnerScore}</span>
-                            <span style={{ color: '#94a3b8' }}>–</span>
-                            <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{game.loserScore}</span>
-                            <span className="inline-flex items-center rounded-full font-bold" style={{ background: loseTeam.color, color: loseTeam.text, fontSize: 'clamp(10px,2.5vw,13px)', padding: '2px 8px' }}>{loseTeam.name}</span>
+                          <div key={gi} style={{ padding: 'clamp(3px,0.8vw,5px) 0', borderTop: gi > 0 ? '1px solid rgba(0,0,0,0.05)' : undefined }}>
+                            <div className="flex items-center flex-wrap" style={{ gap: 'clamp(4px,1vw,8px)' }}>
+                              <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: gi === 0 ? '#1d4ed8' : '#be185d', fontWeight: 700, minWidth: 'clamp(52px,12vw,72px)', flexShrink: 0 }}>{gameLabel}</span>
+                              <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: aWon ? '#15803d' : '#1e293b', fontWeight: aWon ? 800 : 600 }}>{sideALabel}</span>
+                              <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{scoreA}</span>
+                              <span style={{ color: '#94a3b8' }}>–</span>
+                              <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{scoreB}</span>
+                              <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: !aWon ? '#15803d' : '#1e293b', fontWeight: !aWon ? 800 : 600 }}>{sideBLabel}</span>
+                              {canEditScores && (
+                                <button onClick={() => onEditTPTGame?.(ri, mi, gi)}
+                                  style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(2px,0.5vw,4px) clamp(5px,1.2vw,8px)', borderRadius: 8, background: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)', cursor: 'pointer' }}>✏️</button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}

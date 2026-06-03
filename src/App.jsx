@@ -540,6 +540,23 @@ export default function App({ viewerOnly = false }) {
     closeModal();
   }, [activeTeamIds, roleRef, closeModal]);
 
+  const handleTPTHistoryEditSave = useCallback((ri, mi, gi, result) => {
+    setHistory(prev => {
+      const nh = prev.map((h, i) => {
+        if (i !== ri || !h.tptMatchups) return h;
+        const newMatchups = h.tptMatchups.map((m, mIdx) => {
+          if (mIdx !== mi) return m;
+          const newGames = (m.games || []).map((g, gIdx) => gIdx !== gi ? g : result);
+          return { ...m, games: newGames };
+        });
+        return { ...h, tptMatchups: newMatchups };
+      });
+      gatedUpdate(['canEditHistoryScores', 'canFullEditHistory'], { history: nh });
+      return nh;
+    });
+    closeModal();
+  }, [roleRef, closeModal]);
+
   const handleEditActiveCourt = useCallback(({ courtIdx, teamAId, teamBId, courtNum }) => {
     if (!round) return;
     const tA = tournamentTeams.find(t => t.id === teamAId), tB = tournamentTeams.find(t => t.id === teamBId);
@@ -686,6 +703,7 @@ export default function App({ viewerOnly = false }) {
           onStartRoundRobin={handleStartRoundRobin} addGameData={addGameData} onAddGameSave={handleAddGameSave}
           onAddPreset={handleAddPreset} onAddLiveGame={handleAddLiveGame}
           onEditSave={handleEditSave} onEditActiveCourt={handleEditActiveCourt} onEditLiveAddition={handleEditLiveAddition}
+          onEditTPTSave={handleTPTHistoryEditSave}
         />
 
         <AppHeader
@@ -768,6 +786,7 @@ export default function App({ viewerOnly = false }) {
                   backupRoundNums={backupRoundNums}
                   onAddGame={ri => openModal('addGame', { target: String(ri), defaultCourt: '' })}
                   onEditGame={(ri, gameIdx) => openModal('editGame', { ri, gameIdx })}
+                  onEditTPTGame={(ri, mi, gi) => openModal('editTPTGame', { ri, mi, gi })}
                   onRemoveGame={(ri, gameIdx) => { openModal('pin', { purpose: 'removeGame', removeGameTarget: { ri, gameIdx } }); }}
                   onRevertToRound={rn => { openModal('pin', { purpose: 'revertToRound', revertTarget: rn }); }}
                   onRevertToBeginning={() => { openModal('pin', { purpose: 'revertToBeginning' }); }}

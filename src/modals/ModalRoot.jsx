@@ -1,5 +1,6 @@
 import { ROLES, hasPermission } from '../roleConfig';
 import { courtKey } from '../constants';
+import { getTPTGamesForMatchup } from '../algorithms/threePlayerTeam';
 import PinModal from './PinModal';
 import ConfirmModal from './ConfirmModal';
 import BreakModal from './BreakModal';
@@ -11,6 +12,7 @@ import SelectRoundRobinTeamsModal from './SelectRoundRobinTeamsModal';
 import AddGameModal from './AddGameModal';
 import PresetMatchModal from './PresetMatchModal';
 import EditGameModal from './EditGameModal';
+import EditTPTGameModal from './EditTPTGameModal';
 import EditActiveCourtModal from './EditActiveCourtModal';
 
 // Renders whichever modal `modal.open` selects, plus the PIN-purpose title/check
@@ -29,7 +31,7 @@ export default function ModalRoot({
   // handlers
   onTogglePause, onManageTeamsSave, onManageTPTTeamsSave, onManageCourtsSave,
   onStartRoundRobin, addGameData, onAddGameSave, onAddPreset, onAddLiveGame,
-  onEditSave, onEditActiveCourt, onEditLiveAddition,
+  onEditSave, onEditActiveCourt, onEditLiveAddition, onEditTPTSave,
 }) {
   const pinPurpose = modal.open === 'pin' ? modal.data?.purpose : null;
   const pinTitle = pinPurpose === 'login' ? 'Login'
@@ -57,6 +59,7 @@ export default function ModalRoot({
     : !!(pinsLoadError[pinPurpose === 'exitRR' && hasPermission(role, 'canExitRRWithOwnPin') ? role : 'admin']);
 
   const editGameTarget     = modal.open === 'editGame'        ? modal.data : null;
+  const editTPTGameTarget  = modal.open === 'editTPTGame'     ? modal.data : null;
   const editActiveCourtIdx = modal.open === 'editActiveCourt' ? modal.data : null;
   const editLiveIdxVal     = modal.open === 'editLive'        ? modal.data : null;
 
@@ -84,6 +87,29 @@ export default function ModalRoot({
       {modal.open === 'presetMatch' && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={nextRoundPresets.flatMap(p => [p.teamId1, p.teamId2])} usedCourtNumbers={nextRoundPresets.map(p => String(p.courtNumber))} onSave={onAddPreset} onClose={closeModal} />}
       {modal.open === 'liveAddGame' && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={[...(round?.courts.flatMap(p => p.map(t => t.id)) || []), ...liveAdditions.flatMap(la => [la.teamId1, la.teamId2])]} usedCourtNumbers={[...(round?.courts.map((_, i) => String(courtNumbers[i] ?? i + 1)) || []), ...liveAdditions.map(la => String(la.courtNumber))]} onSave={onAddLiveGame} onClose={closeModal} />}
       {editGameTarget && history[editGameTarget.ri] && <EditGameModal game={history[editGameTarget.ri].games[editGameTarget.gameIdx]} roundEntry={history[editGameTarget.ri]} allTeamIds={activeTeamIds} label={`Round ${history[editGameTarget.ri].roundNum} · Court ${history[editGameTarget.ri].games[editGameTarget.gameIdx].courtNumber}`} scoreOnly={hasPermission(role, 'canEditHistoryScores') && !hasPermission(role, 'canFullEditHistory')} onSave={d => onEditSave(editGameTarget.ri, editGameTarget.gameIdx, d)} onClose={closeModal} />}
+      {editTPTGameTarget && (() => {
+        const { ri, mi, gi } = editTPTGameTarget;
+        const h = history[ri];
+        const matchup = h?.tptMatchups?.[mi];
+        const teamA = matchup && tptTeams[matchup.teamAId];
+        const teamB = matchup && tptTeams[matchup.teamBId];
+        if (!teamA || !teamB) return null;
+        const def = getTPTGamesForMatchup(teamA, teamB)[gi];
+        const pName = id => tptPlayers[id]?.name ?? '?';
+        const sideALabel = (def?.sideA || []).filter(Boolean).map(pName).join(' & ');
+        const sideBLabel = (def?.sideB || []).filter(Boolean).map(pName).join(' & ');
+        const gameLabel = `Round ${h.roundNum} · ${gi === 0 ? 'Males' : gi === 1 ? 'Mixed #1' : 'Mixed #2'}`;
+        return (
+          <EditTPTGameModal
+            gameLabel={gameLabel}
+            sideALabel={sideALabel} sideBLabel={sideBLabel}
+            teamAId={matchup.teamAId} teamBId={matchup.teamBId}
+            currentResult={matchup.games?.[gi] || null}
+            onSave={result => onEditTPTSave(ri, mi, gi, result)}
+            onClose={closeModal}
+          />
+        );
+      })()}
       {editActiveCourtIdx !== null && round && <EditActiveCourtModal courtIdx={editActiveCourtIdx} courtNumbers={courtNumbers} currentCourts={round.courts} allTeamIds={activeTeamIds} hasPending={!!pending[courtKey(editActiveCourtIdx)]} onSave={onEditActiveCourt} onClose={closeModal} />}
       {editLiveIdxVal !== null && liveAdditions[editLiveIdxVal] && <EditActiveCourtModal courtIdx={0} courtNumbers={[liveAdditions[editLiveIdxVal].courtNumber]} currentCourts={[[tournamentTeams.find(t => t.id === liveAdditions[editLiveIdxVal].teamId1), tournamentTeams.find(t => t.id === liveAdditions[editLiveIdxVal].teamId2)]]} allTeamIds={activeTeamIds} hasPending={!!pending[`live_${editLiveIdxVal}`]} onSave={onEditLiveAddition} onClose={closeModal} />}
     </>
