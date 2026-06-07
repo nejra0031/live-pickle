@@ -430,6 +430,7 @@ export default function App({ viewerOnly = false }) {
     setRoundRobinStartSnapshot(null); setRoundRobinEndSnapshot(null);
     setActiveRoundExtras([]); setLiveAdditions([]); setNextRoundPresets([]);
     setTournamentFinished(false); setBreakMode(null); setCancelledRoundNums([]); setSocialCourts([]);
+    setTournamentTitle('Tournament'); setTournamentLocation(''); setTournamentStartTime(''); setTournamentDurationMins(0);
     setTPTTeams({}); setTPTPlayers({}); setTPTSchedule([]); setTPTResults({});
     tptResultsRef.current = {}; tptScheduleRef.current = []; tptRoundCompletingRef.current = false;
     resetTimer(0);

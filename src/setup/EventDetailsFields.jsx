@@ -14,7 +14,7 @@ export default function EventDetailsFields({ location, setLocation, startTime, s
       <div>
         <p className="text-sm font-bold text-slate-700 mb-1">Start day &amp; time</p>
         <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)}
-          onWheel={e => e.currentTarget.blur()}
+          onWheel={e => e.currentTarget.blur()} step={300}
           style={{ ...iS, width: '100%' }} />
       </div>
       <div>

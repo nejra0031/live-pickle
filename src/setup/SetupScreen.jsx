@@ -68,7 +68,7 @@ const emptyDraft = () => ({ name: '', duprId: '', nickname: '' });
 const emptySlot = gender => ({ id: uid(), name: '', duprId: '', nickname: '', gender });
 
 const FORMATS = [
-  { id: 'singles',      label: '🎾 Singles' },
+  { id: 'singles',      label: '🎾 Singles RR' },
   { id: 'doublesrr',    label: '🤝 Doubles RR' },
   { id: 'fixedpartner', label: '👫 Fixed Partner' },
   { id: 'trio',         label: '👥 Trio' },
@@ -83,15 +83,20 @@ function mkTeamCard(idx, format) {
 
 // Carries team name/color/players across a format switch between the two
 // team-card formats, only adjusting the player-slot count and gender defaults.
+// Slots that don't fit the new format (e.g. trio's 3rd player when switching
+// to fixed-partner's 2) are stashed in `_overflow` so they come back intact
+// if the admin switches back rather than being silently dropped.
 function remapTeamCards(prevTeams, nextFormat) {
   const defaults = SLOT_GENDERS[nextFormat];
-  return prevTeams.map(t => ({
-    ...t,
-    players: defaults.map((defGender, i) => {
-      const prev = t.players[i];
+  return prevTeams.map(t => {
+    const allSlots = [...t.players, ...(t._overflow || [])];
+    const players = defaults.map((defGender, i) => {
+      const prev = allSlots[i];
       return prev ? { ...prev, gender: prev.gender || defGender } : emptySlot(defGender);
-    }),
-  }));
+    });
+    const overflow = allSlots.slice(defaults.length);
+    return { ...t, players, _overflow: overflow.length ? overflow : undefined };
+  });
 }
 
 const iS = { padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.12)', color: '#1e293b', outline: 'none' };
@@ -115,6 +120,28 @@ function FormatSelector({ value, onChange }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function ColorPickerDot({ color, isOpen, onToggle, onPick, size = 16 }) {
+  return (
+    <div className="relative flex-shrink-0">
+      <button type="button" title="Change color" onClick={onToggle}
+        className="rounded-full" style={{ width: size, height: size, background: color, cursor: 'pointer', border: '1px solid rgba(0,0,0,0.2)' }} />
+      {isOpen && (
+        <>
+          <div className="fixed inset-0" style={{ zIndex: 40 }} onClick={onToggle} />
+          <div className="absolute top-full left-0 mt-1 grid grid-cols-5 gap-1.5 p-2 rounded-xl"
+            style={{ zIndex: 50, width: 168, background: '#1e293b', border: '1px solid rgba(255,255,255,0.15)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}>
+            {PALETTE.map(p => (
+              <button key={p.name} type="button" title={p.name} onClick={() => onPick(p)}
+                className="w-6 h-6 rounded-full"
+                style={{ background: p.color, cursor: 'pointer', border: color === p.color ? '2px solid #fff' : '2px solid transparent' }} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -158,6 +185,7 @@ export default function SetupScreen({ onStart, onStartTPT }) {
   const [teams, setTeams] = useState([]);
   const [editingTeamId, setEditingTeamId] = useState(null);
   const [colorPickerTeamId, setColorPickerTeamId] = useState(null);
+  const [flatColorPickerId, setFlatColorPickerId] = useState(null);
 
   const isFlat = format === 'singles' || format === 'doublesrr';
   const isTeamCards = format === 'fixedpartner' || format === 'trio';
@@ -180,6 +208,7 @@ export default function SetupScreen({ onStart, onStartTPT }) {
     }
     setEditingTeamId(null);
     setColorPickerTeamId(null);
+    setFlatColorPickerId(null);
     setNumGames(0);
   };
 
@@ -188,11 +217,13 @@ export default function SetupScreen({ onStart, onStartTPT }) {
     const name = playerDraft.name.trim();
     if (!name) return;
     const duprId = playerDraft.duprId.trim(), nickname = playerDraft.nickname.trim();
-    setFlatPlayers(p => [...p, { id: uid(), name, duprId, nickname }]);
+    const pal = PALETTE[flatPlayers.length % PALETTE.length];
+    setFlatPlayers(p => [...p, { id: uid(), name, duprId, nickname, color: pal.color, text: pal.text }]);
     saveKnownPlayer(name, duprId, nickname);
     setPlayerDraft(emptyDraft());
   };
   const removeFlatPlayer = id => setFlatPlayers(p => p.filter(x => x.id !== id));
+  const changeFlatPlayerColor = (id, pal) => setFlatPlayers(p => p.map(x => x.id === id ? { ...x, color: pal.color, text: pal.text } : x));
 
   // ── Team-card handlers (fixedpartner / trio) ──
   const addTeamCard = () => setTeams(p => [...p, mkTeamCard(p.length, format)]);
@@ -212,13 +243,10 @@ export default function SetupScreen({ onStart, onStartTPT }) {
   // ── Derived roster → selectedTeams (Swiss/RR engine shape) ──
   let selectedTeams = [];
   if (format === 'singles') {
-    selectedTeams = flatPlayers.filter(p => p.name.trim()).map((p, idx) => {
-      const pal = PALETTE[idx % PALETTE.length];
-      return {
-        id: p.id, name: p.name.trim(), color: pal.color, text: pal.text,
-        players: [{ name: p.name, duprId: p.duprId, nickname: p.nickname }],
-      };
-    });
+    selectedTeams = flatPlayers.filter(p => p.name.trim()).map(p => ({
+      id: p.id, name: p.name.trim(), color: p.color, text: p.text,
+      players: [{ name: p.name, duprId: p.duprId, nickname: p.nickname }],
+    }));
   } else if (format === 'fixedpartner') {
     selectedTeams = teams
       .filter(t => t.name.trim() && t.players.every(s => s.name.trim()))
@@ -339,6 +367,11 @@ export default function SetupScreen({ onStart, onStartTPT }) {
               <div className="flex flex-col gap-1">
                 {flatPlayers.map(p => (
                   <div key={p.id} className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.04)' }}>
+                    {format === 'singles' && (
+                      <ColorPickerDot color={p.color} size={14} isOpen={flatColorPickerId === p.id}
+                        onToggle={() => setFlatColorPickerId(x => x === p.id ? null : p.id)}
+                        onPick={pal => { changeFlatPlayerColor(p.id, pal); setFlatColorPickerId(null); }} />
+                    )}
                     <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: '#1e293b', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {p.name}{p.duprId ? ` (${p.duprId})` : ''}{p.nickname ? ` - ${p.nickname}` : ''}
                     </span>
@@ -366,25 +399,9 @@ export default function SetupScreen({ onStart, onStartTPT }) {
                   <div key={team.id} className="rounded-xl p-3 flex flex-col gap-2"
                     style={{ border: `2px solid ${team.color}55`, background: `${team.color}10` }}>
                     <div className="flex items-center gap-2">
-                      <div className="relative flex-shrink-0">
-                        <button type="button" title="Change team color"
-                          onClick={() => setColorPickerTeamId(p => p === team.id ? null : team.id)}
-                          className="w-4 h-4 rounded-full" style={{ background: team.color, cursor: 'pointer', border: '1px solid rgba(0,0,0,0.2)' }} />
-                        {colorPickerTeamId === team.id && (
-                          <>
-                            <div className="fixed inset-0" style={{ zIndex: 40 }} onClick={() => setColorPickerTeamId(null)} />
-                            <div className="absolute top-full left-0 mt-1 grid grid-cols-5 gap-1.5 p-2 rounded-xl"
-                              style={{ zIndex: 50, width: 168, background: '#1e293b', border: '1px solid rgba(255,255,255,0.15)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}>
-                              {PALETTE.map(p => (
-                                <button key={p.name} type="button" title={p.name}
-                                  onClick={() => { changeTeamColor(team.id, p); setColorPickerTeamId(null); }}
-                                  className="w-6 h-6 rounded-full"
-                                  style={{ background: p.color, cursor: 'pointer', border: team.color === p.color ? '2px solid #fff' : '2px solid transparent' }} />
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      <ColorPickerDot color={team.color} isOpen={colorPickerTeamId === team.id}
+                        onToggle={() => setColorPickerTeamId(p => p === team.id ? null : team.id)}
+                        onPick={pal => { changeTeamColor(team.id, pal); setColorPickerTeamId(null); }} />
                       {editing ? (
                         <input autoFocus value={team.name} onChange={e => renameTeamCard(team.id, e.target.value)}
                           onBlur={() => setEditingTeamId(null)}
@@ -488,7 +505,6 @@ export default function SetupScreen({ onStart, onStartTPT }) {
               <span className="text-slate-600 text-sm">minutes per round</span>
             </div>
           )}
-          {timerEnabled && <p className="text-slate-500 text-xs mt-2">A loud alarm sounds when time runs out.</p>}
         </div>
 
         {(format === 'singles' || format === 'fixedpartner') && (
@@ -533,7 +549,7 @@ export default function SetupScreen({ onStart, onStartTPT }) {
         {!canStart && !isComingSoon && (
           <p className="text-amber-600 text-xs text-center">
             {format === 'trio'
-              ? (trioReadyTeams.length < 2 ? 'Need at least 2 complete teams (2 male + 1 female each).' : `Need at least ${trioMinCourts} court${trioMinCourts !== 1 ? 's' : ''}.`)
+              ? (trioReadyTeams.length < 2 ? 'Need at least 2 complete teams.' : `Need at least ${trioMinCourts} court${trioMinCourts !== 1 ? 's' : ''}.`)
               : (allTeamIds.length < 3 ? 'Need at least 3 teams.' : courts.length < 1 ? 'Need at least 1 court.' : '')}
           </p>
         )}
