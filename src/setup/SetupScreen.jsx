@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { ALL_TEAMS } from '../constants';
-import ThreePlayerSetupScreen from './ThreePlayerSetupScreen';
 import EventDetailsFields from './EventDetailsFields';
 import PlayerNameField from '../components/PlayerNameField';
 import useKnownPlayers from '../hooks/useKnownPlayers';
 
 const PRESET = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const PALETTE = ALL_TEAMS.map(t => ({ color: t.color, text: t.text }));
 
 // Stats for R rounds where the final round may use fewer courts to equalise.
 // Returns { minGames, maxGames, finalCourts, rounds }.
@@ -65,60 +65,157 @@ function roundsForGames(numTeams, numCourts, targetGames) {
 
 const uid = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 const emptyDraft = () => ({ name: '', duprId: '', nickname: '' });
+const emptySlot = gender => ({ id: uid(), name: '', duprId: '', nickname: '', gender });
+
+const FORMATS = [
+  { id: 'singles',      label: '🎾 Singles',      blurb: 'Just add players — 1v1 matches' },
+  { id: 'doublesrr',    label: '🤝 Doubles RR',    blurb: 'Add players — partners rotate each round' },
+  { id: 'fixedpartner', label: '👫 Fixed Partner', blurb: 'Teams of 2 with a set partner' },
+  { id: 'trio',         label: '👥 Trio',          blurb: 'Teams of 3 (2 male + 1 female)' },
+];
+
+const SLOT_GENDERS = { fixedpartner: ['', ''], trio: ['M', 'M', 'F'] };
+
+function mkTeamCard(idx, format) {
+  const pal = PALETTE[idx % PALETTE.length];
+  return { id: uid(), name: '', color: pal.color, text: pal.text, players: SLOT_GENDERS[format].map(emptySlot) };
+}
+
+const iS = { padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.12)', color: '#1e293b', outline: 'none' };
+
+function FormatSelector({ value, onChange }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {FORMATS.map(f => {
+        const active = value === f.id;
+        return (
+          <button key={f.id} onClick={() => onChange(f.id)} type="button"
+            className="rounded-xl px-3 py-2 text-left"
+            style={{
+              background: active ? 'linear-gradient(135deg,#0f4c75,#1a6fa8)' : 'rgba(255,255,255,0.55)',
+              color: active ? '#fff' : '#334155',
+              border: '1px solid ' + (active ? 'transparent' : 'rgba(0,0,0,0.1)'),
+              cursor: 'pointer',
+            }}>
+            <p className="font-bold text-sm">{f.label}</p>
+            <p className="text-xs mt-0.5" style={{ opacity: active ? 0.85 : 0.6 }}>{f.blurb}</p>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function GenderToggle({ value, onChange }) {
+  return (
+    <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(0,0,0,0.15)' }}>
+      {['M', 'F'].map(g => (
+        <button key={g} onClick={() => onChange(value === g ? '' : g)} type="button"
+          style={{
+            padding: '3px 9px', fontSize: 11, fontWeight: 800, cursor: 'pointer', border: 'none',
+            background: value === g ? (g === 'M' ? '#3b82f6' : '#ec4899') : 'rgba(0,0,0,0.05)',
+            color: value === g ? '#fff' : '#64748b',
+          }}>
+          {g}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function SetupScreen({ onStart, onStartTPT }) {
-  const [tournamentType, setTournamentType] = useState('swiss');
-  const [players, setPlayers] = useState([]);
-  const [playerDraft, setPlayerDraft] = useState(emptyDraft());
-  const [teams, setTeams] = useState([]);
-  const [editingTeamId, setEditingTeamId] = useState(null);
-  const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
+  const [format, setFormat] = useState('singles');
+
+  // Shared
+  const [title, setTitle] = useState('Tournament');
+  const [location, setLocation] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [durationMins, setDurationMins] = useState(0);
   const [courts, setCourts] = useState([]);
   const [courtInput, setCourtInput] = useState('');
   const [courtInputError, setCourtInputError] = useState('');
   const [timerMins, setTimerMins] = useState(12);
   const [timerEnabled, setTimerEnabled] = useState(true);
-  const [title, setTitle] = useState('Tournament');
   const [numGames, setNumGames] = useState(0);
-  const [location, setLocation] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [durationMins, setDurationMins] = useState(0);
+  const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
 
-  const selectedTeams = teams
-    .map(t => ({
-      id: t.id, name: t.name.trim() || t.id, color: t.color, text: t.text,
-      players: players.filter(p => p.teamId === t.id).map(p => ({ name: p.name, duprId: p.duprId, nickname: p.nickname })),
-    }))
-    .filter(t => t.players.length > 0);
+  // Roster state — singles/doublesrr use a flat player list, fixedpartner/trio use team cards
+  const [flatPlayers, setFlatPlayers] = useState([]);
+  const [playerDraft, setPlayerDraft] = useState(emptyDraft());
+  const [teams, setTeams] = useState([]);
+  const [editingTeamId, setEditingTeamId] = useState(null);
+
+  const isFlat = format === 'singles' || format === 'doublesrr';
+  const isTeamCards = format === 'fixedpartner' || format === 'trio';
+  const isComingSoon = format === 'doublesrr';
+
+  const changeFormat = next => {
+    if (next === format) return;
+    setFormat(next);
+    setFlatPlayers([]);
+    setPlayerDraft(emptyDraft());
+    setTeams(next === 'fixedpartner' || next === 'trio' ? [mkTeamCard(0, next), mkTeamCard(1, next)] : []);
+    setEditingTeamId(null);
+    setNumGames(0);
+  };
+
+  // ── Flat-list handlers (singles / doublesrr) ──
+  const addFlatPlayer = () => {
+    const name = playerDraft.name.trim();
+    if (!name) return;
+    const duprId = playerDraft.duprId.trim(), nickname = playerDraft.nickname.trim();
+    setFlatPlayers(p => [...p, { id: uid(), name, duprId, nickname }]);
+    saveKnownPlayer(name, duprId, nickname);
+    setPlayerDraft(emptyDraft());
+  };
+  const removeFlatPlayer = id => setFlatPlayers(p => p.filter(x => x.id !== id));
+
+  // ── Team-card handlers (fixedpartner / trio) ──
+  const addTeamCard = () => setTeams(p => [...p, mkTeamCard(p.length, format)]);
+  const removeTeamCard = id => { if (teams.length > 1) setTeams(p => p.filter(t => t.id !== id)); };
+  const renameTeamCard = (id, name) => setTeams(p => p.map(t => t.id === id ? { ...t, name } : t));
+  const updateSlot = (teamId, slotIdx, patch) => setTeams(p => p.map(t =>
+    t.id === teamId ? { ...t, players: t.players.map((s, i) => i === slotIdx ? { ...s, ...patch } : s) } : t
+  ));
+
+  // ── Derived roster → selectedTeams (Swiss/RR engine shape) ──
+  let selectedTeams = [];
+  if (format === 'singles') {
+    selectedTeams = flatPlayers.filter(p => p.name.trim()).map((p, idx) => {
+      const pal = PALETTE[idx % PALETTE.length];
+      return {
+        id: p.id, name: p.name.trim(), color: pal.color, text: pal.text,
+        players: [{ name: p.name, duprId: p.duprId, nickname: p.nickname }],
+      };
+    });
+  } else if (format === 'fixedpartner') {
+    selectedTeams = teams
+      .filter(t => t.name.trim() && t.players.every(s => s.name.trim()))
+      .map(t => ({
+        id: t.id, name: t.name.trim(), color: t.color, text: t.text,
+        players: t.players.map(s => ({ name: s.name, duprId: s.duprId, nickname: s.nickname, gender: s.gender })),
+      }));
+  }
   const allTeamIds = selectedTeams.map(t => t.id);
+
+  // Trio teams need a name + 3 named players + exactly 2 male / 1 female (the TPT engine's hard requirement)
+  const trioFilledTeams = format === 'trio'
+    ? teams.filter(t => t.name.trim() && t.players.every(s => s.name.trim()))
+    : [];
+  const trioGenderOk = t => t.players.filter(s => s.gender === 'M').length === 2 && t.players.filter(s => s.gender === 'F').length === 1;
+  const trioReadyTeams = trioFilledTeams.filter(trioGenderOk);
+  const trioBadGenderCount = trioFilledTeams.length - trioReadyTeams.length;
+
   const effectiveCourts = Math.min(courts.length, Math.floor(allTeamIds.length / 2));
   const validCounts = getValidGameCounts(allTeamIds.length, courts.length);
   const selectedGames = validCounts.includes(numGames) ? numGames : 0;
   const parsedRounds = selectedGames > 0 ? roundsForGames(allTeamIds.length, courts.length, selectedGames) : 0;
 
-  const addPlayer = () => {
-    const name = playerDraft.name.trim();
-    if (!name) return;
-    const duprId = playerDraft.duprId.trim(), nickname = playerDraft.nickname.trim();
-    setPlayers(p => [...p, { id: uid(), name, duprId, nickname, teamId: null }]);
-    saveKnownPlayer(name, duprId, nickname);
-    setPlayerDraft(emptyDraft());
-  };
-  const removePlayer = id => setPlayers(p => p.filter(x => x.id !== id));
-  const assignPlayer = (playerId, teamId) => setPlayers(p => p.map(x => x.id === playerId ? { ...x, teamId: teamId || null } : x));
+  const trioMinCourts = Math.max(1, Math.floor(trioReadyTeams.length / 2));
+  const trioTotalRounds = trioReadyTeams.length >= 2 ? trioReadyTeams.length - 1 : 0;
+  const trioTotalGames = trioReadyTeams.length >= 2 ? trioTotalRounds * Math.floor(trioReadyTeams.length / 2) * 3 : 0;
 
-  const addTeam = colorId => {
-    if (teams.some(t => t.id === colorId)) return;
-    const base = ALL_TEAMS.find(c => c.id === colorId);
-    if (!base) return;
-    setTeams(p => [...p, { id: base.id, name: base.name, color: base.color, text: base.text }]);
-  };
-  const removeTeam = id => {
-    setTeams(p => p.filter(t => t.id !== id));
-    setPlayers(p => p.map(x => x.teamId === id ? { ...x, teamId: null } : x));
-  };
-  const renameTeam = (id, name) => setTeams(p => p.map(t => t.id === id ? { ...t, name } : t));
-
+  // ── Courts handlers (shared) ──
   const addCourt = () => {
     const v = courtInput.trim();
     if (!v) { setCourtInput(''); return; }
@@ -127,7 +224,6 @@ export default function SetupScreen({ onStart, onStartTPT }) {
     setCourtInput('');
     setCourtInputError('');
   };
-
   const toggleCourt = v => {
     if (courts.includes(v)) {
       setCourts(p => p.filter(x => x !== v));
@@ -139,237 +235,264 @@ export default function SetupScreen({ onStart, onStartTPT }) {
     }
   };
 
-  const canStart = allTeamIds.length >= 3 && courts.length >= 1;
+  const canStart =
+    format === 'singles'      ? (allTeamIds.length >= 3 && courts.length >= 1) :
+    format === 'fixedpartner' ? (allTeamIds.length >= 3 && courts.length >= 1) :
+    format === 'trio'         ? (trioReadyTeams.length >= 2 && courts.length >= trioMinCourts) :
+    false; // doublesrr — coming soon
 
-  const iS = { padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.12)', color: '#1e293b', outline: 'none' };
-
-  if (tournamentType === 'tpt') {
-    return (
-      <div className="flex flex-col gap-4">
-        <TypeToggle value={tournamentType} onChange={setTournamentType} />
-        <ThreePlayerSetupScreen onStart={onStartTPT} />
-      </div>
-    );
-  }
+  const handleStart = () => {
+    if (!canStart) return;
+    const eventDetails = { location: location.trim(), startTime, durationMins };
+    if (format === 'trio') {
+      const tptTeams = {}, tptPlayersObj = {};
+      trioReadyTeams.forEach(t => {
+        const males = t.players.filter(s => s.gender === 'M');
+        const female = t.players.find(s => s.gender === 'F');
+        const m1id = uid(), m2id = uid(), fid = uid();
+        tptTeams[t.id] = { id: t.id, name: t.name.trim(), color: t.color, text: t.text, maleIds: [m1id, m2id], femaleId: fid };
+        tptPlayersObj[m1id] = { id: m1id, name: males[0].name.trim(), duprId: males[0].duprId.trim(), teamId: t.id, gender: 'male' };
+        tptPlayersObj[m2id] = { id: m2id, name: males[1].name.trim(), duprId: males[1].duprId.trim(), teamId: t.id, gender: 'male' };
+        tptPlayersObj[fid]  = { id: fid,  name: female.name.trim(),   duprId: female.duprId.trim(),   teamId: t.id, gender: 'female' };
+        [...males, female].forEach(s => saveKnownPlayer(s.name, s.duprId, s.nickname));
+      });
+      onStartTPT(tptTeams, tptPlayersObj, courts, timerEnabled ? timerMins * 60 : 0, title.trim() || 'Tournament', eventDetails);
+    } else {
+      if (format === 'fixedpartner') {
+        teams.flatMap(t => t.players).forEach(s => { if (s.name.trim()) saveKnownPlayer(s.name, s.duprId, s.nickname); });
+      }
+      onStart(selectedTeams, allTeamIds, courts, timerEnabled ? timerMins * 60 : 0, title, parsedRounds, eventDetails);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
-      <TypeToggle value={tournamentType} onChange={setTournamentType} />
-    <div className="rounded-2xl p-6 flex flex-col gap-6" style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.7)', backdropFilter: 'blur(8px)' }}>
-      <div>
-        <p className="text-sm font-bold text-slate-700 mb-1">Tournament Name</p>
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Tournament"
-          style={{ ...iS, width: '100%', fontSize: 15, fontWeight: 800, color: '#0f4c75', background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(15,76,117,0.2)' }} />
-      </div>
+      <FormatSelector value={format} onChange={changeFormat} />
+      <div className="rounded-2xl p-6 flex flex-col gap-6" style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.7)', backdropFilter: 'blur(8px)' }}>
 
-      <EventDetailsFields location={location} setLocation={setLocation}
-        startTime={startTime} setStartTime={setStartTime}
-        durationMins={durationMins} setDurationMins={setDurationMins} />
-
-      <div>
-        <p className="text-sm font-bold text-slate-700 mb-1">Players</p>
-        <p className="text-slate-500 text-xs mb-3">Add each player, then group them into teams below.</p>
-        <div className="flex flex-col sm:flex-row gap-2 mb-3 items-start">
-          <div style={{ flex: 2, minWidth: 0 }}>
-            <PlayerNameField name={playerDraft.name} duprId={playerDraft.duprId} knownPlayers={knownPlayers}
-              onChange={val => setPlayerDraft(d => ({ name: val.name, duprId: val.duprId, nickname: val.nickname ?? d.nickname }))}
-              inputStyle={{ ...iS, width: '100%' }} />
-          </div>
-          <input value={playerDraft.nickname} onChange={e => setPlayerDraft(d => ({ ...d, nickname: e.target.value }))}
-            placeholder="Nickname (optional)" onKeyDown={e => e.key === 'Enter' && addPlayer()}
-            style={{ ...iS, flex: 1, minWidth: 0 }} />
-          <button onClick={addPlayer} className="px-3 py-1 rounded-lg text-xs font-bold flex-shrink-0"
-            style={{ background: 'rgba(15,76,117,0.15)', color: '#0f4c75', cursor: 'pointer', border: '1px solid rgba(15,76,117,0.3)' }}>
-            + Add player
-          </button>
+        <div>
+          <p className="text-sm font-bold text-slate-700 mb-1">Tournament Name</p>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Tournament"
+            style={{ ...iS, width: '100%', fontSize: 15, fontWeight: 800, color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)' }} />
         </div>
-        {players.length > 0 && (
-          <div className="flex flex-col gap-1">
-            {players.map(p => (
-              <div key={p.id} className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.04)' }}>
-                <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: '#1e293b', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {p.name}{p.duprId ? ` (${p.duprId})` : ''}{p.nickname ? ` - ${p.nickname}` : ''}
-                </span>
-                <select value={p.teamId || ''} onChange={e => assignPlayer(p.id, e.target.value)}
-                  style={{ ...iS, fontSize: 11, padding: '4px 6px', flexShrink: 0 }}>
-                  <option value="">— Unassigned —</option>
-                  {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-                <button onClick={() => removePlayer(p.id)} style={{ cursor: 'pointer', fontWeight: 900, background: 'none', border: 'none', color: '#94a3b8', flexShrink: 0 }}>×</button>
-              </div>
-            ))}
+
+        <EventDetailsFields location={location} setLocation={setLocation}
+          startTime={startTime} setStartTime={setStartTime}
+          durationMins={durationMins} setDurationMins={setDurationMins} />
+
+        {isComingSoon && (
+          <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.25)', color: '#92400e' }}>
+            🚧 <strong>Doubles Round Robin is coming soon.</strong> You can build the player list below to get a head start, but starting a tournament in this format isn't available yet.
           </div>
         )}
-        <p className="text-slate-600 text-xs mt-3 font-bold">{players.length} player{players.length !== 1 ? 's' : ''}{players.length > 0 ? ` · ${players.filter(p => !p.teamId).length} unassigned` : ''}</p>
-      </div>
 
-      <div>
-        <p className="text-sm font-bold text-slate-700 mb-1">Teams</p>
-        <p className="text-slate-500 text-xs mb-3">Tap a colour to create a team · Tap a name to rename · Assign players to it above</p>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {ALL_TEAMS.map(c => {
-            const active = teams.some(t => t.id === c.id);
-            return (
-              <button key={c.id} onClick={() => active ? removeTeam(c.id) : addTeam(c.id)}
-                className="rounded-full px-3 py-1 text-xs font-bold"
-                style={{ background: active ? c.color : 'rgba(0,0,0,0.06)', color: active ? c.text : '#64748b', border: '2px solid ' + (active ? c.color : 'rgba(0,0,0,0.12)'), cursor: 'pointer' }}>
-                {c.name}
+        {isFlat && (
+          <div>
+            <p className="text-sm font-bold text-slate-700 mb-1">Players</p>
+            <p className="text-slate-500 text-xs mb-3">{format === 'singles' ? 'Each player plays as their own team — no team names needed.' : 'Add each player — partnerships are generated by the algorithm each round.'}</p>
+            <div className="flex flex-col sm:flex-row gap-2 mb-3 items-start">
+              <div style={{ flex: 2, minWidth: 0 }}>
+                <PlayerNameField name={playerDraft.name} duprId={playerDraft.duprId} knownPlayers={knownPlayers}
+                  onChange={val => setPlayerDraft(d => ({ name: val.name, duprId: val.duprId, nickname: val.nickname ?? d.nickname }))}
+                  inputStyle={{ ...iS, width: '100%' }} />
+              </div>
+              <input value={playerDraft.nickname} onChange={e => setPlayerDraft(d => ({ ...d, nickname: e.target.value }))}
+                placeholder="Nickname (optional)" onKeyDown={e => e.key === 'Enter' && addFlatPlayer()}
+                style={{ ...iS, flex: 1, minWidth: 0 }} />
+              <button onClick={addFlatPlayer} className="px-3 py-1 rounded-lg text-xs font-bold flex-shrink-0"
+                style={{ background: 'rgba(15,76,117,0.15)', color: '#0f4c75', cursor: 'pointer', border: '1px solid rgba(15,76,117,0.3)' }}>
+                + Add player
               </button>
-            );
-          })}
-        </div>
-        {teams.length > 0 && (
-          <div className="flex flex-col gap-2">
-            {teams.map(t => {
-              const teamPlayers = players.filter(p => p.teamId === t.id);
-              const editing = editingTeamId === t.id;
-              return (
-                <div key={t.id} className="rounded-xl p-3" style={{ border: `2px solid ${t.color}55`, background: `${t.color}10` }}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: t.color }} />
-                    {editing ? (
-                      <input autoFocus value={t.name} onChange={e => renameTeam(t.id, e.target.value)}
-                        onBlur={() => setEditingTeamId(null)}
-                        onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingTeamId(null); }}
-                        style={{ ...iS, flex: 1, fontWeight: 800, fontSize: 13, color: '#0f4c75' }} />
-                    ) : (
-                      <span onClick={() => setEditingTeamId(t.id)} className="flex items-center gap-1"
-                        style={{ flex: 1, fontWeight: 800, fontSize: 13, color: '#0f4c75', cursor: 'text' }}>
-                        {t.name} <span style={{ opacity: 0.6, fontSize: 10 }} title="Rename">✏️</span>
-                      </span>
-                    )}
-                    <button onClick={() => removeTeam(t.id)} title="Remove team"
-                      style={{ cursor: 'pointer', fontWeight: 900, background: 'none', border: 'none', color: '#94a3b8', flexShrink: 0 }}>×</button>
+            </div>
+            {flatPlayers.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {flatPlayers.map(p => (
+                  <div key={p.id} className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.04)' }}>
+                    <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: '#1e293b', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.name}{p.duprId ? ` (${p.duprId})` : ''}{p.nickname ? ` - ${p.nickname}` : ''}
+                    </span>
+                    <button onClick={() => removeFlatPlayer(p.id)} style={{ cursor: 'pointer', fontWeight: 900, background: 'none', border: 'none', color: '#94a3b8', flexShrink: 0 }}>×</button>
                   </div>
-                  {teamPlayers.length > 0 ? (
-                    <p className="text-xs mt-2" style={{ color: '#475569' }}>{teamPlayers.map(p => p.name).join(', ')}</p>
-                  ) : (
-                    <p className="text-xs mt-2" style={{ color: '#d97706' }}>No players assigned yet — pick this team in the Players list above.</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <p className="text-slate-600 text-xs mt-3 font-bold">{allTeamIds.length} team{allTeamIds.length !== 1 ? 's' : ''} ready</p>
-      </div>
-
-      <div>
-        <p className="text-sm font-bold text-slate-700 mb-3">Courts to Use</p>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {PRESET.map(n => {
-            const s = courts.includes(n);
-            return (
-              <button key={n} onClick={() => toggleCourt(n)} className="rounded-full px-3 py-1 text-xs font-bold"
-                style={{ background: s ? 'rgba(15,76,117,0.15)' : 'rgba(0,0,0,0.06)', color: s ? '#0f4c75' : '#64748b', border: '2px solid ' + (s ? 'rgba(15,76,117,0.5)' : 'rgba(0,0,0,0.1)'), cursor: 'pointer' }}>
-                {n}
-              </button>
-            );
-          })}
-        </div>
-        {courts.filter(c => !PRESET.includes(c)).length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {courts.filter(c => !PRESET.includes(c)).map(c => (
-              <div key={c} className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold"
-                style={{ background: 'rgba(15,76,117,0.15)', color: '#0f4c75', border: '2px solid rgba(15,76,117,0.4)' }}>
-                {c}
-                <button onClick={() => setCourts(p => p.filter(x => x !== c))} style={{ cursor: 'pointer', marginLeft: 4, fontWeight: 900, background: 'none', border: 'none', color: '#0f4c75' }}>×</button>
+                ))}
               </div>
-            ))}
+            )}
+            <p className="text-slate-600 text-xs mt-3 font-bold">{flatPlayers.length} player{flatPlayers.length !== 1 ? 's' : ''}</p>
           </div>
         )}
-        <p className="text-slate-500 text-xs mb-2">Or enter any custom court name:</p>
-        <div className="flex gap-2">
-          <input placeholder="Name or number" value={courtInput}
-            onChange={e => { setCourtInput(e.target.value); setCourtInputError(''); }}
-            onKeyDown={e => e.key === 'Enter' && addCourt()}
-            style={{ ...iS, flex: 1, background: 'rgba(255,255,255,0.7)', color: '#1e293b', border: '1px solid rgba(0,0,0,0.15)' }} />
-          <button onClick={addCourt} className="px-3 py-1 rounded-lg text-xs font-bold"
-            style={{ background: 'rgba(15,76,117,0.15)', color: '#0f4c75', cursor: 'pointer', border: '1px solid rgba(15,76,117,0.3)' }}>
-            + Add
-          </button>
-        </div>
-        {courtInputError && <p className="text-amber-600 text-xs mt-1">{courtInputError}</p>}
-        <p className="text-slate-500 text-xs mt-2">{courts.length} court{courts.length !== 1 ? 's' : ''}: {courts.join(', ')}</p>
-      </div>
 
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <p className="text-sm font-bold text-slate-700">Round Timer</p>
-          <button onClick={() => setTimerEnabled(p => !p)} className="text-xs px-2 py-1 rounded-lg font-bold"
-            style={{ background: timerEnabled ? 'rgba(15,76,117,0.15)' : 'rgba(0,0,0,0.06)', color: timerEnabled ? '#0f4c75' : '#94a3b8', cursor: 'pointer', border: '1px solid ' + (timerEnabled ? 'rgba(15,76,117,0.4)' : 'rgba(0,0,0,0.1)') }}>
-            {timerEnabled ? 'On' : 'Off'}
-          </button>
-        </div>
-        {timerEnabled && (
-          <div className="flex items-center gap-3">
-            <input type="number" min={1} max={99} value={timerMins}
-              onChange={e => setTimerMins(Math.max(1, Number(e.target.value)))}
-              style={{ ...iS, width: 64, textAlign: 'center', fontSize: 14, background: 'rgba(255,255,255,0.7)', color: '#1e293b', border: '1px solid rgba(0,0,0,0.15)' }} />
-            <span className="text-slate-600 text-sm">minutes per round</span>
+        {isTeamCards && (
+          <div>
+            <p className="text-sm font-bold text-slate-700 mb-1">Teams</p>
+            <p className="text-slate-500 text-xs mb-3">
+              {format === 'trio'
+                ? 'Each team: name + 3 players. Tap M/F to set each player’s gender (default 2 male, 1 female).'
+                : 'Each team: name + 2 players. Tap M/F to optionally record each player’s gender.'}
+            </p>
+            <div className="flex flex-col gap-3">
+              {teams.map((team, tIdx) => {
+                const editing = editingTeamId === team.id;
+                return (
+                  <div key={team.id} className="rounded-xl p-3 flex flex-col gap-2"
+                    style={{ border: `2px solid ${team.color}55`, background: `${team.color}10` }}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: team.color }} />
+                      {editing ? (
+                        <input autoFocus value={team.name} onChange={e => renameTeamCard(team.id, e.target.value)}
+                          onBlur={() => setEditingTeamId(null)}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingTeamId(null); }}
+                          placeholder="Team name"
+                          style={{ ...iS, flex: 1, fontWeight: 800, fontSize: 14, color: '#0f4c75', border: `1px solid ${team.color}66` }} />
+                      ) : (
+                        <span onClick={() => setEditingTeamId(team.id)} className="flex items-center gap-1"
+                          style={{ flex: 1, fontWeight: 800, fontSize: 14, color: team.name.trim() ? '#0f4c75' : '#94a3b8', cursor: 'text' }}>
+                          {team.name.trim() || 'Team name'} <span style={{ opacity: 0.6, fontSize: 10 }} title="Rename">✏️</span>
+                        </span>
+                      )}
+                      <button onClick={() => removeTeamCard(team.id)} disabled={teams.length <= 1}
+                        style={{ padding: '4px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: teams.length <= 1 ? 'not-allowed' : 'pointer', background: 'rgba(220,38,38,0.08)', color: teams.length <= 1 ? '#94a3b8' : '#dc2626', border: '1px solid rgba(220,38,38,0.15)', flexShrink: 0 }}>×</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${team.players.length}, 1fr)`, gap: 8 }}>
+                      {team.players.map((slot, sIdx) => (
+                        <div key={slot.id}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <GenderToggle value={slot.gender} onChange={g => updateSlot(team.id, sIdx, { gender: g })} />
+                            <span className="text-xs font-bold text-slate-500">Player {sIdx + 1}</span>
+                          </div>
+                          <PlayerNameField name={slot.name} duprId={slot.duprId} knownPlayers={knownPlayers}
+                            onChange={val => updateSlot(team.id, sIdx, { name: val.name, duprId: val.duprId, nickname: val.nickname ?? slot.nickname })}
+                            inputStyle={{ ...iS, width: '100%', fontSize: 12 }} />
+                          <input value={slot.nickname} onChange={e => updateSlot(team.id, sIdx, { nickname: e.target.value })}
+                            placeholder="Nickname (optional)" style={{ ...iS, width: '100%', fontSize: 11, marginTop: 4 }} />
+                        </div>
+                      ))}
+                    </div>
+                    {format === 'trio' && trioFilledTeams.includes(team) && !trioGenderOk(team) && (
+                      <p className="text-amber-600 text-xs">⚠ This format needs exactly 2 male + 1 female player on each team.</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={addTeamCard} className="mt-3 w-full py-2 rounded-xl text-sm font-bold"
+              style={{ background: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: '1px dashed rgba(15,76,117,0.3)', cursor: 'pointer' }}>
+              + Add team
+            </button>
+            <p className="text-slate-600 text-xs mt-2 font-bold">
+              {format === 'trio' ? `${trioReadyTeams.length} complete team${trioReadyTeams.length !== 1 ? 's' : ''}` : `${allTeamIds.length} complete team${allTeamIds.length !== 1 ? 's' : ''}`}
+              {format === 'trio' && trioBadGenderCount > 0 ? ` · ${trioBadGenderCount} need${trioBadGenderCount === 1 ? 's' : ''} a 2M/1F gender split` : ''}
+            </p>
           </div>
         )}
-        {timerEnabled && <p className="text-slate-500 text-xs mt-2">A loud alarm sounds when time runs out.</p>}
-      </div>
 
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <p className="text-sm font-bold text-slate-700">Each team plays</p>
-          <span className="text-xs text-slate-400">optional</span>
-        </div>
-        {validCounts.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {validCounts.map(n => {
-              const sel = selectedGames === n;
-              const rounds = roundsForGames(allTeamIds.length, courts.length, n);
+        <div>
+          <p className="text-sm font-bold text-slate-700 mb-3">Courts to Use</p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {PRESET.map(n => {
+              const s = courts.includes(n);
               return (
-                <button key={n} onClick={() => setNumGames(sel ? 0 : n)}
-                  title={`${rounds} round${rounds !== 1 ? 's' : ''}`}
-                  style={{ padding: '4px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: sel ? 'rgba(15,76,117,0.18)' : 'rgba(0,0,0,0.05)', color: sel ? '#0f4c75' : '#64748b', border: '2px solid ' + (sel ? 'rgba(15,76,117,0.5)' : 'rgba(0,0,0,0.1)') }}>
-                  {n} game{n !== 1 ? 's' : ''}
+                <button key={n} onClick={() => toggleCourt(n)} className="rounded-full px-3 py-1 text-xs font-bold"
+                  style={{ background: s ? 'rgba(15,76,117,0.15)' : 'rgba(0,0,0,0.06)', color: s ? '#0f4c75' : '#64748b', border: '2px solid ' + (s ? 'rgba(15,76,117,0.5)' : 'rgba(0,0,0,0.1)'), cursor: 'pointer' }}>
+                  {n}
                 </button>
               );
             })}
           </div>
-        ) : (
-          <p className="text-slate-400 text-xs">Select teams and courts to see options.</p>
+          {courts.filter(c => !PRESET.includes(c)).length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {courts.filter(c => !PRESET.includes(c)).map(c => (
+                <div key={c} className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold"
+                  style={{ background: 'rgba(15,76,117,0.15)', color: '#0f4c75', border: '2px solid rgba(15,76,117,0.4)' }}>
+                  {c}
+                  <button onClick={() => setCourts(p => p.filter(x => x !== c))} style={{ cursor: 'pointer', marginLeft: 4, fontWeight: 900, background: 'none', border: 'none', color: '#0f4c75' }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-slate-500 text-xs mb-2">Or enter any custom court name:</p>
+          <div className="flex gap-2">
+            <input placeholder="Name or number" value={courtInput}
+              onChange={e => { setCourtInput(e.target.value); setCourtInputError(''); }}
+              onKeyDown={e => e.key === 'Enter' && addCourt()}
+              style={{ ...iS, flex: 1, background: 'rgba(255,255,255,0.7)', color: '#1e293b', border: '1px solid rgba(0,0,0,0.15)' }} />
+            <button onClick={addCourt} className="px-3 py-1 rounded-lg text-xs font-bold"
+              style={{ background: 'rgba(15,76,117,0.15)', color: '#0f4c75', cursor: 'pointer', border: '1px solid rgba(15,76,117,0.3)' }}>
+              + Add
+            </button>
+          </div>
+          {courtInputError && <p className="text-amber-600 text-xs mt-1">{courtInputError}</p>}
+          <p className="text-slate-500 text-xs mt-2">{courts.length} court{courts.length !== 1 ? 's' : ''}: {courts.join(', ')}</p>
+        </div>
+
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <p className="text-sm font-bold text-slate-700">Round Timer</p>
+            <button onClick={() => setTimerEnabled(p => !p)} className="text-xs px-2 py-1 rounded-lg font-bold"
+              style={{ background: timerEnabled ? 'rgba(15,76,117,0.15)' : 'rgba(0,0,0,0.06)', color: timerEnabled ? '#0f4c75' : '#94a3b8', cursor: 'pointer', border: '1px solid ' + (timerEnabled ? 'rgba(15,76,117,0.4)' : 'rgba(0,0,0,0.1)') }}>
+              {timerEnabled ? 'On' : 'Off'}
+            </button>
+          </div>
+          {timerEnabled && (
+            <div className="flex items-center gap-3">
+              <input type="number" min={1} max={99} value={timerMins}
+                onChange={e => setTimerMins(Math.max(1, Number(e.target.value)))}
+                style={{ ...iS, width: 64, textAlign: 'center', fontSize: 14, background: 'rgba(255,255,255,0.7)', color: '#1e293b', border: '1px solid rgba(0,0,0,0.15)' }} />
+              <span className="text-slate-600 text-sm">minutes per round</span>
+            </div>
+          )}
+          {timerEnabled && <p className="text-slate-500 text-xs mt-2">A loud alarm sounds when time runs out.</p>}
+        </div>
+
+        {(format === 'singles' || format === 'fixedpartner') && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <p className="text-sm font-bold text-slate-700">Each team plays</p>
+              <span className="text-xs text-slate-400">optional</span>
+            </div>
+            {validCounts.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {validCounts.map(n => {
+                  const sel = selectedGames === n;
+                  const rounds = roundsForGames(allTeamIds.length, courts.length, n);
+                  return (
+                    <button key={n} onClick={() => setNumGames(sel ? 0 : n)}
+                      title={`${rounds} round${rounds !== 1 ? 's' : ''}`}
+                      style={{ padding: '4px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: sel ? 'rgba(15,76,117,0.18)' : 'rgba(0,0,0,0.05)', color: sel ? '#0f4c75' : '#64748b', border: '2px solid ' + (sel ? 'rgba(15,76,117,0.5)' : 'rgba(0,0,0,0.1)') }}>
+                      {n} game{n !== 1 ? 's' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-slate-400 text-xs">Select teams and courts to see options.</p>
+            )}
+          </div>
         )}
-      </div>
 
-      <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)', color: '#475569' }}>
-        {courts.length} court{courts.length !== 1 ? 's' : ''} → {effectiveCourts * 2} play, {Math.max(0, allTeamIds.length - effectiveCourts * 2)} bye per round{parsedRounds > 0 ? ' · ' + parsedRounds + ' round' + (parsedRounds !== 1 ? 's' : '') : ''}{timerEnabled ? ' · ' + timerMins + ' min rounds' : ''}.<br />
-        No back-to-back byes. Bye partnerships rotate.
-      </div>
+        {(format === 'singles' || format === 'fixedpartner') && (
+          <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)', color: '#475569' }}>
+            {courts.length} court{courts.length !== 1 ? 's' : ''} → {effectiveCourts * 2} play, {Math.max(0, allTeamIds.length - effectiveCourts * 2)} bye per round{parsedRounds > 0 ? ' · ' + parsedRounds + ' round' + (parsedRounds !== 1 ? 's' : '') : ''}{timerEnabled ? ' · ' + timerMins + ' min rounds' : ''}.<br />
+            No back-to-back byes. Bye partnerships rotate.
+          </div>
+        )}
 
-      {!canStart && (
-        <p className="text-amber-600 text-xs text-center">
-          {allTeamIds.length < 3 ? 'Need at least 3 teams.' : courts.length < 1 ? 'Need at least 1 court.' : ''}
-        </p>
-      )}
+        {format === 'trio' && trioReadyTeams.length >= 2 && (
+          <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)', color: '#475569' }}>
+            {trioReadyTeams.length} teams · {trioTotalRounds} scheduling round{trioTotalRounds !== 1 ? 's' : ''} · {trioMinCourts} court{trioMinCourts !== 1 ? 's' : ''} needed · {trioTotalGames} total games{timerEnabled ? ` · ${timerMins} min rounds` : ''}
+          </div>
+        )}
 
-      <button onClick={() => canStart && onStart(selectedTeams, allTeamIds, courts, timerEnabled ? timerMins * 60 : 0, title, parsedRounds, { location: location.trim(), startTime, durationMins })}
-        disabled={!canStart} className="w-full py-3 rounded-xl font-bold text-base btn-blue">
-        Start Tournament 🚀
-      </button>
-    </div>
-    </div>
-  );
-}
+        {!canStart && !isComingSoon && (
+          <p className="text-amber-600 text-xs text-center">
+            {format === 'trio'
+              ? (trioReadyTeams.length < 2 ? 'Need at least 2 complete teams (2 male + 1 female each).' : `Need at least ${trioMinCourts} court${trioMinCourts !== 1 ? 's' : ''}.`)
+              : (allTeamIds.length < 3 ? 'Need at least 3 teams.' : courts.length < 1 ? 'Need at least 1 court.' : '')}
+          </p>
+        )}
 
-function TypeToggle({ value, onChange }) {
-  const opts = [
-    { id: 'swiss', label: '🎾 Swiss / Round Robin' },
-    { id: 'tpt',   label: '👥 3-Player Team' },
-  ];
-  return (
-    <div className="flex gap-2 rounded-xl overflow-hidden" style={{ border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.5)' }}>
-      {opts.map(o => (
-        <button key={o.id} onClick={() => onChange(o.id)}
-          className="flex-1 py-2 font-bold text-sm"
-          style={{ background: value === o.id ? 'linear-gradient(90deg,#0f4c75,#1a6fa8)' : 'transparent', color: value === o.id ? '#fff' : '#475569', border: 'none', cursor: 'pointer' }}>
-          {o.label}
+        <button onClick={handleStart} disabled={!canStart} className="w-full py-3 rounded-xl font-bold text-base btn-blue">
+          {isComingSoon ? 'Coming Soon' : 'Start Tournament 🚀'}
         </button>
-      ))}
+      </div>
     </div>
   );
 }
