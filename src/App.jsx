@@ -698,7 +698,7 @@ export default function App({ viewerOnly = false }) {
           activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds}
           courtNumbers={courtNumbers} socialCourts={socialCourts} roundRobinCourts={roundRobinCourts} ranked={ranked}
           round={round} liveAdditions={liveAdditions} nextRoundPresets={nextRoundPresets} history={history} pending={pending}
-          tptTeams={tptTeams} tptPlayers={tptPlayers}
+          tptTeams={tptTeams} tptPlayers={tptPlayers} tournamentTitle={tournamentTitle}
           onTogglePause={handleTogglePause} onManageTeamsSave={handleManageTeamsSave}
           onManageTPTTeamsSave={handleManageTPTTeamsSave} onManageCourtsSave={handleManageCourtsSave}
           onStartRoundRobin={handleStartRoundRobin} addGameData={addGameData} onAddGameSave={handleAddGameSave}
@@ -788,6 +788,7 @@ export default function App({ viewerOnly = false }) {
                   onAddGame={ri => openModal('addGame', { target: String(ri), defaultCourt: '' })}
                   onEditGame={(ri, gameIdx) => openModal('editGame', { ri, gameIdx })}
                   onEditTPTGame={(ri, mi, gi) => openModal('editTPTGame', { ri, mi, gi })}
+                  onExportDUPR={() => openModal('exportDUPR')}
                   onRemoveGame={(ri, gameIdx) => { openModal('pin', { purpose: 'removeGame', removeGameTarget: { ri, gameIdx } }); }}
                   onRevertToRound={rn => { openModal('pin', { purpose: 'revertToRound', revertTarget: rn }); }}
                   onRevertToBeginning={() => { openModal('pin', { purpose: 'revertToBeginning' }); }}

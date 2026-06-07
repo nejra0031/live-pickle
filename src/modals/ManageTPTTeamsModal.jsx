@@ -1,22 +1,28 @@
 import { useState } from 'react';
+import PlayerNameField from '../components/PlayerNameField';
+import useKnownPlayers from '../hooks/useKnownPlayers';
 
 export default function ManageTPTTeamsModal({ tptTeams, tptPlayers, onSave, onClose }) {
   const [localTeams, setLocalTeams] = useState(
     Object.values(tptTeams).map(t => ({ ...t }))
   );
-  const [localPlayers, setLocalPlayers] = useState({ ...tptPlayers });
+  const [localPlayers, setLocalPlayers] = useState(
+    Object.fromEntries(Object.entries(tptPlayers).map(([id, p]) => [id, { duprId: '', ...p }]))
+  );
+  const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
 
   const updateTeamName = (teamId, name) =>
     setLocalTeams(p => p.map(t => t.id === teamId ? { ...t, name } : t));
 
-  const updatePlayerName = (playerId, name) =>
-    setLocalPlayers(p => ({ ...p, [playerId]: { ...p[playerId], name } }));
+  const updatePlayer = (playerId, val) =>
+    setLocalPlayers(p => ({ ...p, [playerId]: { ...p[playerId], name: val.name, duprId: val.duprId } }));
 
   const save = () => {
     const newTeams = Object.fromEntries(localTeams.map(t => [t.id, { ...t, name: t.name.trim() || t.id }]));
     const newPlayers = Object.fromEntries(
-      Object.entries(localPlayers).map(([id, p]) => [id, { ...p, name: p.name.trim() || id }])
+      Object.entries(localPlayers).map(([id, p]) => [id, { ...p, name: p.name.trim() || id, duprId: (p.duprId || '').trim() }])
     );
+    Object.values(newPlayers).forEach(p => saveKnownPlayer(p.name, p.duprId));
     onSave(newTeams, newPlayers);
   };
 
@@ -43,12 +49,14 @@ export default function ManageTPTTeamsModal({ tptTeams, tptPlayers, onSave, onCl
                     style={{ ...iS, fontWeight: 800, color: team.color }} />
                 </div>
                 {players.map(p => (
-                  <div key={p.id} className="flex items-center gap-2">
-                    <span style={{ fontSize: 11, color: p.gender === 'female' ? '#f9a8d4' : '#93c5fd', fontWeight: 700, width: 14, flexShrink: 0 }}>
+                  <div key={p.id} className="flex items-start gap-2">
+                    <span style={{ fontSize: 11, color: p.gender === 'female' ? '#f9a8d4' : '#93c5fd', fontWeight: 700, width: 14, flexShrink: 0, marginTop: 8 }}>
                       {p.gender === 'female' ? '♀' : '♂'}
                     </span>
-                    <input value={p.name} onChange={e => updatePlayerName(p.id, e.target.value)}
-                      style={{ ...iS }} />
+                    <div style={{ flex: 1 }}>
+                      <PlayerNameField name={p.name} duprId={p.duprId || ''} knownPlayers={knownPlayers}
+                        onChange={val => updatePlayer(p.id, val)} inputStyle={iS} duprIdStyle={{ ...iS, fontSize: 12 }} />
+                    </div>
                   </div>
                 ))}
               </div>

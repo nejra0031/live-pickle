@@ -8,7 +8,7 @@ export default function HistoryTab({
   roundRobinStartSnapshot, roundRobinEndSnapshot,
   canEditScores, canDeleteGame, canFullEdit,
   backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound, onRevertToBeginning, onEditCourtNumber,
-  onEditTPTGame,
+  onEditTPTGame, onExportDUPR,
   tptTeams = {}, tptPlayers = {},
 }) {
   const teamById = useTeamById();
@@ -153,10 +153,18 @@ export default function HistoryTab({
             ↩ Revert to Beginning
           </button>
         ) : <span />}
-        <button onClick={() => setNewestFirst(p => !p)}
-          style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(0,0,0,0.06)', color: '#475569', border: '1px solid rgba(0,0,0,0.1)' }}>
-          {newestFirst ? '↓ Newest first' : '↑ Oldest first'}
-        </button>
+        <div className="flex items-center gap-2">
+          {hasAnyHistory && onExportDUPR && (
+            <button onClick={onExportDUPR}
+              style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(99,102,241,0.1)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.3)' }}>
+              ⬇ Export to DUPR
+            </button>
+          )}
+          <button onClick={() => setNewestFirst(p => !p)}
+            style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(0,0,0,0.06)', color: '#475569', border: '1px solid rgba(0,0,0,0.1)' }}>
+            {newestFirst ? '↓ Newest first' : '↑ Oldest first'}
+          </button>
+        </div>
       </div>
 
       {isEmpty && <div className="text-center text-slate-400 py-8 text-sm">No rounds completed yet.</div>}

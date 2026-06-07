@@ -1,34 +1,54 @@
 import { useState } from 'react';
 import { useTeamById } from '../context/TeamRegistryContext';
 import { ALL_TEAMS } from '../constants';
+import PlayerNameField from '../components/PlayerNameField';
+import useKnownPlayers from '../hooks/useKnownPlayers';
+
+const emptyPlayers = () => [{ name: '', duprId: '' }, { name: '', duprId: '' }];
 
 export default function ManageTeamsModal({ activeTeamIds, tournamentTeams, pausedIds = [], onTogglePause, onSave, onClose, canEditRoster = true }) {
   const teamById = useTeamById();
   const [localTeams, setLocalTeams] = useState(
     activeTeamIds.map(id => {
       const t = teamById(id);
-      return { id, name: t ? t.name : id, color: t ? t.color : '#475569', text: t ? t.text : '#fff' };
+      const players = t?.players?.length === 2 ? t.players.map(p => ({ name: p.name || '', duprId: p.duprId || '' })) : emptyPlayers();
+      return { id, name: t ? t.name : id, color: t ? t.color : '#475569', text: t ? t.text : '#fff', players };
     })
   );
   const [addId, setAddId] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
+  const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
 
   const usedIds = new Set(localTeams.map(t => t.id));
   const available = ALL_TEAMS.filter(t => !usedIds.has(t.id));
 
   const rename = (id, name) => setLocalTeams(p => p.map(t => t.id === id ? { ...t, name } : t));
+  const updatePlayer = (id, slot, val) => setLocalTeams(p => p.map(t => {
+    if (t.id !== id) return t;
+    const players = [...t.players];
+    players[slot] = val;
+    return { ...t, players };
+  }));
 
   const addTeam = () => {
     if (!addId) return;
     const base = ALL_TEAMS.find(t => t.id === addId);
     if (!base) return;
-    setLocalTeams(p => [...p, { id: base.id, name: base.name, color: base.color, text: base.text }]);
+    setLocalTeams(p => [...p, { id: base.id, name: base.name, color: base.color, text: base.text, players: emptyPlayers() }]);
     setAddId('');
   };
 
   const save = () => {
     const registry = localTeams.map(t => {
       const orig = tournamentTeams.find(x => x.id === t.id);
-      return { id: t.id, name: t.name.trim() || t.id, color: t.color, text: t.text, ...(orig ? { color: orig.color, text: orig.text } : {}) };
+      const players = t.players.map(p => ({ name: p.name.trim(), duprId: p.duprId.trim() }));
+      const hasPlayers = players.some(p => p.name);
+      players.filter(p => p.name).forEach(p => saveKnownPlayer(p.name, p.duprId));
+      return {
+        id: t.id, name: t.name.trim() || t.id, color: t.color, text: t.text,
+        ...(orig ? { color: orig.color, text: orig.text } : {}),
+        ...(hasPlayers ? { players } : {}),
+      };
     });
     onSave(registry, localTeams.map(t => t.id));
   };
@@ -64,18 +84,40 @@ export default function ManageTeamsModal({ activeTeamIds, tournamentTeams, pause
         {canEditRoster && (
           <div>
             <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Rename</p>
-            <div className="flex flex-col gap-2" style={{ maxHeight: 200, overflowY: 'auto' }}>
-              {localTeams.map(t => (
-                <div key={t.id} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: t.color }} />
-                  <input value={t.name} onChange={e => rename(t.id, e.target.value)}
-                    style={{ flex: 1, padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none' }} />
-                  <button onClick={() => setLocalTeams(p => p.filter(x => x.id !== t.id))}
-                    title="Remove from tournament (history preserved)"
-                    disabled={localTeams.length <= 2}
-                    style={{ padding: '3px 7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: localTeams.length <= 2 ? 'not-allowed' : 'pointer', background: 'rgba(220,38,38,0.12)', color: localTeams.length <= 2 ? '#475569' : '#f87171', border: '1px solid rgba(220,38,38,0.25)', flexShrink: 0 }}>×</button>
-                </div>
-              ))}
+            <div className="flex flex-col gap-2" style={{ maxHeight: 320, overflowY: 'auto' }}>
+              {localTeams.map(t => {
+                const playerInputStyle = { flex: 1, padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none' };
+                const filledPlayers = t.players.filter(p => p.name.trim()).length;
+                return (
+                  <div key={t.id} className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: t.color }} />
+                      <input value={t.name} onChange={e => rename(t.id, e.target.value)}
+                        style={{ flex: 1, padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none' }} />
+                      <button onClick={() => setExpandedId(p => p === t.id ? null : t.id)}
+                        title="Edit players (for DUPR export)"
+                        style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', background: filledPlayers > 0 ? 'rgba(99,102,241,0.18)' : 'rgba(255,255,255,0.06)', color: filledPlayers > 0 ? '#a5b4fc' : '#94a3b8', border: '1px solid rgba(99,102,241,0.25)', flexShrink: 0 }}>
+                        {expandedId === t.id ? '▲' : '▼'} 👤{filledPlayers > 0 ? ` ${filledPlayers}/2` : ''}
+                      </button>
+                      <button onClick={() => setLocalTeams(p => p.filter(x => x.id !== t.id))}
+                        title="Remove from tournament (history preserved)"
+                        disabled={localTeams.length <= 2}
+                        style={{ padding: '3px 7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: localTeams.length <= 2 ? 'not-allowed' : 'pointer', background: 'rgba(220,38,38,0.12)', color: localTeams.length <= 2 ? '#475569' : '#f87171', border: '1px solid rgba(220,38,38,0.25)', flexShrink: 0 }}>×</button>
+                    </div>
+                    {expandedId === t.id && (
+                      <div className="rounded-lg p-2 flex flex-col gap-2" style={{ marginLeft: 20, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Players (for DUPR export)</p>
+                        {t.players.map((p, slot) => (
+                          <PlayerNameField key={slot} name={p.name} duprId={p.duprId} knownPlayers={knownPlayers}
+                            onChange={val => updatePlayer(t.id, slot, val)}
+                            placeholder={`Player ${slot + 1} name`}
+                            inputStyle={playerInputStyle} duprIdStyle={{ ...playerInputStyle, fontSize: 11 }} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { ALL_TEAMS } from '../constants';
+import PlayerNameField from '../components/PlayerNameField';
+import useKnownPlayers from '../hooks/useKnownPlayers';
 
 const uid = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 const PALETTE = ALL_TEAMS.map(t => ({ color: t.color, text: t.text }));
 const PRESET_COURTS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const emptyPlayer = () => ({ name: '', duprId: '' });
 
 function mkTeam(idx) {
   const pal = PALETTE[idx % PALETTE.length];
-  return { id: uid(), name: '', male1: '', male2: '', female: '', color: pal.color, text: pal.text };
+  return { id: uid(), name: '', male1: emptyPlayer(), male2: emptyPlayer(), female: emptyPlayer(), color: pal.color, text: pal.text };
 }
 
 export default function ThreePlayerSetupScreen({ onStart }) {
@@ -18,14 +21,16 @@ export default function ThreePlayerSetupScreen({ onStart }) {
   const [timerMins, setTimerMins] = useState(12);
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [title, setTitle] = useState('Tournament');
+  const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
 
-  const validTeams = teams.filter(t => t.name.trim() && t.male1.trim() && t.male2.trim() && t.female.trim());
+  const validTeams = teams.filter(t => t.name.trim() && t.male1.name.trim() && t.male2.name.trim() && t.female.name.trim());
   const minCourts = Math.max(1, Math.floor(validTeams.length / 2));
   const totalRounds = validTeams.length >= 2 ? validTeams.length - 1 : 0;
   const totalGames = validTeams.length >= 2 ? totalRounds * Math.floor(validTeams.length / 2) * 3 : 0;
   const canStart = validTeams.length >= 2 && courts.length >= minCourts;
 
   const updateTeam = (id, field, value) => setTeams(p => p.map(t => t.id === id ? { ...t, [field]: value } : t));
+  const updatePlayer = (id, slot, val) => setTeams(p => p.map(t => t.id === id ? { ...t, [slot]: val } : t));
   const addTeam = () => setTeams(p => [...p, mkTeam(p.length)]);
   const removeTeam = id => { if (teams.length > 2) setTeams(p => p.filter(t => t.id !== id)); };
 
@@ -47,9 +52,12 @@ export default function ThreePlayerSetupScreen({ onStart }) {
     validTeams.forEach(t => {
       const m1id = uid(), m2id = uid(), fid = uid();
       tptTeams[t.id] = { id: t.id, name: t.name.trim(), color: t.color, text: t.text, maleIds: [m1id, m2id], femaleId: fid };
-      players[m1id] = { id: m1id, name: t.male1.trim(), teamId: t.id, gender: 'male' };
-      players[m2id] = { id: m2id, name: t.male2.trim(), teamId: t.id, gender: 'male' };
-      players[fid]  = { id: fid,  name: t.female.trim(), teamId: t.id, gender: 'female' };
+      players[m1id] = { id: m1id, name: t.male1.name.trim(), duprId: t.male1.duprId.trim(), teamId: t.id, gender: 'male' };
+      players[m2id] = { id: m2id, name: t.male2.name.trim(), duprId: t.male2.duprId.trim(), teamId: t.id, gender: 'male' };
+      players[fid]  = { id: fid,  name: t.female.name.trim(), duprId: t.female.duprId.trim(), teamId: t.id, gender: 'female' };
+      saveKnownPlayer(t.male1.name, t.male1.duprId);
+      saveKnownPlayer(t.male2.name, t.male2.duprId);
+      saveKnownPlayer(t.female.name, t.female.duprId);
     });
     onStart(tptTeams, players, courts, timerEnabled ? timerMins * 60 : 0, title.trim() || 'Tournament');
   };
@@ -83,18 +91,21 @@ export default function ThreePlayerSetupScreen({ onStart }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                 <div>
                   <p className="font-bold mb-1" style={{ fontSize: 11, color: '#1d4ed8' }}>♂ Male 1</p>
-                  <input value={team.male1} onChange={e => updateTeam(team.id, 'male1', e.target.value)}
-                    placeholder="Name" style={{ ...iS, width: '100%', fontSize: 12 }} />
+                  <PlayerNameField name={team.male1.name} duprId={team.male1.duprId} knownPlayers={knownPlayers}
+                    onChange={val => updatePlayer(team.id, 'male1', val)}
+                    inputStyle={{ ...iS, width: '100%', fontSize: 12 }} />
                 </div>
                 <div>
                   <p className="font-bold mb-1" style={{ fontSize: 11, color: '#1d4ed8' }}>♂ Male 2</p>
-                  <input value={team.male2} onChange={e => updateTeam(team.id, 'male2', e.target.value)}
-                    placeholder="Name" style={{ ...iS, width: '100%', fontSize: 12 }} />
+                  <PlayerNameField name={team.male2.name} duprId={team.male2.duprId} knownPlayers={knownPlayers}
+                    onChange={val => updatePlayer(team.id, 'male2', val)}
+                    inputStyle={{ ...iS, width: '100%', fontSize: 12 }} />
                 </div>
                 <div>
                   <p className="font-bold mb-1" style={{ fontSize: 11, color: '#be185d' }}>♀ Female</p>
-                  <input value={team.female} onChange={e => updateTeam(team.id, 'female', e.target.value)}
-                    placeholder="Name" style={{ ...iS, width: '100%', fontSize: 12 }} />
+                  <PlayerNameField name={team.female.name} duprId={team.female.duprId} knownPlayers={knownPlayers}
+                    onChange={val => updatePlayer(team.id, 'female', val)}
+                    inputStyle={{ ...iS, width: '100%', fontSize: 12 }} />
                 </div>
               </div>
             </div>

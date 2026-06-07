@@ -20,12 +20,31 @@ const TEST_MODE = import.meta.env.VITE_TEST_MODE === 'true';
 const TOURNAMENT_PATH  = TEST_MODE ? 'current_tournament_e2e' : 'current_tournament';
 const BACKUPS_PATH     = TEST_MODE ? 'tournament_backups_e2e' : 'tournament_backups';
 const PRESENCE_PATH    = TEST_MODE ? 'presence_e2e'            : 'presence';
+const KNOWN_PLAYERS_PATH = TEST_MODE ? 'known_players_e2e'    : 'known_players';
 
 // Exported so App.jsx can use the correct path for presence push/listen
 export const tournamentRef     = () => ref(db, TOURNAMENT_PATH);
 export const pendingResultsRef = () => ref(db, `${TOURNAMENT_PATH}/pendingResults`);
 export const rolePinRef        = (pinPath) => ref(db, TEST_MODE ? `${pinPath}_test` : pinPath);
 export const presenceRef       = () => ref(db, PRESENCE_PATH);
+export const knownPlayersRef   = () => ref(db, KNOWN_PLAYERS_PATH);
+
+// ── Known-players registry (cross-tournament, for DUPR export autocomplete) ─
+// Keyed by a slug derived from the trimmed name so re-saving the same person
+// updates their entry instead of creating duplicates.
+function playerSlug(name) {
+  return name.trim().toLowerCase().replace(/\s+/g, '_').replace(/[.#$\[\]/]/g, '');
+}
+export function fetchKnownPlayers() {
+  return get(knownPlayersRef());
+}
+export function saveKnownPlayer(name, duprId) {
+  const trimmedName = (name || '').trim();
+  const slug = playerSlug(trimmedName);
+  if (!slug) return Promise.resolve();
+  return update(ref(db, `${KNOWN_PLAYERS_PATH}/${slug}`), { id: slug, name: trimmedName, duprId: (duprId || '').trim() })
+    .catch(err => console.error('saveKnownPlayer failed', err));
+}
 
 // ── Write-token helpers ────────────────────────────────────────────────────
 const TOKEN_TTL_MS = 30_000;

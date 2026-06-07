@@ -14,6 +14,7 @@ import PresetMatchModal from './PresetMatchModal';
 import EditGameModal from './EditGameModal';
 import EditTPTGameModal from './EditTPTGameModal';
 import EditActiveCourtModal from './EditActiveCourtModal';
+import ExportDUPRModal from './ExportDUPRModal';
 
 // Renders whichever modal `modal.open` selects, plus the PIN-purpose title/check
 // derivation. All actions are passed in as handlers — no business logic lives here.
@@ -27,7 +28,7 @@ export default function ModalRoot({
   isAdmin, tournamentMode, activeTeamIds, tournamentTeams, pausedIds,
   courtNumbers, socialCourts, roundRobinCourts, ranked,
   round, liveAdditions, nextRoundPresets, history, pending,
-  tptTeams, tptPlayers,
+  tptTeams, tptPlayers, tournamentTitle,
   // handlers
   onTogglePause, onManageTeamsSave, onManageTPTTeamsSave, onManageCourtsSave,
   onStartRoundRobin, addGameData, onAddGameSave, onAddPreset, onAddLiveGame,
@@ -81,6 +82,10 @@ export default function ModalRoot({
       {modal.open === 'timerSettings' && <TimerSettingsModal currentMins={timerDefaultMins} onSave={onTimerSettingsSave} onClose={closeModal} />}
       {modal.open === 'manageTeams' && tournamentMode !== 'tpt' && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={onTogglePause} onSave={onManageTeamsSave} onClose={closeModal} canEditRoster={hasPermission(role, 'canEditTeams')} />}
       {modal.open === 'manageTeams' && tournamentMode === 'tpt' && isAdmin && <ManageTPTTeamsModal tptTeams={tptTeams} tptPlayers={tptPlayers} onSave={onManageTPTTeamsSave} onClose={closeModal} />}
+      {modal.open === 'exportDUPR' && (
+        <ExportDUPRModal history={history} tournamentMode={tournamentMode} tptTeams={tptTeams} tptPlayers={tptPlayers}
+          tournamentTitle={tournamentTitle} onClose={closeModal} />
+      )}
       {modal.open === 'manageCourts' && <ManageCourtsModal courtNumbers={courtNumbers} socialCourts={socialCourts} rrCourtCount={tournamentMode === 'roundrobin' ? (roundRobinCourts?.length ?? 0) : 0} onSave={onManageCourtsSave} onClose={closeModal} />}
       {modal.open === 'selectRRTeams' && <SelectRoundRobinTeamsModal rankedTeamIds={ranked.map(t => t.id)} tournamentCourts={courtNumbers} onConfirm={onStartRoundRobin} onClose={closeModal} />}
       {modal.open === 'addGame' && addGameData && <AddGameModal allTeamIds={activeTeamIds} defaultCourt={addGameData.defaultCourt} courtNumbers={courtNumbers} usedCourtNumbers={addGameData.usedCourts} usedTeamIds={addGameData.usedTeams} label={addGameData.label} onSave={g => onAddGameSave(addGameData.target, g)} onClose={closeModal} />}

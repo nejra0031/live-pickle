@@ -26,7 +26,10 @@ export function normaliseSnapshot(s) {
   const rawReg = s.teamRegistry ? toArr(s.teamRegistry) : null;
   const registry = rawReg
     ? rawReg.filter(t => t && t.id && t.name && t.color)
-             .map(t => ({ id: String(t.id), name: String(t.name), color: String(t.color), text: String(t.text || '#fff') }))
+             .map(t => ({
+               id: String(t.id), name: String(t.name), color: String(t.color), text: String(t.text || '#fff'),
+               ...(t.players ? { players: toArr(t.players).map(p => ({ name: String(p?.name || ''), duprId: String(p?.duprId || '') })) } : {}),
+             }))
     : null;
   if (registry && registry.length > 0) setModuleRegistry(registry);
 
