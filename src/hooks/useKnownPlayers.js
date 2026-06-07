@@ -16,18 +16,20 @@ export default function useKnownPlayers() {
     }).catch(err => console.error('fetchKnownPlayers failed', err));
   }, []);
 
-  const save = useCallback((name, duprId) => {
+  const save = useCallback((name, duprId, nickname) => {
     const trimmedName = (name || '').trim();
     if (!trimmedName) return;
     const trimmedDuprId = (duprId || '').trim();
+    const trimmedNickname = nickname !== undefined ? (nickname || '').trim() : undefined;
     setPlayers(p => {
       const id = trimmedName.toLowerCase();
       const existing = p.find(x => x.name.trim().toLowerCase() === id);
-      if (existing && existing.duprId === trimmedDuprId) return p;
-      const entry = { id: existing?.id || id, name: trimmedName, duprId: trimmedDuprId };
+      const resolvedNickname = trimmedNickname !== undefined ? trimmedNickname : existing?.nickname;
+      if (existing && existing.duprID === trimmedDuprId && existing.nickname === resolvedNickname) return p;
+      const entry = { id: existing?.id || id, name: trimmedName, duprID: trimmedDuprId, nickname: resolvedNickname };
       return existing ? p.map(x => x === existing ? entry : x) : [...p, entry];
     });
-    saveKnownPlayer(trimmedName, trimmedDuprId);
+    saveKnownPlayer(trimmedName, trimmedDuprId, trimmedNickname);
   }, []);
 
   return { players, save };

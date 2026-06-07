@@ -51,6 +51,9 @@ export function snapshotToState(s, derived = {}) {
   };
   if (s.teamRegistry && s.teamRegistry.length > 0) values.tournamentTeams = s.teamRegistry;
   if (s.tournamentTitle) values.tournamentTitle = s.tournamentTitle;
+  values.tournamentLocation = s.tournamentLocation || '';
+  values.tournamentStartTime = s.tournamentStartTime || '';
+  values.tournamentDurationMins = s.tournamentDurationMins || 0;
   return values;
 }
 
@@ -62,6 +65,9 @@ export function buildSnapshot(state, overrides = {}) {
     socialCourts:            state.socialCourts ?? [],
     teamRegistry:            state.tournamentTeams,
     tournamentTitle:         state.tournamentTitle,
+    tournamentLocation:      state.tournamentLocation ?? '',
+    tournamentStartTime:     state.tournamentStartTime ?? '',
+    tournamentDurationMins:  state.tournamentDurationMins ?? 0,
     timerDuration:           state.timerDuration,
     timerDefaultMins:        state.timerDefaultMins,
     history:                 state.history,

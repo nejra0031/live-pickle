@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { ALL_TEAMS } from '../constants';
 import ThreePlayerSetupScreen from './ThreePlayerSetupScreen';
+import EventDetailsFields from './EventDetailsFields';
+import PlayerNameField from '../components/PlayerNameField';
+import useKnownPlayers from '../hooks/useKnownPlayers';
 
 const PRESET = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -60,10 +63,16 @@ function roundsForGames(numTeams, numCourts, targetGames) {
   return null;
 }
 
+const uid = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+const emptyDraft = () => ({ name: '', duprId: '', nickname: '' });
+
 export default function SetupScreen({ onStart, onStartTPT }) {
   const [tournamentType, setTournamentType] = useState('swiss');
-  const [colorTeams, setColorTeams] = useState(ALL_TEAMS.map(t => ({ ...t, selected: false, customName: t.name })));
-  const [editingId, setEditingId] = useState(null);
+  const [players, setPlayers] = useState([]);
+  const [playerDraft, setPlayerDraft] = useState(emptyDraft());
+  const [teams, setTeams] = useState([]);
+  const [editingTeamId, setEditingTeamId] = useState(null);
+  const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
   const [courts, setCourts] = useState([]);
   const [courtInput, setCourtInput] = useState('');
   const [courtInputError, setCourtInputError] = useState('');
@@ -71,13 +80,44 @@ export default function SetupScreen({ onStart, onStartTPT }) {
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [title, setTitle] = useState('Tournament');
   const [numGames, setNumGames] = useState(0);
+  const [location, setLocation] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [durationMins, setDurationMins] = useState(0);
 
-  const selectedTeams = colorTeams.filter(t => t.selected).map(t => ({ id: t.id, name: t.customName || t.name, color: t.color, text: t.text }));
+  const selectedTeams = teams
+    .map(t => ({
+      id: t.id, name: t.name.trim() || t.id, color: t.color, text: t.text,
+      players: players.filter(p => p.teamId === t.id).map(p => ({ name: p.name, duprId: p.duprId, nickname: p.nickname })),
+    }))
+    .filter(t => t.players.length > 0);
   const allTeamIds = selectedTeams.map(t => t.id);
   const effectiveCourts = Math.min(courts.length, Math.floor(allTeamIds.length / 2));
   const validCounts = getValidGameCounts(allTeamIds.length, courts.length);
   const selectedGames = validCounts.includes(numGames) ? numGames : 0;
   const parsedRounds = selectedGames > 0 ? roundsForGames(allTeamIds.length, courts.length, selectedGames) : 0;
+
+  const addPlayer = () => {
+    const name = playerDraft.name.trim();
+    if (!name) return;
+    const duprId = playerDraft.duprId.trim(), nickname = playerDraft.nickname.trim();
+    setPlayers(p => [...p, { id: uid(), name, duprId, nickname, teamId: null }]);
+    saveKnownPlayer(name, duprId, nickname);
+    setPlayerDraft(emptyDraft());
+  };
+  const removePlayer = id => setPlayers(p => p.filter(x => x.id !== id));
+  const assignPlayer = (playerId, teamId) => setPlayers(p => p.map(x => x.id === playerId ? { ...x, teamId: teamId || null } : x));
+
+  const addTeam = colorId => {
+    if (teams.some(t => t.id === colorId)) return;
+    const base = ALL_TEAMS.find(c => c.id === colorId);
+    if (!base) return;
+    setTeams(p => [...p, { id: base.id, name: base.name, color: base.color, text: base.text }]);
+  };
+  const removeTeam = id => {
+    setTeams(p => p.filter(t => t.id !== id));
+    setPlayers(p => p.map(x => x.teamId === id ? { ...x, teamId: null } : x));
+  };
+  const renameTeam = (id, name) => setTeams(p => p.map(t => t.id === id ? { ...t, name } : t));
 
   const addCourt = () => {
     const v = courtInput.trim();
@@ -122,34 +162,96 @@ export default function SetupScreen({ onStart, onStartTPT }) {
           style={{ ...iS, width: '100%', fontSize: 15, fontWeight: 800, color: '#0f4c75', background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(15,76,117,0.2)' }} />
       </div>
 
+      <EventDetailsFields location={location} setLocation={setLocation}
+        startTime={startTime} setStartTime={setStartTime}
+        durationMins={durationMins} setDurationMins={setDurationMins} />
+
+      <div>
+        <p className="text-sm font-bold text-slate-700 mb-1">Players</p>
+        <p className="text-slate-500 text-xs mb-3">Add each player, then group them into teams below.</p>
+        <div className="flex flex-col sm:flex-row gap-2 mb-3 items-start">
+          <div style={{ flex: 2, minWidth: 0 }}>
+            <PlayerNameField name={playerDraft.name} duprId={playerDraft.duprId} knownPlayers={knownPlayers}
+              onChange={val => setPlayerDraft(d => ({ name: val.name, duprId: val.duprId, nickname: val.nickname ?? d.nickname }))}
+              inputStyle={{ ...iS, width: '100%' }} />
+          </div>
+          <input value={playerDraft.nickname} onChange={e => setPlayerDraft(d => ({ ...d, nickname: e.target.value }))}
+            placeholder="Nickname (optional)" onKeyDown={e => e.key === 'Enter' && addPlayer()}
+            style={{ ...iS, flex: 1, minWidth: 0 }} />
+          <button onClick={addPlayer} className="px-3 py-1 rounded-lg text-xs font-bold flex-shrink-0"
+            style={{ background: 'rgba(15,76,117,0.15)', color: '#0f4c75', cursor: 'pointer', border: '1px solid rgba(15,76,117,0.3)' }}>
+            + Add player
+          </button>
+        </div>
+        {players.length > 0 && (
+          <div className="flex flex-col gap-1">
+            {players.map(p => (
+              <div key={p.id} className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.04)' }}>
+                <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: '#1e293b', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {p.name}{p.duprId ? ` (${p.duprId})` : ''}{p.nickname ? ` - ${p.nickname}` : ''}
+                </span>
+                <select value={p.teamId || ''} onChange={e => assignPlayer(p.id, e.target.value)}
+                  style={{ ...iS, fontSize: 11, padding: '4px 6px', flexShrink: 0 }}>
+                  <option value="">— Unassigned —</option>
+                  {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <button onClick={() => removePlayer(p.id)} style={{ cursor: 'pointer', fontWeight: 900, background: 'none', border: 'none', color: '#94a3b8', flexShrink: 0 }}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-slate-600 text-xs mt-3 font-bold">{players.length} player{players.length !== 1 ? 's' : ''}{players.length > 0 ? ` · ${players.filter(p => !p.teamId).length} unassigned` : ''}</p>
+      </div>
+
       <div>
         <p className="text-sm font-bold text-slate-700 mb-1">Teams</p>
-        <p className="text-slate-500 text-xs mb-3">Tap to select · Tap ✏️ to rename</p>
-        <div className="flex flex-wrap gap-2">
-          {colorTeams.map(t => {
-            const sel = t.selected, editing = editingId === t.id;
+        <p className="text-slate-500 text-xs mb-3">Tap a colour to create a team · Tap a name to rename · Assign players to it above</p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {ALL_TEAMS.map(c => {
+            const active = teams.some(t => t.id === c.id);
             return (
-              <div key={t.id}>
-                {editing ? (
-                  <div className="flex items-center gap-1 rounded-full px-2 py-1" style={{ background: t.color, border: `2px solid ${t.color}` }}>
-                    <input autoFocus value={t.customName}
-                      onChange={e => setColorTeams(p => p.map(x => x.id === t.id ? { ...x, customName: e.target.value } : x))}
-                      onBlur={() => setEditingId(null)}
-                      onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingId(null); }}
-                      style={{ width: Math.max(50, (t.customName || '').length * 8 + 16), background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 99, padding: '2px 6px', color: t.text, fontWeight: 700, fontSize: 12, outline: 'none' }} />
-                  </div>
-                ) : (
-                  <button className="rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1"
-                    style={{ background: sel ? t.color : 'rgba(0,0,0,0.06)', color: sel ? t.text : '#64748b', border: '2px solid ' + (sel ? t.color : 'rgba(0,0,0,0.12)'), cursor: 'pointer' }}>
-                    <span onClick={() => setColorTeams(p => p.map(x => x.id === t.id ? { ...x, selected: !x.selected } : x))}>{t.customName || t.name}</span>
-                    <span onClick={sel ? e => { e.stopPropagation(); setEditingId(t.id); } : undefined} style={{ opacity: sel ? 0.7 : 0, pointerEvents: sel ? 'auto' : 'none', cursor: sel ? 'text' : 'default', fontSize: 10 }} title="Rename">✏️</span>
-                  </button>
-                )}
-              </div>
+              <button key={c.id} onClick={() => active ? removeTeam(c.id) : addTeam(c.id)}
+                className="rounded-full px-3 py-1 text-xs font-bold"
+                style={{ background: active ? c.color : 'rgba(0,0,0,0.06)', color: active ? c.text : '#64748b', border: '2px solid ' + (active ? c.color : 'rgba(0,0,0,0.12)'), cursor: 'pointer' }}>
+                {c.name}
+              </button>
             );
           })}
         </div>
-        <p className="text-slate-600 text-xs mt-3 font-bold">{allTeamIds.length} team{allTeamIds.length !== 1 ? 's' : ''} selected</p>
+        {teams.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {teams.map(t => {
+              const teamPlayers = players.filter(p => p.teamId === t.id);
+              const editing = editingTeamId === t.id;
+              return (
+                <div key={t.id} className="rounded-xl p-3" style={{ border: `2px solid ${t.color}55`, background: `${t.color}10` }}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: t.color }} />
+                    {editing ? (
+                      <input autoFocus value={t.name} onChange={e => renameTeam(t.id, e.target.value)}
+                        onBlur={() => setEditingTeamId(null)}
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingTeamId(null); }}
+                        style={{ ...iS, flex: 1, fontWeight: 800, fontSize: 13, color: '#0f4c75' }} />
+                    ) : (
+                      <span onClick={() => setEditingTeamId(t.id)} className="flex items-center gap-1"
+                        style={{ flex: 1, fontWeight: 800, fontSize: 13, color: '#0f4c75', cursor: 'text' }}>
+                        {t.name} <span style={{ opacity: 0.6, fontSize: 10 }} title="Rename">✏️</span>
+                      </span>
+                    )}
+                    <button onClick={() => removeTeam(t.id)} title="Remove team"
+                      style={{ cursor: 'pointer', fontWeight: 900, background: 'none', border: 'none', color: '#94a3b8', flexShrink: 0 }}>×</button>
+                  </div>
+                  {teamPlayers.length > 0 ? (
+                    <p className="text-xs mt-2" style={{ color: '#475569' }}>{teamPlayers.map(p => p.name).join(', ')}</p>
+                  ) : (
+                    <p className="text-xs mt-2" style={{ color: '#d97706' }}>No players assigned yet — pick this team in the Players list above.</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <p className="text-slate-600 text-xs mt-3 font-bold">{allTeamIds.length} team{allTeamIds.length !== 1 ? 's' : ''} ready</p>
       </div>
 
       <div>
@@ -245,7 +347,7 @@ export default function SetupScreen({ onStart, onStartTPT }) {
         </p>
       )}
 
-      <button onClick={() => canStart && onStart(selectedTeams, allTeamIds, courts, timerEnabled ? timerMins * 60 : 0, title, parsedRounds)}
+      <button onClick={() => canStart && onStart(selectedTeams, allTeamIds, courts, timerEnabled ? timerMins * 60 : 0, title, parsedRounds, { location: location.trim(), startTime, durationMins })}
         disabled={!canStart} className="w-full py-3 rounded-xl font-bold text-base btn-blue">
         Start Tournament 🚀
       </button>

@@ -38,11 +38,15 @@ function playerSlug(name) {
 export function fetchKnownPlayers() {
   return get(knownPlayersRef());
 }
-export function saveKnownPlayer(name, duprId) {
+export function saveKnownPlayer(name, duprId, nickname) {
   const trimmedName = (name || '').trim();
   const slug = playerSlug(trimmedName);
   if (!slug) return Promise.resolve();
-  return update(ref(db, `${KNOWN_PLAYERS_PATH}/${slug}`), { id: slug, name: trimmedName, duprId: (duprId || '').trim() })
+  // `nickname` is omitted from the update when not passed in, so existing
+  // nicknames survive saves from call sites that don't know about them.
+  const fields = { id: slug, name: trimmedName, duprID: (duprId || '').trim() };
+  if (nickname !== undefined) fields.nickname = (nickname || '').trim();
+  return update(ref(db, `${KNOWN_PLAYERS_PATH}/${slug}`), fields)
     .catch(err => console.error('saveKnownPlayer failed', err));
 }
 

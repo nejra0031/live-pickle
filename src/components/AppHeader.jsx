@@ -3,12 +3,34 @@ import ballIcon from '/ball.png';
 
 const TABS = [['play', '🎾 Play'], ['standings', '🏆 Standings'], ['history', '📋 History']];
 
+// Renders "📍 Location · 🗓 Sat Jun 13, 9:00 AM · ⏱ 4 hours" from whichever
+// event-detail fields are set — any subset may be blank.
+function formatEventInfo(location, startTime, durationMins) {
+  const parts = [];
+  if (location) parts.push(`📍 ${location}`);
+  if (startTime) {
+    const d = new Date(startTime);
+    if (!isNaN(d.getTime())) {
+      const dateStr = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      const timeStr = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      parts.push(`🗓 ${dateStr}, ${timeStr}`);
+    }
+  }
+  if (durationMins > 0) {
+    const h = Math.floor(durationMins / 60), m = durationMins % 60;
+    const durStr = h > 0 ? `${h} hour${h !== 1 ? 's' : ''}${m > 0 ? ` ${m} min` : ''}` : `${m} min`;
+    parts.push(`⏱ ${durStr}`);
+  }
+  return parts.join(' · ');
+}
+
 // Fixed top chrome: the floating "show header" pill (when hidden), the title bar
 // with LIVE/role/presence/offline indicators, the login toggle, and the play-phase
 // tab strip. Purely presentational — all state and actions are passed in.
 export default function AppHeader({
   headerRef, headerHidden, onShowHeader, onHideHeader,
-  tournamentTitle, firebaseConnected, phase, role, presence, online,
+  tournamentTitle, tournamentLocation, tournamentStartTime, tournamentDurationMins,
+  firebaseConnected, phase, role, presence, online,
   viewerOnly, onLoginToggle, activeTab, onTabChange,
 }) {
   return (
@@ -23,6 +45,11 @@ export default function AppHeader({
             <img src={ballIcon} alt="pickleball" style={{ width: 'clamp(36px,7vw,52px)', height: 'clamp(36px,7vw,52px)', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
             <div className="flex-1 min-w-0">
               <h1 className="font-black tracking-tight leading-tight truncate" style={{ fontSize: 'clamp(16px,4vw,26px)', color: '#0f4c75' }}>{tournamentTitle}</h1>
+              {(tournamentLocation || tournamentStartTime || tournamentDurationMins > 0) && (
+                <p className="text-slate-500 truncate" style={{ fontSize: 'clamp(10px,2.5vw,12px)' }}>
+                  {formatEventInfo(tournamentLocation, tournamentStartTime, tournamentDurationMins)}
+                </p>
+              )}
               <div className="flex items-center gap-2 flex-wrap">
                 {firebaseConnected && <span style={{ background: '#16a34a', color: '#fff', fontSize: 'clamp(8px,1.8vw,10px)', fontWeight: 800, padding: '1px 6px', borderRadius: 4, letterSpacing: '0.06em' }}>LIVE</span>}
                 {phase === 'play' && <span className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>{ROLE_MAP[role]?.title ?? 'Viewer'}</span>}

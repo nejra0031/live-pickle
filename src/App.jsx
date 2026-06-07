@@ -30,6 +30,9 @@ import StatusBanners from './components/StatusBanners';
 // ref robust-by-construction — no hand-maintained assembly that can drift.
 const TOURNAMENT_INITIAL = {
   tournamentTitle: 'Tournament',
+  tournamentLocation: '',
+  tournamentStartTime: '',
+  tournamentDurationMins: 0,
   activeTeamIds: [],
   tournamentTeams: [],
   courtNumbers: [],
@@ -80,7 +83,8 @@ export default function App({ viewerOnly = false }) {
   // ── Tournament data (single reducer; roundMgmtStateRef below == this state) ──
   const [tstate, dispatch] = useReducer(tournamentReducer, TOURNAMENT_INITIAL);
   const {
-    tournamentTitle, activeTeamIds, tournamentTeams, courtNumbers, timerDuration, timerDefaultMins,
+    tournamentTitle, tournamentLocation, tournamentStartTime, tournamentDurationMins,
+    activeTeamIds, tournamentTeams, courtNumbers, timerDuration, timerDefaultMins,
     history, round, roundNum, pending, roundComplete, pausedIds, tournamentMode,
     roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot,
     roundRobinEndSnapshot, activeRoundExtras, liveAdditions, nextRoundPresets, tournamentFinished,
@@ -89,6 +93,9 @@ export default function App({ viewerOnly = false }) {
 
   // Setter wrappers — keep every existing setX(...) call site byte-identical.
   const setTournamentTitle         = useCallback(v => dispatch({ type: 'SET', key: 'tournamentTitle', value: v }), []);
+  const setTournamentLocation      = useCallback(v => dispatch({ type: 'SET', key: 'tournamentLocation', value: v }), []);
+  const setTournamentStartTime     = useCallback(v => dispatch({ type: 'SET', key: 'tournamentStartTime', value: v }), []);
+  const setTournamentDurationMins  = useCallback(v => dispatch({ type: 'SET', key: 'tournamentDurationMins', value: v }), []);
   const setActiveTeamIds           = useCallback(v => dispatch({ type: 'SET', key: 'activeTeamIds', value: v }), []);
   const setTournamentTeams         = useCallback(v => dispatch({ type: 'SET', key: 'tournamentTeams', value: v }), []);
   const setCourtNumbers            = useCallback(v => dispatch({ type: 'SET', key: 'courtNumbers', value: v }), []);
@@ -318,10 +325,12 @@ export default function App({ viewerOnly = false }) {
   }, [tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults]);
 
   // ── Tournament lifecycle handlers ──────────────────────────────────────────
-  const handleStart = useCallback((allTeams, teamIds, courts, durSecs, title, numRounds) => {
+  const handleStart = useCallback((allTeams, teamIds, courts, durSecs, title, numRounds, eventDetails = {}) => {
     setTournamentTeams(allTeams); setModuleRegistry(allTeams);
     const resolvedTitle = title || 'Tournament';
     setTournamentTitle(resolvedTitle);
+    const { location = '', startTime = '', durationMins = 0 } = eventDetails;
+    setTournamentLocation(location); setTournamentStartTime(startTime); setTournamentDurationMins(durationMins);
     const s = mkStandings(teamIds);
     const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     tournamentIdRef.current = tid;
@@ -329,6 +338,7 @@ export default function App({ viewerOnly = false }) {
     const snap = buildSnapshot({
       activeTeamIds: teamIds, courtNumbers: courts, socialCourts: [],
       tournamentTeams: allTeams, tournamentTitle: resolvedTitle,
+      tournamentLocation: location, tournamentStartTime: startTime, tournamentDurationMins: durationMins,
       timerDuration: durSecs, timerDefaultMins: durSecs > 0 ? Math.round(durSecs / 60) : 12,
       history: [], roundNum: 0, pausedIds: [], targetRounds: tr, tournamentMode: 'swiss',
     }, { _tournamentId: tid });
@@ -346,7 +356,8 @@ export default function App({ viewerOnly = false }) {
     tournamentIdRef, lastSeenRoundNum, pendingRef, roleRef,
     tptResultsRef, tptScheduleRef, tptRoundCompletingRef,
     setTPTTeams, setTPTPlayers, setTPTSchedule, setTPTResults,
-    setTournamentTitle, setRole, setCourtNumbers, setTimerDuration,
+    setTournamentTitle, setTournamentLocation, setTournamentStartTime, setTournamentDurationMins,
+    setRole, setCourtNumbers, setTimerDuration,
     setHistory, setRoundNum, setActiveTeamIds, setStandings,
     setTournamentMode, setRound, setPausedIds, setPending, setRoundKey, setRoundComplete,
     setRoundRobinSchedule, setRoundRobinCourts, setRoundRobinStartRoundNum,
@@ -710,7 +721,9 @@ export default function App({ viewerOnly = false }) {
         <AppHeader
           headerRef={headerRef} headerHidden={headerHidden}
           onShowHeader={() => setHeaderHidden(false)} onHideHeader={() => setHeaderHidden(true)}
-          tournamentTitle={tournamentTitle} firebaseConnected={firebaseConnected}
+          tournamentTitle={tournamentTitle}
+          tournamentLocation={tournamentLocation} tournamentStartTime={tournamentStartTime} tournamentDurationMins={tournamentDurationMins}
+          firebaseConnected={firebaseConnected}
           phase={phase} role={role} presence={presence} online={online} viewerOnly={viewerOnly}
           onLoginToggle={() => { if (role) setRole(null); else openModal('pin', { purpose: 'login' }); }}
           activeTab={activeTab} onTabChange={setActiveTab}

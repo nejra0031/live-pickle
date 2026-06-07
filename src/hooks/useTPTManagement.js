@@ -19,7 +19,8 @@ export function useTPTManagement({
   // TPT state setters
   setTPTTeams, setTPTPlayers, setTPTSchedule, setTPTResults,
   // App state setters
-  setTournamentTitle, setRole, setCourtNumbers, setTimerDuration,
+  setTournamentTitle, setTournamentLocation, setTournamentStartTime, setTournamentDurationMins,
+  setRole, setCourtNumbers, setTimerDuration,
   setHistory, setRoundNum, setActiveTeamIds, setStandings,
   setTournamentMode, setRound, setPausedIds, setPending, setRoundKey, setRoundComplete,
   setRoundRobinSchedule, setRoundRobinCourts, setRoundRobinStartRoundNum,
@@ -29,16 +30,19 @@ export function useTPTManagement({
   // callbacks
   applyTimerState, setTimerAlarmed, onFirebaseError, closeModal,
 }) {
-  const handleStartTPT = useCallback((tptTeamsData, playersData, courts, durSecs, title) => {
+  const handleStartTPT = useCallback((tptTeamsData, playersData, courts, durSecs, title, eventDetails = {}) => {
     const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     tournamentIdRef.current = tid;
     const schedule = generateTPTSchedule(Object.keys(tptTeamsData));
     const resolvedTitle = title || 'Tournament';
     setTournamentTitle(resolvedTitle);
     document.title = resolvedTitle;
+    const { location = '', startTime = '', durationMins = 0 } = eventDetails;
+    setTournamentLocation(location); setTournamentStartTime(startTime); setTournamentDurationMins(durationMins);
     const snap = buildSnapshot({
       activeTeamIds: [], courtNumbers: courts, socialCourts: [],
       tournamentTeams: [], tournamentTitle: resolvedTitle,
+      tournamentLocation: location, tournamentStartTime: startTime, tournamentDurationMins: durationMins,
       timerDuration: durSecs, timerDefaultMins: durSecs > 0 ? Math.round(durSecs / 60) : 12,
       history: [], roundNum: 0, pausedIds: [], targetRounds: 0, tournamentMode: 'tpt',
     }, {

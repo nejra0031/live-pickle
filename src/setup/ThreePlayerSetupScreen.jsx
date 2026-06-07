@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ALL_TEAMS } from '../constants';
 import PlayerNameField from '../components/PlayerNameField';
 import useKnownPlayers from '../hooks/useKnownPlayers';
+import EventDetailsFields from './EventDetailsFields';
 
 const uid = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 const PALETTE = ALL_TEAMS.map(t => ({ color: t.color, text: t.text }));
@@ -21,6 +22,9 @@ export default function ThreePlayerSetupScreen({ onStart }) {
   const [timerMins, setTimerMins] = useState(12);
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [title, setTitle] = useState('Tournament');
+  const [location, setLocation] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [durationMins, setDurationMins] = useState(0);
   const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
 
   const validTeams = teams.filter(t => t.name.trim() && t.male1.name.trim() && t.male2.name.trim() && t.female.name.trim());
@@ -59,7 +63,8 @@ export default function ThreePlayerSetupScreen({ onStart }) {
       saveKnownPlayer(t.male2.name, t.male2.duprId);
       saveKnownPlayer(t.female.name, t.female.duprId);
     });
-    onStart(tptTeams, players, courts, timerEnabled ? timerMins * 60 : 0, title.trim() || 'Tournament');
+    onStart(tptTeams, players, courts, timerEnabled ? timerMins * 60 : 0, title.trim() || 'Tournament',
+      { location: location.trim(), startTime, durationMins });
   };
 
   const iS = { padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.12)', color: '#1e293b', outline: 'none' };
@@ -72,6 +77,10 @@ export default function ThreePlayerSetupScreen({ onStart }) {
         <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Tournament"
           style={{ ...iS, width: '100%', fontSize: 15, fontWeight: 800, color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)' }} />
       </div>
+
+      <EventDetailsFields location={location} setLocation={setLocation}
+        startTime={startTime} setStartTime={setStartTime}
+        durationMins={durationMins} setDurationMins={setDurationMins} />
 
       <div>
         <p className="text-sm font-bold text-slate-700 mb-1">Teams</p>

@@ -23,7 +23,7 @@ export default function PlayerNameField({
   }, []);
 
   const pick = (p) => {
-    onChange({ name: p.name, duprId: p.duprId || '' });
+    onChange({ name: p.name, duprId: p.duprID || '', nickname: p.nickname || '' });
     setOpen(false);
     setSuggestions([]);
   };
@@ -45,11 +45,12 @@ export default function PlayerNameField({
         }}>
           {suggestions.map(p => (
             <li key={p.id} onMouseDown={() => pick(p)}
-              style={{ padding: '6px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#e2e8f0', display: 'flex', justifyContent: 'space-between', gap: 8 }}
+              style={{ padding: '6px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#e2e8f0' }}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.2)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
               <span style={{ fontWeight: 700 }}>{p.name}</span>
-              {p.duprId && <span style={{ color: '#94a3b8' }}>{p.duprId}</span>}
+              {p.duprID && <span style={{ color: '#94a3b8' }}> ({p.duprID})</span>}
+              {p.nickname && <span style={{ color: '#94a3b8' }}> - {p.nickname}</span>}
             </li>
           ))}
         </ul>
