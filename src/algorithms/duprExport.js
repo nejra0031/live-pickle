@@ -14,6 +14,15 @@ export const DUPR_CSV_HEADER = [
   'location', 'scoreType',
 ];
 
+export const BLANK_PLAYER = { name: '', duprId: '' };
+
+// A player is "complete" once it has both a name and a DUPR ID — anything less
+// is worth surfacing to the admin for editing before export (blanks are still
+// exported fine; this is just what the modal offers to fill in).
+export function playerNeedsInfo(p) {
+  return !p || !p.name?.trim() || !p.duprId?.trim();
+}
+
 // Quote-escapes a CSV field per RFC4180 — only quotes when needed.
 export function csvField(value) {
   const s = value == null ? '' : String(value);
@@ -34,22 +43,48 @@ function makeRow({ playerA1, playerA2, playerB1, playerB2, scoreA, scoreB }) {
   };
 }
 
+// Every player who appears in a TPT history matchup, deduped — used by the
+// export modal to find players missing a DUPR ID and offer to fill it in.
+export function collectTPTPlayerIds({ history, tptTeams }) {
+  const ids = new Set();
+  for (const h of history) {
+    if (!h.tptMatchups) continue;
+    for (const m of h.tptMatchups) {
+      for (const team of [tptTeams[m.teamAId], tptTeams[m.teamBId]]) {
+        if (!team) continue;
+        (team.maleIds || []).forEach(id => ids.add(id));
+        if (team.femaleId) ids.add(team.femaleId);
+      }
+    }
+  }
+  return [...ids];
+}
+
+// Every team that appears in a Swiss/RR history game, deduped — used by the
+// export modal to find teams missing player names/DUPR IDs.
+export function collectSwissTeamIds({ history }) {
+  const ids = new Set();
+  for (const h of history) {
+    if (h.tptMatchups) continue;
+    for (const g of h.games || []) { ids.add(g.winnerId); ids.add(g.loserId); }
+  }
+  return [...ids];
+}
+
 function buildTPTRows({ history, tptTeams, tptPlayers }) {
   const rows = [];
-  let skipped = 0;
   for (const h of history) {
     if (!h.tptMatchups) continue;
     for (const matchup of h.tptMatchups) {
       const teamA = tptTeams[matchup.teamAId];
       const teamB = tptTeams[matchup.teamBId];
-      if (!teamA || !teamB) { skipped += (matchup.games || []).length; continue; }
+      if (!teamA || !teamB) continue;
       const gameDefs = getTPTGamesForMatchup(teamA, teamB);
       (matchup.games || []).forEach((game, gi) => {
         const def = gameDefs[gi];
-        if (!def || !game) { skipped++; return; }
-        const [pA1, pA2] = def.sideA.map(id => tptPlayers[id]);
-        const [pB1, pB2] = def.sideB.map(id => tptPlayers[id]);
-        if (!pA1 || !pA2 || !pB1 || !pB2) { skipped++; return; }
+        if (!def || !game) return;
+        const [pA1, pA2] = def.sideA.map(id => tptPlayers[id] || BLANK_PLAYER);
+        const [pB1, pB2] = def.sideB.map(id => tptPlayers[id] || BLANK_PLAYER);
         const aWon = game.winnerTeamId === teamA.id;
         const scoreA = aWon ? game.winnerScore : game.loserScore;
         const scoreB = aWon ? game.loserScore : game.winnerScore;
@@ -57,38 +92,36 @@ function buildTPTRows({ history, tptTeams, tptPlayers }) {
       });
     }
   }
-  return { rows, skipped };
-}
-
-function teamHasPlayers(team) {
-  return Array.isArray(team?.players) && team.players.length === 2 && team.players.every(p => p?.name?.trim());
+  return rows;
 }
 
 function buildSwissRows({ history, teamById }) {
   const rows = [];
-  let skipped = 0;
   for (const h of history) {
     if (h.tptMatchups) continue;
     for (const game of h.games || []) {
       const winner = teamById(game.winnerId);
       const loser = teamById(game.loserId);
-      if (!winner || !loser || !teamHasPlayers(winner) || !teamHasPlayers(loser)) { skipped++; continue; }
-      const [wA1, wA2] = winner.players;
-      const [lB1, lB2] = loser.players;
+      if (!winner || !loser) continue;
+      const [wA1, wA2] = (winner.players?.length === 2) ? winner.players : [BLANK_PLAYER, BLANK_PLAYER];
+      const [lB1, lB2] = (loser.players?.length === 2) ? loser.players : [BLANK_PLAYER, BLANK_PLAYER];
       rows.push(makeRow({
         playerA1: wA1, playerA2: wA2, playerB1: lB1, playerB2: lB2,
         scoreA: game.winnerScore, scoreB: game.loserScore,
       }));
     }
   }
-  return { rows, skipped };
+  return rows;
 }
 
-// Returns { rows, skipped } — `rows` are plain objects keyed by DUPR_CSV_HEADER columns
-// (minus event/date/location, which are filled in by the caller via buildDUPRCsv).
+// Returns the CSV rows — plain objects keyed by DUPR_CSV_HEADER columns (minus
+// event/date/location, which are filled in by the caller via buildDUPRCsv).
+// Every completed game produces a row; players/teams missing name or DUPR ID
+// data are exported with blank fields rather than being skipped.
 export function buildDUPRRows({ history, tournamentMode, tptTeams = {}, tptPlayers = {}, teamById }) {
-  if (tournamentMode === 'tpt') return buildTPTRows({ history, tptTeams, tptPlayers });
-  return buildSwissRows({ history, teamById });
+  return tournamentMode === 'tpt'
+    ? buildTPTRows({ history, tptTeams, tptPlayers })
+    : buildSwissRows({ history, teamById });
 }
 
 // Joins the header + rows into a full CSV string, filling in event/date/location for every row.

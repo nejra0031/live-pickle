@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { csvField, buildDUPRRows, buildDUPRCsv, DUPR_CSV_HEADER } from './duprExport';
+import {
+  csvField, buildDUPRRows, buildDUPRCsv, DUPR_CSV_HEADER,
+  playerNeedsInfo, collectTPTPlayerIds, collectSwissTeamIds,
+} from './duprExport';
 
 describe('csvField', () => {
   it('leaves plain values unquoted', () => {
@@ -13,6 +16,16 @@ describe('csvField', () => {
     expect(csvField('Madison Square Garden, New York')).toBe('"Madison Square Garden, New York"');
     expect(csvField('She said "hi"')).toBe('"She said ""hi"""');
     expect(csvField('line1\nline2')).toBe('"line1\nline2"');
+  });
+});
+
+describe('playerNeedsInfo', () => {
+  it('flags missing/blank name or DUPR ID', () => {
+    expect(playerNeedsInfo(undefined)).toBe(true);
+    expect(playerNeedsInfo({ name: '', duprId: '' })).toBe(true);
+    expect(playerNeedsInfo({ name: 'Jane', duprId: '' })).toBe(true);
+    expect(playerNeedsInfo({ name: '', duprId: 'AB12C3' })).toBe(true);
+    expect(playerNeedsInfo({ name: 'Jane', duprId: 'AB12C3' })).toBe(false);
   });
 });
 
@@ -42,8 +55,7 @@ describe('buildDUPRRows — TPT mode', () => {
         ],
       }],
     }];
-    const { rows, skipped } = buildDUPRRows({ history, tournamentMode: 'tpt', tptTeams, tptPlayers });
-    expect(skipped).toBe(0);
+    const { rows } = buildDUPRRowsResult(history, tptTeams, tptPlayers);
     expect(rows).toHaveLength(3);
 
     // Males doubles — teamA won
@@ -59,15 +71,27 @@ describe('buildDUPRRows — TPT mode', () => {
     });
   });
 
-  it('skips games referencing unknown teams or players', () => {
+  it('still emits a row with blank player fields when a player record is missing', () => {
+    const sparsePlayers = { ...tptPlayers, f2: undefined };
     const history = [{
       roundNum: 1,
-      tptMatchups: [{ teamAId: 'teamA', teamBId: 'ghost', games: [{ winnerTeamId: 'teamA', loserTeamId: 'ghost', winnerScore: 11, loserScore: 0 }] }],
+      tptMatchups: [{
+        teamAId: 'teamA', teamBId: 'teamB',
+        games: [
+          { winnerTeamId: 'teamA', loserTeamId: 'teamB', winnerScore: 11, loserScore: 5 },
+          { winnerTeamId: 'teamA', loserTeamId: 'teamB', winnerScore: 11, loserScore: 8 },
+        ],
+      }],
     }];
-    const { rows, skipped } = buildDUPRRows({ history, tournamentMode: 'tpt', tptTeams, tptPlayers });
-    expect(rows).toHaveLength(0);
-    expect(skipped).toBe(1);
+    const { rows } = buildDUPRRowsResult(history, tptTeams, sparsePlayers);
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toMatchObject({ playerB2: '', playerB2DuprId: '' });
   });
+
+  function buildDUPRRowsResult(history, tptTeams, tptPlayers) {
+    const rows = buildDUPRRows({ history, tournamentMode: 'tpt', tptTeams, tptPlayers });
+    return { rows };
+  }
 });
 
 describe('buildDUPRRows — swiss/round-robin mode', () => {
@@ -80,8 +104,7 @@ describe('buildDUPRRows — swiss/round-robin mode', () => {
 
   it('emits a row per game for teams with complete player info', () => {
     const history = [{ roundNum: 1, games: [{ winnerId: 'red', loserId: 'blue', winnerScore: 11, loserScore: 7, courtNumber: '1' }] }];
-    const { rows, skipped } = buildDUPRRows({ history, tournamentMode: 'swiss', teamById });
-    expect(skipped).toBe(0);
+    const rows = buildDUPRRows({ history, tournamentMode: 'swiss', teamById });
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       playerA1: 'Jane Doe', playerA1DuprId: 'AB12C3', playerA2: 'Alex Smith', playerA2DuprId: 'DE45F6',
@@ -90,14 +113,34 @@ describe('buildDUPRRows — swiss/round-robin mode', () => {
     });
   });
 
-  it('skips games where either team is missing player info', () => {
+  it('still emits a row with blank player fields when a team has no player info', () => {
     const history = [{ roundNum: 1, games: [
       { winnerId: 'red', loserId: 'green', winnerScore: 11, loserScore: 3, courtNumber: '1' },
       { winnerId: 'red', loserId: 'blue', winnerScore: 11, loserScore: 9, courtNumber: '2' },
     ] }];
-    const { rows, skipped } = buildDUPRRows({ history, tournamentMode: 'swiss', teamById });
-    expect(rows).toHaveLength(1);
-    expect(skipped).toBe(1);
+    const rows = buildDUPRRows({ history, tournamentMode: 'swiss', teamById });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ playerB1: '', playerB1DuprId: '', playerB2: '', playerB2DuprId: '', teamAGame1: 11, teamBGame1: 3 });
+    expect(rows[1]).toMatchObject({ playerB1: 'Sam Lee', playerB1DuprId: 'GH78I9' });
+  });
+});
+
+describe('collectTPTPlayerIds / collectSwissTeamIds', () => {
+  it('dedupes players appearing across TPT matchups', () => {
+    const tptTeams = { A: { id: 'A', maleIds: ['m1', 'm2'], femaleId: 'f1' }, B: { id: 'B', maleIds: ['m3', 'm4'], femaleId: 'f2' } };
+    const history = [
+      { roundNum: 1, tptMatchups: [{ teamAId: 'A', teamBId: 'B', games: [] }] },
+      { roundNum: 2, tptMatchups: [{ teamAId: 'A', teamBId: 'B', games: [] }] },
+    ];
+    expect(collectTPTPlayerIds({ history, tptTeams }).sort()).toEqual(['f1', 'f2', 'm1', 'm2', 'm3', 'm4']);
+  });
+
+  it('dedupes teams appearing across swiss/RR games and ignores TPT rounds', () => {
+    const history = [
+      { roundNum: 1, games: [{ winnerId: 'red', loserId: 'blue' }, { winnerId: 'red', loserId: 'green' }] },
+      { roundNum: 2, tptMatchups: [{ teamAId: 'X', teamBId: 'Y', games: [] }] },
+    ];
+    expect(collectSwissTeamIds({ history }).sort()).toEqual(['blue', 'green', 'red']);
   });
 });
 
