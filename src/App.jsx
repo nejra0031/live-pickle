@@ -423,7 +423,7 @@ export default function App({ viewerOnly = false }) {
   const doReset = useCallback(() => {
     pushSnapshot(null, setFirebaseError); clearBackups();
     setBackupRoundNums(new Set()); historyLengthRef.current = 0;
-    lastSeenRoundNum.current = -1; setPhase('setup'); setRole(null);
+    lastSeenRoundNum.current = -1; setPhase('setup');
     setHistory([]); setStandings([]); setRound(null); setPausedIds([]);
     pendingRef.current = {}; setPending({}); setTournamentMode('swiss');
     setRoundRobinSchedule(null); setRoundRobinCourts(null); setRoundRobinStartRoundNum(null);

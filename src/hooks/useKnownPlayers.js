@@ -12,7 +12,11 @@ export default function useKnownPlayers() {
     loadedRef.current = true;
     fetchKnownPlayers().then(snap => {
       const val = snap.val() || {};
-      setPlayers(Object.values(val).filter(p => p && p.name));
+      // Legacy entries can collide on the same person under different keys —
+      // collapse to one entry per lowercased name so suggestions don't repeat.
+      const byName = new Map();
+      for (const p of Object.values(val)) { if (p && p.name) byName.set(p.name.trim().toLowerCase(), p); }
+      setPlayers([...byName.values()]);
     }).catch(err => console.error('fetchKnownPlayers failed', err));
   }, []);
 
