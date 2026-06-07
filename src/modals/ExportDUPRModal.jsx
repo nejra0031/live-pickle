@@ -18,6 +18,7 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
   const [eventName, setEventName] = useState(tournamentTitle || 'Tournament');
   const [date, setDate] = useState(todayStr());
   const [location, setLocation] = useState('');
+  const [scoreType, setScoreType] = useState(''); // no default — admin must choose SIDEOUT or RALLY
 
   // Players/teams that appear in the export but are missing a name or DUPR ID —
   // offered up for editing here so the export doesn't have to be blocked or re-run.
@@ -66,10 +67,21 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
     [history, tournamentMode, tptTeams, effectiveTptPlayers, effectiveTeamById]
   );
 
+  // DUPR requires a name + DUPR ID for every player in a doubles match — rows
+  // missing any of those will likely be rejected by DUPR's importer even though
+  // we still include them in the download.
+  const incompleteRowCount = useMemo(() => rows.filter(r =>
+    !r.playerA1?.trim() || !r.playerA1DuprId?.trim() || !r.playerA2?.trim() || !r.playerA2DuprId?.trim() ||
+    !r.playerB1?.trim() || !r.playerB1DuprId?.trim() || !r.playerB2?.trim() || !r.playerB2DuprId?.trim()
+  ).length, [rows]);
+
+  const canExport = rows.length > 0 && !!scoreType;
+
   const doExport = () => {
+    if (!canExport) return;
     Object.entries(tptOverrides).forEach(([id, ov]) => saveKnownPlayer(ov.name ?? tptPlayers[id]?.name, ov.duprId));
     Object.values(swissOverrides).forEach(pair => pair.forEach(p => { if (p?.name?.trim()) saveKnownPlayer(p.name, p.duprId); }));
-    const csv = buildDUPRCsv(rows, { eventName: eventName.trim() || 'Tournament', date, location: location.trim() });
+    const csv = buildDUPRCsv(rows, { eventName: eventName.trim() || 'Tournament', date, location: location.trim(), scoreType });
     downloadCsv(`dupr_export_${date}.csv`, csv);
     onClose();
   };
@@ -91,6 +103,21 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
         <div>
           <p className="text-xs text-slate-500 mb-1 font-bold uppercase tracking-wide">Location</p>
           <input value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Madison Square Garden, New York, NY" style={iS} />
+        </div>
+        <div>
+          <p className="text-xs text-slate-500 mb-1 font-bold uppercase tracking-wide">Score type</p>
+          <div className="flex gap-2">
+            {[['SIDEOUT', 'Sideout'], ['RALLY', 'Rally']].map(([val, label]) => (
+              <button key={val} type="button" onClick={() => setScoreType(val)}
+                className="flex-1 py-2 rounded-xl text-sm font-bold"
+                style={scoreType === val
+                  ? { background: 'rgba(99,102,241,0.9)', color: '#fff', border: '1px solid rgba(99,102,241,0.9)' }
+                  : { background: 'rgba(255,255,255,0.08)', color: '#e2e8f0', border: '1px solid rgba(255,255,255,0.15)' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {!scoreType && <p className="text-xs mt-1" style={{ color: '#fb923c' }}>Choose how these games were scored.</p>}
         </div>
 
         {(incompleteTPTPlayers.length > 0 || incompleteSwissTeams.length > 0) && (
@@ -126,14 +153,21 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
           </div>
         )}
 
-        <p className="text-xs" style={{ color: rows.length > 0 ? '#a5b4fc' : '#fb923c' }}>
-          {rows.length} game{rows.length !== 1 ? 's' : ''} ready to export
-        </p>
+        <div className="flex flex-col gap-1">
+          <p className="text-xs" style={{ color: rows.length > 0 ? '#a5b4fc' : '#fb923c' }}>
+            {rows.length} game{rows.length !== 1 ? 's' : ''} ready to export
+          </p>
+          {incompleteRowCount > 0 && (
+            <p className="text-xs font-bold" style={{ color: '#f87171' }}>
+              ⚠ {incompleteRowCount} of {rows.length} {incompleteRowCount === 1 ? 'game is' : 'games are'} missing a player name or DUPR ID and may be rejected by DUPR's importer.
+            </p>
+          )}
+        </div>
 
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold btn-cancel">Cancel</button>
-          <button onClick={doExport} disabled={rows.length === 0} className="flex-1 py-2 rounded-xl text-sm font-bold btn-indigo"
-            style={rows.length === 0 ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}>
+          <button onClick={doExport} disabled={!canExport} className="flex-1 py-2 rounded-xl text-sm font-bold btn-indigo"
+            style={!canExport ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}>
             Download CSV
           </button>
         </div>

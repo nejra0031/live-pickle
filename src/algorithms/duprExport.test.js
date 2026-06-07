@@ -62,7 +62,7 @@ describe('buildDUPRRows — TPT mode', () => {
     expect(rows[0]).toMatchObject({
       playerA1: 'Alex', playerA1DuprId: 'AB12C3', playerA2: 'Sam', playerA2DuprId: 'DE45F6',
       playerB1: 'Chris', playerB1DuprId: 'JK01L2', playerB2: 'Pat', playerB2DuprId: 'MN34O5',
-      teamAGame1: 11, teamBGame1: 5, matchType: 'D', scoreType: 'SIDEOUT',
+      teamAGame1: 11, teamBGame1: 5, matchType: 'D',
     });
     // Mixed #1 — teamB won, so the score must still align with side A/B (not winner/loser)
     expect(rows[1]).toMatchObject({
@@ -154,9 +154,8 @@ describe('buildDUPRCsv', () => {
       playerB2: 'Chris Park', playerB2DuprId: 'JK01L2', playerB2ExternalId: '',
       teamAGame1: 11, teamBGame1: 5, teamAGame2: 11, teamBGame2: 7,
       teamAGame3: '', teamBGame3: '', teamAGame4: '', teamBGame4: '', teamAGame5: '', teamBGame5: '',
-      scoreType: 'SIDEOUT',
     }];
-    const csv = buildDUPRCsv(rows, { eventName: 'Tuesday Night League', date: '2025-01-15', location: 'Madison Square Garden, 4 Pennsylvania Plaza, New York, NY 10001' });
+    const csv = buildDUPRCsv(rows, { eventName: 'Tuesday Night League', date: '2025-01-15', location: 'Madison Square Garden, 4 Pennsylvania Plaza, New York, NY 10001', scoreType: 'SIDEOUT' });
     const lines = csv.split('\r\n');
     expect(lines[0]).toBe(DUPR_CSV_HEADER.join(','));
     expect(lines[1]).toBe(

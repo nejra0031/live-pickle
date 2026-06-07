@@ -5,6 +5,7 @@ import RoundTimer from '../../components/RoundTimer';
 import { courtKey, liveKey } from '../../constants';
 import { ROLE_MAP, hasPermission } from '../../roleConfig';
 import SocialCourts from './SocialCourts';
+import BreakBanner from './BreakBanner';
 
 export default function ActiveRound({
   round, roundNum, courtNumbers, socialCourts, liveAdditions,
@@ -22,18 +23,17 @@ export default function ActiveRound({
   const canWrite  = hasPermission(role, 'canSubmitResults');
   const nextRN    = roundNum === 0 ? 1 : roundNum + 1;
   const isAutoFinal = targetRounds > 0 && nextRN === targetRounds && !finalRound;
-  const showTimer = timerDuration > 0 || breakMode;
+  const showTimer = timerDuration > 0 && !breakMode;
 
   return (
     <div className="flex flex-col gap-4">
+      <BreakBanner breakMode={breakMode} onBreakEnd={onBreakEnd} role={role} />
       <SocialCourts socialCourts={socialCourts} />
       {showTimer ? (
         <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning}
           canToggleTimer={hasPermission(role, 'canEditTimer') || hasPermission(role, 'canToggleTimer')}
           canControlTimer={hasPermission(role, 'canEditTimer')}
-          canEndBreak={hasPermission(role, 'canBreakTournament')}
-          onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings}
-          breakInfo={breakMode} onEndBreak={onBreakEnd} />
+          onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} />
       ) : (
         <div style={{ textAlign: 'center' }}>
           <span className="text-blue-900 font-black" style={{ fontSize: 'clamp(22px,6vw,32px)' }}>Round {roundNum}</span>

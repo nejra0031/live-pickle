@@ -25,13 +25,11 @@ export default function RoundRobinSection({
     <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
       <BreakBanner breakMode={breakMode} onBreakEnd={onBreakEnd} role={role} />
       <SocialCourts socialCourts={socialCourts} />
-      {(timerDuration > 0 || breakMode) && (
+      {timerDuration > 0 && !breakMode && (
         <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} timerRunning={timerRunning}
           canToggleTimer={hasPermission(role, 'canEditTimer') || hasPermission(role, 'canToggleTimer')}
           canControlTimer={hasPermission(role, 'canEditTimer')}
-          canEndBreak={hasPermission(role, 'canBreakTournament')}
-          onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings}
-          breakInfo={breakMode} onEndBreak={onBreakEnd} />
+          onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} />
       )}
       <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(4px,1vw,8px)', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.25)' }}>
         <p className="font-bold" style={{ color: '#4338ca', fontSize: 'clamp(13px,3.5vw,17px)' }}>🔁 Round Robin</p>

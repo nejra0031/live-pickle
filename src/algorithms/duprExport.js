@@ -39,7 +39,6 @@ function makeRow({ playerA1, playerA2, playerB1, playerB2, scoreA, scoreB }) {
     playerB2: playerB2.name, playerB2DuprId: playerB2.duprId || '', playerB2ExternalId: '',
     teamAGame1: scoreA, teamBGame1: scoreB,
     teamAGame2: '', teamBGame2: '', teamAGame3: '', teamBGame3: '', teamAGame4: '', teamBGame4: '', teamAGame5: '', teamBGame5: '',
-    scoreType: 'SIDEOUT',
   };
 }
 
@@ -124,11 +123,12 @@ export function buildDUPRRows({ history, tournamentMode, tptTeams = {}, tptPlaye
     : buildSwissRows({ history, teamById });
 }
 
-// Joins the header + rows into a full CSV string, filling in event/date/location for every row.
-export function buildDUPRCsv(rows, { eventName, date, location }) {
+// Joins the header + rows into a full CSV string, filling in event/date/location/scoreType
+// for every row — these are export-wide settings chosen by the admin, not per-game data.
+export function buildDUPRCsv(rows, { eventName, date, location, scoreType }) {
   const lines = [DUPR_CSV_HEADER.join(',')];
   for (const row of rows) {
-    const full = { ...row, event: eventName, date, location };
+    const full = { ...row, event: eventName, date, location, scoreType };
     lines.push(DUPR_CSV_HEADER.map(col => csvField(full[col])).join(','));
   }
   return lines.join('\r\n');

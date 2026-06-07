@@ -99,13 +99,11 @@ export default function ThreePlayerSection({
     <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
       <BreakBanner breakMode={breakMode} onBreakEnd={onBreakEnd} role={role} />
 
-      {(timerDuration > 0 || breakMode) && (
+      {timerDuration > 0 && !breakMode && (
         <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} timerRunning={timerRunning}
           canToggleTimer={hasPermission(role, 'canEditTimer') || hasPermission(role, 'canToggleTimer')}
           canControlTimer={hasPermission(role, 'canEditTimer')}
-          canEndBreak={hasPermission(role, 'canBreakTournament')}
-          onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings}
-          breakInfo={breakMode} onEndBreak={onBreakEnd} />
+          onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} />
       )}
 
       <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(4px,1vw,8px)', background: 'rgba(15,76,117,0.05)', border: '1px solid rgba(15,76,117,0.18)' }}>

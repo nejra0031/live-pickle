@@ -1,39 +1,4 @@
-import { useState, useEffect } from 'react';
-
-export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning, canToggleTimer, canControlTimer, canEndBreak, onToggle, onRestart, onOpenSettings, breakInfo, onEndBreak }) {
-  const [breakSecsLeft, setBreakSecsLeft] = useState(() => breakInfo ? Math.max(0, Math.round((breakInfo.endAt - Date.now()) / 1000)) : 0);
-
-  useEffect(() => {
-    if (!breakInfo) return;
-    const tick = () => setBreakSecsLeft(Math.max(0, Math.round((breakInfo.endAt - Date.now()) / 1000)));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [breakInfo?.endAt]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (breakInfo) {
-    const bm = Math.floor(breakSecsLeft / 60), bs = breakSecsLeft % 60, over = breakSecsLeft === 0;
-    return (
-      <div className="flex items-center rounded-xl"
-        style={{ padding: 'clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)', gap: 'clamp(8px,2vw,14px)', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.5)',  }}>
-        <div style={{ fontSize: 'clamp(20px,5vw,28px)', flexShrink: 0 }}>☕</div>
-        <div className="flex-1">
-          <div style={{ fontSize: 'clamp(9px,2vw,12px)', color: '#d97706', lineHeight: 1, marginBottom: 2, fontWeight: 800, letterSpacing: '0.08em' }}>BREAK</div>
-          <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 'clamp(13px,3.5vw,18px)', lineHeight: 1, color: over ? '#ef4444' : '#92400e' }}>
-            {over ? 'BREAK OVER' : `${bm}:${String(bs).padStart(2, '0')}`}
-          </div>
-          {breakInfo.message && <div style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#92400e', fontWeight: 700, marginTop: 2 }}>{breakInfo.message}</div>}
-        </div>
-        {canEndBreak && (
-          <button onClick={onEndBreak}
-            style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(4px,1vw,7px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(251,191,36,0.2)', color: '#92400e', border: '1px solid rgba(251,191,36,0.5)' }}>
-            End Break
-          </button>
-        )}
-      </div>
-    );
-  }
-
+export default function RoundTimer({ secsLeft, totalSecs, roundNum, timerRunning, canToggleTimer, canControlTimer, onToggle, onRestart, onOpenSettings }) {
   const mins = Math.floor(secsLeft / 60), secs = secsLeft % 60;
   const pct = totalSecs > 0 ? secsLeft / totalSecs : 1;
   const elapsed = 1 - pct;
