@@ -37,6 +37,7 @@ export function useRoundManagement({
   // Callbacks
   applyTimerState, computeSecsLeft, setCriticalError, onFirebaseError,
   onRequirePin, // (purpose) => void — open PIN modal from App
+  closeModal,
 }) {
   // ── Result submission ─────────────────────────────────────────────────────
   const handleResult = useCallback((ci, result) => {
@@ -250,6 +251,7 @@ export function useRoundManagement({
 
   const handleStartRoundRobin = useCallback((participatingIds, courtsForRR) => {
     const s = stateRef.current;
+    if (s.tournamentMode === 'roundrobin') { closeModal(); return; }
     const courts = (courtsForRR && courtsForRR.length > 0) ? courtsForRR : s.courtNumbers;
     const schedule = generateRoundRobinSchedule(participatingIds, courts.length);
     const rrStart = (s.roundNum || 0) + 1;
@@ -263,7 +265,8 @@ export function useRoundManagement({
     }
     setRoundNum(rrStart); lastSeenRoundNum.current = rrStart;
     pendingRef.current = {}; setPending({}); setRound(null); setRoundComplete(false);
-  }, [stateRef, roleRef, pendingRef, lastSeenRoundNum, setTournamentMode, setRoundRobinSchedule, setRoundRobinCourts, setRoundRobinStartRoundNum, setRoundRobinStartSnapshot, setRoundRobinEndSnapshot, setRoundNum, setPending, setRound, setRoundComplete, onFirebaseError]);
+    closeModal();
+  }, [stateRef, roleRef, pendingRef, lastSeenRoundNum, setTournamentMode, setRoundRobinSchedule, setRoundRobinCourts, setRoundRobinStartRoundNum, setRoundRobinStartSnapshot, setRoundRobinEndSnapshot, setRoundNum, setPending, setRound, setRoundComplete, onFirebaseError, closeModal]);
 
   const handleRRMatchResult = useCallback((srIdx, matchIdx, result) => {
     const key = rrMatchKey(srIdx, matchIdx);

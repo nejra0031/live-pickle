@@ -11,7 +11,8 @@ export const ROLES = [
     btnBorder: 'rgba(251,191,36,0.5)',
     permissions: {
       canSubmitResults:   true,
-      canTogglePause:     true,
+      canPauseTeams:      true,
+      canToggleTimer:     true,
       canSelectRRTeams:        true,
       canSwitchTournamentMode: true,
       canSetFinalRound:        true,
@@ -41,7 +42,8 @@ export const ROLES = [
     btnBorder: 'rgba(99,102,241,0.35)',
     permissions: {
       canSubmitResults:   true,
-      canTogglePause:     true,
+      canPauseTeams:      true,
+      canToggleTimer:     true,
       canSelectRRTeams:        true,
       canSwitchTournamentMode: false,
       canSetFinalRound:        false,

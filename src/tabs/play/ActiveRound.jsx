@@ -29,7 +29,7 @@ export default function ActiveRound({
       <SocialCourts socialCourts={socialCourts} />
       {showTimer ? (
         <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} roundNum={roundNum} timerRunning={timerRunning}
-          canToggleTimer={hasPermission(role, 'canEditTimer') || hasPermission(role, 'canTogglePause')}
+          canToggleTimer={hasPermission(role, 'canEditTimer') || hasPermission(role, 'canToggleTimer')}
           canControlTimer={hasPermission(role, 'canEditTimer')}
           canEndBreak={hasPermission(role, 'canBreakTournament')}
           onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings}
@@ -146,7 +146,7 @@ export default function ActiveRound({
                   <button onClick={onCancelRound} style={{ flex: 1, padding: 'clamp(8px,2vw,11px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(220,38,38,0.07)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)' }}>✕ Cancel Round</button>
                 </div>
               )}
-              {(hasPermission(role, 'canTogglePause') || hasPermission(role, 'canEditTeams')) && (
+              {(hasPermission(role, 'canPauseTeams') || hasPermission(role, 'canEditTeams')) && (
                 <button onClick={onManageTeams} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
                   ✏️ Manage Teams
                 </button>

@@ -294,6 +294,7 @@ export default function App({ viewerOnly = false }) {
     setCancelledRoundNums, setBackupRoundNums,
     applyTimerState, computeSecsLeft, setCriticalError, onFirebaseError: setFirebaseError,
     onRequirePin: useCallback((purpose) => openModal('pin', { purpose }), [openModal]),
+    closeModal,
   });
 
   // ── Swipe navigation ──────────────────────────────────────────────────────
@@ -524,7 +525,7 @@ export default function App({ viewerOnly = false }) {
   const handleTogglePause = useCallback(id => {
     setPausedIds(prev => {
       const np = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
-      gatedUpdate('canTogglePause', { pausedIds: np });
+      gatedUpdate('canPauseTeams', { pausedIds: np });
       return np;
     });
   }, [roleRef]);

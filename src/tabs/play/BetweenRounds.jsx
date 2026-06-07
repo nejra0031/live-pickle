@@ -81,7 +81,7 @@ export default function BetweenRounds({
               🔁 Switch to Round Robin
             </button>
           )}
-          {(hasPermission(role, 'canTogglePause') || hasPermission(role, 'canEditTeams')) && (
+          {(hasPermission(role, 'canPauseTeams') || hasPermission(role, 'canEditTeams')) && (
             <button onClick={onManageTeams} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
               ✏️ Manage Teams
             </button>

@@ -27,7 +27,7 @@ export default function RoundRobinSection({
       <SocialCourts socialCourts={socialCourts} />
       {(timerDuration > 0 || breakMode) && (
         <RoundTimer secsLeft={timerSecsLeft} totalSecs={timerDuration} timerRunning={timerRunning}
-          canToggleTimer={hasPermission(role, 'canEditTimer') || hasPermission(role, 'canTogglePause')}
+          canToggleTimer={hasPermission(role, 'canEditTimer') || hasPermission(role, 'canToggleTimer')}
           canControlTimer={hasPermission(role, 'canEditTimer')}
           canEndBreak={hasPermission(role, 'canBreakTournament')}
           onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings}

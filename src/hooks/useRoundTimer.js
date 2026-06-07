@@ -50,7 +50,7 @@ export function useRoundTimer({ timerDuration, roleRef, onFirebaseError }) {
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
       if (!timerRunningRef.current || !timerStartedAtRef.current) return;
-      computeSecsLeft();
+      setTimerSecsLeft(computeSecsLeft());
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
