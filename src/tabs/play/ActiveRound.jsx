@@ -1,5 +1,6 @@
-import { useTeamById } from '../../context/TeamRegistryContext';
+import { useTeamById, useTeamLabel } from '../../context/TeamRegistryContext';
 import CourtCard from '../../components/CourtCard';
+import MatchupVsBox from '../../components/MatchupVsBox';
 import TeamChip from '../../components/TeamChip';
 import RoundTimer from '../../components/RoundTimer';
 import { courtKey, liveKey } from '../../constants';
@@ -20,6 +21,8 @@ export default function ActiveRound({
   isAdmin, isReferee,
 }) {
   const teamById  = useTeamById();
+  const teamLabel = useTeamLabel();
+  const labeled   = t => t ? { ...t, name: teamLabel(t.id) } : t;
   const canWrite  = hasPermission(role, 'canSubmitResults');
   const nextRN    = roundNum === 0 ? 1 : roundNum + 1;
   const isAutoFinal = targetRounds > 0 && nextRN === targetRounds && !finalRound;
@@ -45,7 +48,7 @@ export default function ActiveRound({
           {round.courts.map((teams, idx) => (
             <CourtCard key={`${roundKey}-court-${idx}`}
               courtLabel={`Court ${round.courtNums?.[idx] ?? courtNumbers[idx] ?? idx + 1}`}
-              teams={teams} onResult={r => onResult(idx, r)} pendingResult={pending[courtKey(idx)]}
+              teams={teams.map(labeled)} onResult={r => onResult(idx, r)} pendingResult={pending[courtKey(idx)]}
               onEdit={isAdmin ? () => onEditActiveCourt(idx) : undefined}
               onRemove={isAdmin ? () => onRemoveActiveCourt(idx) : undefined}
               onUndo={() => onUndoResult(idx)} />
@@ -55,7 +58,7 @@ export default function ActiveRound({
             if (!tA || !tB) return null;
             return (
               <CourtCard key={`live-${i}`} courtLabel={`Court ${la.courtNumber}`}
-                teams={[tA, tB]} onResult={r => onLiveResult(i, r)} pendingResult={pending[liveKey(i)]}
+                teams={[labeled(tA), labeled(tB)]} onResult={r => onLiveResult(i, r)} pendingResult={pending[liveKey(i)]}
                 onEdit={isAdmin ? () => onEditLive(i) : undefined}
                 onUndo={() => onUndoLiveResult(i)} />
             );
@@ -119,11 +122,11 @@ export default function ActiveRound({
                       return (
                         <div key={gi} className="flex items-center" style={{ gap: 'clamp(4px,1vw,8px)', fontSize: 'clamp(11px,2.5vw,13px)' }}>
                           <span style={{ color: '#94a3b8', minWidth: 50 }}>Court {g.courtNumber}</span>
-                          <span style={{ color: w?.color, fontWeight: 700 }}>{w?.name}</span>
+                          <span style={{ color: w?.color, fontWeight: 700 }}>{w ? teamLabel(w.id) : ''}</span>
                           <span style={{ color: w?.color, fontWeight: 800 }}>{g.winnerScore}</span>
                           <span style={{ color: '#cbd5e1' }}>–</span>
                           <span style={{ color: l?.color, fontWeight: 800 }}>{g.loserScore}</span>
-                          <span style={{ color: l?.color, fontWeight: 700 }}>{l?.name}</span>
+                          <span style={{ color: l?.color, fontWeight: 700 }}>{l ? teamLabel(l.id) : ''}</span>
                           <button onClick={() => onRemoveExtra(gi)} style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer' }}>×</button>
                         </div>
                       );
@@ -159,18 +162,8 @@ export default function ActiveRound({
         <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
           {round.courts.map((teams, idx) => (
             <div key={idx} className="rounded-2xl" style={{ padding: 'clamp(12px,3vw,20px)', background: '#fff', border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-              <p style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#0f4c75', fontWeight: 800, marginBottom: 'clamp(8px,2vw,14px)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Court {round.courtNums?.[idx] ?? courtNumbers[idx] ?? idx + 1}</p>
-              <div className="flex items-stretch" style={{ gap: 'clamp(8px,2vw,14px)' }}>
-                <div className="flex-1 flex items-center justify-center rounded-2xl" style={{ padding: 'clamp(14px,3.5vw,24px) clamp(10px,2.5vw,16px)', background: teams[0].color, border: `2px solid ${teams[0].color}` }}>
-                  <span className="font-black text-center leading-tight" style={{ fontSize: 'clamp(18px,5vw,36px)', color: teams[0].text }}>{teams[0].name}</span>
-                </div>
-                <div className="flex items-center justify-center flex-shrink-0">
-                  <span style={{ color: '#cbd5e1', fontWeight: 900, fontSize: 'clamp(14px,3.5vw,22px)' }}>VS</span>
-                </div>
-                <div className="flex-1 flex items-center justify-center rounded-2xl" style={{ padding: 'clamp(14px,3.5vw,24px) clamp(10px,2.5vw,16px)', background: teams[1].color, border: `2px solid ${teams[1].color}` }}>
-                  <span className="font-black text-center leading-tight" style={{ fontSize: 'clamp(18px,5vw,36px)', color: teams[1].text }}>{teams[1].name}</span>
-                </div>
-              </div>
+              <MatchupVsBox courtLabel={`Court ${round.courtNums?.[idx] ?? courtNumbers[idx] ?? idx + 1}`}
+                teamA={labeled(teams[0])} teamB={labeled(teams[1])} />
             </div>
           ))}
           {liveAdditions.map((la, i) => {
@@ -178,18 +171,7 @@ export default function ActiveRound({
             if (!tA || !tB) return null;
             return (
               <div key={`live-${i}`} className="rounded-2xl" style={{ padding: 'clamp(12px,3vw,20px)', background: '#fff', border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-                <p style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#0f4c75', fontWeight: 800, marginBottom: 'clamp(8px,2vw,14px)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Court {la.courtNumber}</p>
-                <div className="flex items-stretch" style={{ gap: 'clamp(8px,2vw,14px)' }}>
-                  <div className="flex-1 flex items-center justify-center rounded-2xl" style={{ padding: 'clamp(14px,3.5vw,24px) clamp(10px,2.5vw,16px)', background: tA.color, border: `2px solid ${tA.color}` }}>
-                    <span className="font-black text-center leading-tight" style={{ fontSize: 'clamp(18px,5vw,36px)', color: tA.text }}>{tA.name}</span>
-                  </div>
-                  <div className="flex items-center justify-center flex-shrink-0">
-                    <span style={{ color: '#cbd5e1', fontWeight: 900, fontSize: 'clamp(14px,3.5vw,22px)' }}>VS</span>
-                  </div>
-                  <div className="flex-1 flex items-center justify-center rounded-2xl" style={{ padding: 'clamp(14px,3.5vw,24px) clamp(10px,2.5vw,16px)', background: tB.color, border: `2px solid ${tB.color}` }}>
-                    <span className="font-black text-center leading-tight" style={{ fontSize: 'clamp(18px,5vw,36px)', color: tB.text }}>{tB.name}</span>
-                  </div>
-                </div>
+                <MatchupVsBox courtLabel={`Court ${la.courtNumber}`} teamA={labeled(tA)} teamB={labeled(tB)} />
               </div>
             );
           })}

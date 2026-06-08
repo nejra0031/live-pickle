@@ -62,6 +62,7 @@ const TOURNAMENT_INITIAL = {
   finalRound: false,
   targetRounds: 0,
   socialCourts: [],
+  teamNameDisplay: 'name',
 };
 
 // SET applies one field; `value` may be a value or an updater fn (matching
@@ -92,7 +93,7 @@ export default function App({ viewerOnly = false }) {
     history, round, roundNum, pending, roundComplete, pausedIds, tournamentMode,
     roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot,
     roundRobinEndSnapshot, activeRoundExtras, liveAdditions, nextRoundPresets, tournamentFinished,
-    cancelledRoundNums, finalRound, targetRounds, socialCourts,
+    cancelledRoundNums, finalRound, targetRounds, socialCourts, teamNameDisplay,
   } = tstate;
 
   // Setter wrappers — keep every existing setX(...) call site byte-identical.
@@ -125,6 +126,7 @@ export default function App({ viewerOnly = false }) {
   const setFinalRound              = useCallback(v => dispatch({ type: 'SET', key: 'finalRound', value: v }), []);
   const setTargetRounds            = useCallback(v => dispatch({ type: 'SET', key: 'targetRounds', value: v }), []);
   const setSocialCourts            = useCallback(v => dispatch({ type: 'SET', key: 'socialCourts', value: v }), []);
+  const setTeamNameDisplay         = useCallback(v => dispatch({ type: 'SET', key: 'teamNameDisplay', value: v }), []);
 
   useEffect(() => { document.title = tournamentTitle; }, [tournamentTitle]);
   useEffect(() => { setModuleRegistry(tournamentTeams); }, [tournamentTeams]);
@@ -559,6 +561,11 @@ export default function App({ viewerOnly = false }) {
     gatedUpdate('canEditTeams', { teamRegistry: newRegistry, activeTeamIds: newActiveIds });
   }, [history, closeModal, roleRef]);
 
+  const handleTeamNameDisplayChange = useCallback(mode => {
+    setTeamNameDisplay(mode);
+    gatedUpdate('canEditTeams', { teamNameDisplay: mode });
+  }, [roleRef]);
+
   const handleManageCourtsSave = useCallback((newCourts, newSocialCourts) => {
     const upd = { courtNumbers: newCourts, socialCourts: newSocialCourts };
     if (round) {
@@ -772,7 +779,7 @@ export default function App({ viewerOnly = false }) {
   }, [modal, round, roundNum, history, courtNumbers, liveAdditions, activeRoundExtras]);
 
   return (
-    <TeamRegistryContext.Provider value={tournamentTeams}>
+    <TeamRegistryContext.Provider value={{ registry: tournamentTeams, teamNameDisplay }}>
       <div className="min-h-screen" style={{ background: '#fff', fontFamily: "'Trebuchet MS',sans-serif", color: '#1e293b' }}>
 
         <ModalRoot
@@ -787,6 +794,7 @@ export default function App({ viewerOnly = false }) {
           tptTeams={tptTeams} tptPlayers={tptPlayers} tournamentTitle={tournamentTitle}
           doublesRRPlayers={doublesRRPlayers}
           doublesRRTiebreakOrder={doublesRRTiebreakOrder} onDoublesRRTiebreakOrderChange={handleDoublesRRTiebreakOrderChange}
+          teamNameDisplay={teamNameDisplay} onTeamNameDisplayChange={handleTeamNameDisplayChange}
           onTogglePause={handleTogglePause} onManageTeamsSave={handleManageTeamsSave}
           onManageTPTTeamsSave={handleManageTPTTeamsSave} onManageCourtsSave={handleManageCourtsSave}
           onManageDoublesRRPlayersSave={handleManageDoublesRRPlayersSave}

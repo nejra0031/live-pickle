@@ -6,7 +6,13 @@ import useKnownPlayers from '../hooks/useKnownPlayers';
 
 const emptyPlayers = () => [{ name: '', duprId: '' }, { name: '', duprId: '' }];
 
-export default function ManageTeamsModal({ activeTeamIds, tournamentTeams, pausedIds = [], onTogglePause, onSave, onClose, canEditRoster = true }) {
+const DISPLAY_MODE_OPTIONS = [
+  { value: 'name', label: 'Team name' },
+  { value: 'players', label: 'Player name(s)' },
+  { value: 'both', label: 'Both' },
+];
+
+export default function ManageTeamsModal({ activeTeamIds, tournamentTeams, pausedIds = [], onTogglePause, onSave, onClose, canEditRoster = true, teamNameDisplay = 'name', onTeamNameDisplayChange }) {
   const teamById = useTeamById();
   const [localTeams, setLocalTeams] = useState(
     activeTeamIds.map(id => {
@@ -78,6 +84,23 @@ export default function ManageTeamsModal({ activeTeamIds, tournamentTeams, pause
                 {pausedIds.map(id => teamById(id)?.name).join(', ')} paused — excluded from rotation.
               </p>
             )}
+          </div>
+        )}
+
+        {canEditRoster && onTeamNameDisplayChange && (
+          <div>
+            <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Chip display</p>
+            <div className="flex gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              {DISPLAY_MODE_OPTIONS.map(opt => (
+                <button key={opt.value} onClick={() => onTeamNameDisplayChange(opt.value)}
+                  style={{ flex: 1, padding: '6px 8px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    background: teamNameDisplay === opt.value ? 'rgba(99,102,241,0.3)' : 'transparent',
+                    color: teamNameDisplay === opt.value ? '#a5b4fc' : '#94a3b8',
+                    border: teamNameDisplay === opt.value ? '1px solid rgba(99,102,241,0.4)' : '1px solid transparent' }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

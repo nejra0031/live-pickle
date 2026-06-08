@@ -47,6 +47,7 @@ export function snapshotToState(s, derived = {}) {
     finalRound:              !!s.finalRound,
     targetRounds:            s.targetRounds || 0,
     socialCourts:            (s.socialCourts || []).filter(c => (s.courtNumbers || []).includes(c)),
+    teamNameDisplay:         s.teamNameDisplay || 'name',
     ...derived,
   };
   if (s.teamRegistry && s.teamRegistry.length > 0) values.tournamentTeams = s.teamRegistry;

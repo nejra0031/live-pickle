@@ -1,4 +1,4 @@
-import { useTeamById } from '../context/TeamRegistryContext';
+import { useTeamLabel } from '../context/TeamRegistryContext';
 import { ORDINAL } from '../constants';
 import ThreePlayerStandingsTab from './ThreePlayerStandingsTab';
 import DoublesRRStandingsTab from './DoublesRRStandingsTab';
@@ -7,7 +7,7 @@ export default function StandingsTab({
   ranked, pausedIds, tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults,
   doublesRRPlayers, doublesRRStandings, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange, isAdmin,
 }) {
-  const teamById = useTeamById();
+  const teamLabel = useTeamLabel();
 
   if (tournamentMode === 'tpt') {
     return <ThreePlayerStandingsTab tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults} />;
@@ -45,7 +45,7 @@ export default function StandingsTab({
             <div className="flex-1 min-w-0">
               <span className="inline-flex items-center rounded-full font-black"
                 style={{ background: team.color, color: team.text, fontSize: 'clamp(13px,3.5vw,20px)', padding: 'clamp(4px,1vw,8px) clamp(10px,2.5vw,18px)', border: '2px solid rgba(255,255,255,0.25)', boxShadow: `0 2px 8px ${team.color}44` }}>
-                {team.name}
+                {teamLabel(team.id)}
               </span>
             </div>
             <span style={{ width: 'clamp(26px,5.5vw,42px)', textAlign: 'center', color: '#475569', fontSize: 'clamp(14px,3.5vw,22px)', fontWeight: 700 }}>{team.played}</span>

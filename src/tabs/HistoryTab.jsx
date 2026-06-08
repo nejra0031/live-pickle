@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
-import { useTeamById } from '../context/TeamRegistryContext';
+import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 import { rerank, rebuildStandings } from '../algorithms/standings';
 import { getTPTGamesForMatchup } from '../algorithms/threePlayerTeam';
+import { buildSidePresentation } from '../algorithms/doublesRR';
 
 export default function HistoryTab({
   history, activeTeamIds, cancelledRoundNums,
@@ -12,6 +13,7 @@ export default function HistoryTab({
   tptTeams = {}, tptPlayers = {}, doublesRRPlayers = {},
 }) {
   const teamById = useTeamById();
+  const teamLabel = useTeamLabel();
   const [newestFirst, setNewestFirst] = useState(true);
   const [editingCourtNum, setEditingCourtNum] = useState(null); // { ri, gi }
   const [courtNumDraft, setCourtNumDraft] = useState('');
@@ -28,7 +30,7 @@ export default function HistoryTab({
     return (
       <span key={id} className="inline-flex items-center rounded-full font-bold"
         style={{ background: t.color, color: t.text, fontSize: 'clamp(11px,3vw,15px)', padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)', opacity: faded ? 0.5 : 1, textDecoration: faded ? 'line-through' : 'none', border: '2px solid rgba(255,255,255,0.2)' }}>
-        {t.name}
+        {teamLabel(id)}
       </span>
     );
   };
@@ -79,7 +81,7 @@ export default function HistoryTab({
                     <div className="flex-1 min-w-0">
                       <span className="inline-flex items-center rounded-full font-bold"
                         style={{ background: team.color, color: team.text, fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(2px,0.5vw,4px) clamp(7px,1.7vw,12px)', textDecoration: dropped ? 'line-through' : 'none' }}>
-                        {team.name}
+                        {teamLabel(team.id)}
                       </span>
                     </div>
                     <span style={{ width: 'clamp(22px,4.5vw,34px)', textAlign: 'center', color: '#475569', fontSize: 'clamp(11px,2.5vw,14px)', fontWeight: 700 }}>{team.played}</span>
@@ -217,6 +219,12 @@ export default function HistoryTab({
                   const gameDefs = getTPTGamesForMatchup(teamA, teamB);
                   const pName = id => tptPlayers[id]?.name ?? '?';
                   const sideLabel = pids => pids.filter(Boolean).map(pName).join(' & ');
+                  const sideChip = (pids, team, won) => (
+                    <span className="inline-flex items-center rounded-full font-bold"
+                      style={{ background: team.color, color: team.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px', whiteSpace: 'nowrap', opacity: won ? 1 : 0.6 }}>
+                      {sideLabel(pids)}
+                    </span>
+                  );
                   return (
                     <div key={mi} className="rounded-xl" style={{ padding: 'clamp(8px,2vw,12px)', border: '1px solid rgba(0,0,0,0.07)', background: 'rgba(0,0,0,0.01)' }}>
                       <div className="flex items-center gap-2" style={{ marginBottom: 'clamp(6px,1.5vw,10px)' }}>
@@ -228,8 +236,6 @@ export default function HistoryTab({
                         if (!game) return null;
                         const def = gameDefs[gi];
                         const gameLabel = gi === 0 ? 'Males' : gi === 1 ? 'Mixed #1' : 'Mixed #2';
-                        const sideALabel = sideLabel(def?.sideA || []);
-                        const sideBLabel = sideLabel(def?.sideB || []);
                         const aWon = game.winnerTeamId === teamA.id;
                         const scoreA = aWon ? game.winnerScore : game.loserScore;
                         const scoreB = aWon ? game.loserScore : game.winnerScore;
@@ -237,11 +243,11 @@ export default function HistoryTab({
                           <div key={gi} style={{ padding: 'clamp(3px,0.8vw,5px) 0', borderTop: gi > 0 ? '1px solid rgba(0,0,0,0.05)' : undefined }}>
                             <div className="flex items-center flex-wrap" style={{ gap: 'clamp(4px,1vw,8px)' }}>
                               <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: gi === 0 ? '#1d4ed8' : '#be185d', fontWeight: 700, minWidth: 'clamp(52px,12vw,72px)', flexShrink: 0 }}>{gameLabel}</span>
-                              <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: aWon ? '#15803d' : '#1e293b', fontWeight: aWon ? 800 : 600 }}>{sideALabel}</span>
+                              {sideChip(def?.sideA || [], teamA, aWon)}
                               <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{scoreA}</span>
                               <span style={{ color: '#94a3b8' }}>–</span>
                               <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{scoreB}</span>
-                              <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: !aWon ? '#15803d' : '#1e293b', fontWeight: !aWon ? 800 : 600 }}>{sideBLabel}</span>
+                              {sideChip(def?.sideB || [], teamB, !aWon)}
                               {canEditScores && (
                                 <button onClick={() => onEditTPTGame?.(ri, mi, gi)}
                                   style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(2px,0.5vw,4px) clamp(5px,1.2vw,8px)', borderRadius: 8, background: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)', cursor: 'pointer' }}>✏️</button>
@@ -267,6 +273,15 @@ export default function HistoryTab({
         if (isDoublesRRRound) {
           const pName = id => doublesRRPlayers[id]?.name ?? '?';
           const sideLabel = pids => (pids || []).filter(Boolean).map(pName).join(' & ');
+          const sideChip = (pids, won) => {
+            const side = buildSidePresentation(pids || [], doublesRRPlayers);
+            return (
+              <span className="inline-flex items-center rounded-full font-bold"
+                style={{ background: side.chipBackground ?? side.color, color: side.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px', whiteSpace: 'nowrap', opacity: won ? 1 : 0.6 }}>
+                {side.name}
+              </span>
+            );
+          };
           return (
             <div key={ri} className="rounded-2xl" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
               <div style={{ padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)', background: 'rgba(15,76,117,0.06)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
@@ -274,19 +289,17 @@ export default function HistoryTab({
               </div>
               <div style={{ padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)', display: 'flex', flexDirection: 'column', gap: 'clamp(6px,1.5vw,10px)' }}>
                 {h.doublesRRCourts.map((court, ci) => {
-                  const sideALabel = sideLabel(court.teamA);
-                  const sideBLabel = sideLabel(court.teamB);
                   const aWon = court.winnerIds && court.winnerIds.join(',') === (court.teamA || []).join(',');
                   const scoreA = aWon ? court.winnerScore : court.loserScore;
                   const scoreB = aWon ? court.loserScore : court.winnerScore;
                   return (
                     <div key={ci} className="flex items-center flex-wrap" style={{ gap: 'clamp(4px,1vw,8px)', padding: 'clamp(4px,1vw,6px) 0', borderTop: ci > 0 ? '1px solid rgba(0,0,0,0.05)' : undefined }}>
                       <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#0f4c75', fontWeight: 700, minWidth: 'clamp(48px,11vw,64px)', flexShrink: 0 }}>Court {ci + 1}</span>
-                      <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: aWon ? '#15803d' : '#1e293b', fontWeight: aWon ? 800 : 600 }}>{sideALabel}</span>
+                      {sideChip(court.teamA, aWon)}
                       <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{scoreA}</span>
                       <span style={{ color: '#94a3b8' }}>–</span>
                       <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{scoreB}</span>
-                      <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: !aWon ? '#15803d' : '#1e293b', fontWeight: !aWon ? 800 : 600 }}>{sideBLabel}</span>
+                      {sideChip(court.teamB, !aWon)}
                       {canEditScores && (
                         <button onClick={() => onEditDoublesRRGame?.(ri, ci)}
                           style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(2px,0.5vw,4px) clamp(5px,1.2vw,8px)', borderRadius: 8, background: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)', cursor: 'pointer' }}>✏️</button>
@@ -357,13 +370,13 @@ export default function HistoryTab({
                         )}
                       </div>
                       <div className="flex justify-end">
-                        <span className="inline-flex items-center rounded-full font-bold" style={{ background: w?.color, color: w?.text, fontSize: 'clamp(11px,3vw,15px)', padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)', whiteSpace: 'nowrap' }}>{w?.name}</span>
+                        <span className="inline-flex items-center rounded-full font-bold" style={{ background: w?.color, color: w?.text, fontSize: 'clamp(11px,3vw,15px)', padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)', whiteSpace: 'nowrap' }}>{w ? teamLabel(w.id) : ''}</span>
                       </div>
                       <span style={{ fontWeight: 800, textAlign: 'right', color: w?.color, fontSize: 'clamp(13px,3vw,17px)' }}>{game.winnerScore}</span>
                       <span style={{ color: '#cbd5e1', fontSize: 'clamp(10px,2.5vw,13px)', textAlign: 'center' }}>–</span>
                       <span style={{ fontWeight: 800, textAlign: 'left', color: l?.color, fontSize: 'clamp(13px,3vw,17px)' }}>{game.loserScore}</span>
                       <div className="flex justify-start">
-                        <span className="inline-flex items-center rounded-full font-bold" style={{ background: l?.color, color: l?.text, fontSize: 'clamp(11px,3vw,15px)', padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)', whiteSpace: 'nowrap' }}>{l?.name}</span>
+                        <span className="inline-flex items-center rounded-full font-bold" style={{ background: l?.color, color: l?.text, fontSize: 'clamp(11px,3vw,15px)', padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)', whiteSpace: 'nowrap' }}>{l ? teamLabel(l.id) : ''}</span>
                       </div>
                       <div className="flex gap-1">
                         {canEditScores && (
@@ -389,7 +402,7 @@ export default function HistoryTab({
                       return (
                         <span key={id} className="inline-flex items-center rounded-full font-bold"
                           style={{ background: 'rgba(0,0,0,0.05)', color: '#64748b', fontSize: 'clamp(11px,3vw,15px)', padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)', border: '1px solid rgba(0,0,0,0.1)', textDecoration: 'line-through' }}>
-                          {t.name}
+                          {teamLabel(id)}
                         </span>
                       );
                     })}
@@ -406,7 +419,7 @@ export default function HistoryTab({
                       return (
                         <span key={id} className="inline-flex items-center rounded-full font-bold"
                           style={{ background: t.color, color: t.text, fontSize: 'clamp(11px,3vw,15px)', padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)' }}>
-                          {t.name}
+                          {teamLabel(id)}
                         </span>
                       );
                     })}
@@ -421,7 +434,7 @@ export default function HistoryTab({
                     const b = rb(id), a = ra(id), d = b - a, t = teamById(id); if (!t) return null;
                     return (
                       <div key={id} className="flex items-center gap-1" style={{ fontSize: 'clamp(11px,2.5vw,14px)' }}>
-                        <span style={{ color: t.color, fontWeight: 700 }}>{t.name}</span>
+                        <span style={{ color: t.color, fontWeight: 700 }}>{teamLabel(id)}</span>
                         <span style={{ color: '#94a3b8' }}>#{b}→</span>
                         <span style={{ fontWeight: 700, color: d > 0 ? '#16a34a' : d < 0 ? '#dc2626' : '#94a3b8' }}>#{a}</span>
                         {d > 0 && <span style={{ color: '#16a34a', fontSize: 'clamp(9px,2vw,11px)' }}>▲{d}</span>}

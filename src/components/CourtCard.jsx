@@ -67,8 +67,8 @@ export default function CourtCard({ courtLabel, teams, onResult, pendingResult, 
           <div key={team.id}>
             <div className="flex items-center" style={{ gap: 'clamp(6px,1.5vw,12px)' }}>
               <div className="flex-1 flex items-center rounded-xl"
-                style={{ gap: 'clamp(6px,1.5vw,10px)', padding: 'clamp(8px,2vw,14px) clamp(10px,2.5vw,16px)', background: iw ? team.color : 'rgba(0,0,0,0.03)', border: `1.5px solid ${iw ? team.color : 'rgba(0,0,0,0.08)'}` }}>
-                <div style={{ width: 'clamp(10px,2.5vw,14px)', height: 'clamp(10px,2.5vw,14px)', borderRadius: '50%', flexShrink: 0, background: team.color, boxShadow: iw ? 'none' : `0 0 0 2px ${team.color}44` }} />
+                style={{ gap: 'clamp(6px,1.5vw,10px)', padding: 'clamp(8px,2vw,14px) clamp(10px,2.5vw,16px)', background: iw ? (team.chipBackground ?? team.color) : 'rgba(0,0,0,0.03)', border: `1.5px solid ${iw ? team.color : 'rgba(0,0,0,0.08)'}` }}>
+                <div style={{ width: 'clamp(10px,2.5vw,14px)', height: 'clamp(10px,2.5vw,14px)', borderRadius: '50%', flexShrink: 0, background: team.chipBackground ?? team.color, boxShadow: iw ? 'none' : `0 0 0 2px ${team.color}44` }} />
                 <span style={{ fontWeight: 800, fontSize: 'clamp(14px,3.5vw,20px)', flex: 1, color: iw ? team.text : '#1e293b' }}>{team.name}</span>
                 {iw && <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', fontWeight: 700, color: team.text }}>WIN</span>}
               </div>

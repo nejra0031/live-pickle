@@ -1,19 +1,14 @@
 import { useState } from 'react';
 import { hasPermission } from '../../roleConfig';
 import CourtCard from '../../components/CourtCard';
+import MatchupVsBox from '../../components/MatchupVsBox';
 import RoundTimer from '../../components/RoundTimer';
 import BreakBanner from './BreakBanner';
 import RoundPicker from './RoundPicker';
-
-const SIDE_COLOR = '#475569';
-const SIDE_TEXT = '#ffffff';
+import { buildSidePresentation } from '../../algorithms/doublesRR';
 
 function sideLabel(playerIds, players) {
   return playerIds.map(pid => players[pid]?.name ?? '?').join(' & ');
-}
-
-function toSide(playerIds, players) {
-  return { id: playerIds.join('|'), name: sideLabel(playerIds, players), color: SIDE_COLOR, text: SIDE_TEXT };
 }
 
 export default function DoublesRRSection({
@@ -53,23 +48,23 @@ export default function DoublesRRSection({
     const pendingResult = stored
       ? { winnerId: stored.winnerIds.join('|'), loserId: stored.loserIds.join('|'), winnerScore: stored.winnerScore, loserScore: stored.loserScore }
       : null;
-    const sideA = toSide(court.teamA, doublesRRPlayers);
-    const sideB = toSide(court.teamB, doublesRRPlayers);
+    const sideA = buildSidePresentation(court.teamA, doublesRRPlayers);
+    const sideB = buildSidePresentation(court.teamB, doublesRRPlayers);
 
     return (
       <div key={ci}>
-        {isCurrentRound && canWrite && !pendingResult ? (
+        {pendingResult || (isCurrentRound && canWrite) ? (
           <CourtCard
             courtLabel={`Court ${courtLabel}`}
             teams={[sideA, sideB]}
-            pendingResult={null}
+            pendingResult={pendingResult}
             onResult={r => onDoublesRRResult(ri, ci, {
               winnerIds: r.winnerId.split('|'), loserIds: r.loserId.split('|'),
               winnerScore: r.winnerScore, loserScore: r.loserScore,
             })}
           />
         ) : (
-          <DoublesRRGameRow courtLabel={`Court ${courtLabel}`} sideA={sideA} sideB={sideB} result={pendingResult} />
+          <MatchupVsBox courtLabel={`Court ${courtLabel}`} teamA={sideA} teamB={sideB} compact />
         )}
       </div>
     );
@@ -160,34 +155,6 @@ export default function DoublesRRSection({
           ↩ Reset tournament…
         </button>
       )}
-    </div>
-  );
-}
-
-// Read-only row for courts the viewer can't (or shouldn't yet) submit results for —
-// mirrors CompletedGameRow in ThreePlayerSection.jsx. Never renders score-entry inputs.
-function DoublesRRGameRow({ courtLabel, sideA, sideB, result }) {
-  if (!result) {
-    return (
-      <div className="rounded-xl flex items-center" style={{ padding: 'clamp(8px,2vw,12px)', gap: 'clamp(6px,1.5vw,10px)', background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.07)' }}>
-        <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700, minWidth: 50 }}>{courtLabel}</span>
-        <span className="inline-flex items-center rounded-full font-bold" style={{ background: sideA.color, color: sideA.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)' }}>{sideA.name}</span>
-        <span style={{ color: '#cbd5e1', fontWeight: 700 }}>vs</span>
-        <span className="inline-flex items-center rounded-full font-bold" style={{ background: sideB.color, color: sideB.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)' }}>{sideB.name}</span>
-      </div>
-    );
-  }
-  const winner = result.winnerId === sideA.id ? sideA : sideB;
-  const loser  = result.winnerId === sideA.id ? sideB : sideA;
-  return (
-    <div className="rounded-xl flex items-center flex-wrap" style={{ padding: 'clamp(8px,2vw,12px)', gap: 'clamp(6px,1.5vw,10px)', background: '#f0fdf4', border: '1px solid rgba(34,197,94,0.25)' }}>
-      <span style={{ color: '#16a34a', fontSize: 'clamp(14px,3.5vw,18px)', flexShrink: 0 }}>✓</span>
-      <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700, minWidth: 50 }}>{courtLabel}</span>
-      <span className="inline-flex items-center rounded-full font-bold" style={{ background: winner.color, color: winner.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', whiteSpace: 'nowrap' }}>{winner.name}</span>
-      <span style={{ fontWeight: 900, color: '#1e293b', fontSize: 'clamp(13px,3vw,16px)' }}>{result.winnerScore}</span>
-      <span style={{ color: '#94a3b8' }}>–</span>
-      <span style={{ fontWeight: 900, color: '#1e293b', fontSize: 'clamp(13px,3vw,16px)' }}>{result.loserScore}</span>
-      <span className="inline-flex items-center rounded-full font-bold" style={{ background: loser.color, color: loser.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', whiteSpace: 'nowrap' }}>{loser.name}</span>
     </div>
   );
 }

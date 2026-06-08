@@ -32,6 +32,7 @@ export default function ModalRoot({
   round, liveAdditions, nextRoundPresets, history, pending,
   tptTeams, tptPlayers, tournamentTitle,
   doublesRRPlayers, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange,
+  teamNameDisplay, onTeamNameDisplayChange,
   // handlers
   onTogglePause, onManageTeamsSave, onManageTPTTeamsSave, onManageCourtsSave,
   onManageDoublesRRPlayersSave,
@@ -85,7 +86,7 @@ export default function ModalRoot({
       )}
       {modal.open === 'break' && <BreakModal onStart={onBreakStart} onClose={closeModal} />}
       {modal.open === 'timerSettings' && <TimerSettingsModal currentMins={timerDefaultMins} onSave={onTimerSettingsSave} onClose={closeModal} />}
-      {modal.open === 'manageTeams' && tournamentMode !== 'tpt' && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={onTogglePause} onSave={onManageTeamsSave} onClose={closeModal} canEditRoster={hasPermission(role, 'canEditTeams')} />}
+      {modal.open === 'manageTeams' && tournamentMode !== 'tpt' && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={onTogglePause} onSave={onManageTeamsSave} onClose={closeModal} canEditRoster={hasPermission(role, 'canEditTeams')} teamNameDisplay={teamNameDisplay} onTeamNameDisplayChange={onTeamNameDisplayChange} />}
       {modal.open === 'manageTeams' && tournamentMode === 'tpt' && isAdmin && <ManageTPTTeamsModal tptTeams={tptTeams} tptPlayers={tptPlayers} onSave={onManageTPTTeamsSave} onClose={closeModal} />}
       {modal.open === 'manageTeams' && tournamentMode === 'doublesrr' && isAdmin && <ManageDoublesRRPlayersModal doublesRRPlayers={doublesRRPlayers} onSave={onManageDoublesRRPlayersSave} onClose={closeModal} />}
       {modal.open === 'exportDUPR' && (

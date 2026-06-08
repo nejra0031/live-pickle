@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { hasPermission } from '../../roleConfig';
 import CourtCard from '../../components/CourtCard';
+import MatchupVsBox from '../../components/MatchupVsBox';
 import RoundTimer from '../../components/RoundTimer';
 import BreakBanner from './BreakBanner';
 import RoundPicker from './RoundPicker';
@@ -84,15 +85,15 @@ export default function ThreePlayerSection({
               <div className="mb-1 px-1">
                 <GameLabel type={game.type} idx={gi} />
               </div>
-              {isCurrentRound && canWrite && !pendingResult ? (
+              {pendingResult || (isCurrentRound && canWrite) ? (
                 <CourtCard
                   courtLabel={game.label}
                   teams={[sideA, sideB]}
-                  pendingResult={null}
+                  pendingResult={pendingResult}
                   onResult={r => onTPTResult(ri, mi, gi, { winnerTeamId: r.winnerId, loserTeamId: r.loserId, winnerScore: r.winnerScore, loserScore: r.loserScore })}
                 />
               ) : (
-                <CompletedGameRow sideA={sideA} sideB={sideB} result={pendingResult} />
+                <MatchupVsBox courtLabel={game.label} teamA={sideA} teamB={sideB} compact />
               )}
             </div>
           );
@@ -187,30 +188,6 @@ export default function ThreePlayerSection({
           ↩ Reset tournament…
         </button>
       )}
-    </div>
-  );
-}
-
-function CompletedGameRow({ sideA, sideB, result }) {
-  if (!result) {
-    return (
-      <div className="rounded-xl flex items-center" style={{ padding: 'clamp(8px,2vw,12px)', gap: 'clamp(6px,1.5vw,10px)', background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.07)' }}>
-        <span className="inline-flex items-center rounded-full font-bold" style={{ background: sideA.color, color: sideA.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)' }}>{sideA.name}</span>
-        <span style={{ color: '#cbd5e1', fontWeight: 700 }}>vs</span>
-        <span className="inline-flex items-center rounded-full font-bold" style={{ background: sideB.color, color: sideB.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)' }}>{sideB.name}</span>
-      </div>
-    );
-  }
-  const winner = result.winnerId === sideA.id ? sideA : sideB;
-  const loser  = result.winnerId === sideA.id ? sideB : sideA;
-  return (
-    <div className="rounded-xl flex items-center flex-wrap" style={{ padding: 'clamp(8px,2vw,12px)', gap: 'clamp(6px,1.5vw,10px)', background: '#f0fdf4', border: '1px solid rgba(34,197,94,0.25)' }}>
-      <span style={{ color: '#16a34a', fontSize: 'clamp(14px,3.5vw,18px)', flexShrink: 0 }}>✓</span>
-      <span className="inline-flex items-center rounded-full font-bold" style={{ background: winner.color, color: winner.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', whiteSpace: 'nowrap' }}>{winner.name}</span>
-      <span style={{ fontWeight: 900, color: '#1e293b', fontSize: 'clamp(13px,3vw,16px)' }}>{result.winnerScore}</span>
-      <span style={{ color: '#94a3b8' }}>–</span>
-      <span style={{ fontWeight: 900, color: '#1e293b', fontSize: 'clamp(13px,3vw,16px)' }}>{result.loserScore}</span>
-      <span className="inline-flex items-center rounded-full font-bold" style={{ background: loser.color, color: loser.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', whiteSpace: 'nowrap' }}>{loser.name}</span>
     </div>
   );
 }

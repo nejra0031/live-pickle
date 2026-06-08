@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useTeamById } from '../../context/TeamRegistryContext';
+import { useTeamById, useTeamLabel } from '../../context/TeamRegistryContext';
 import CourtCard from '../../components/CourtCard';
+import MatchupVsBox from '../../components/MatchupVsBox';
 import RoundTimer from '../../components/RoundTimer';
 import { hasPermission } from '../../roleConfig';
 import BreakBanner from './BreakBanner';
@@ -18,6 +19,7 @@ export default function RoundRobinSection({
   onTimerToggle, onTimerRestart, onTimerSettings,
 }) {
   const teamById = useTeamById();
+  const teamLabel = useTeamLabel();
   const canWrite = hasPermission(role, 'canSubmitResults');
   const rrCourts = (roundRobinCourts && roundRobinCourts.length > 0) ? roundRobinCourts : courtNumbers;
   const completedCount = roundRobinSchedule.filter((_, i) => history.some(h => h.roundNum === (roundRobinStartRoundNum || 1) + i)).length;
@@ -72,11 +74,11 @@ export default function RoundRobinSection({
                 return (
                   <div key={mi} className="rounded-xl flex items-center" style={{ padding: 'clamp(8px,2vw,12px)', gap: 'clamp(8px,2vw,12px)', background: '#fff', border: '1px solid rgba(0,0,0,0.08)' }}>
                     <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700, minWidth: 50 }}>{committedLabel}</span>
-                    <span className="inline-flex items-center rounded-full font-bold" style={{ background: w?.color, color: w?.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', whiteSpace: 'nowrap' }}>{w?.name}</span>
+                    <span className="inline-flex items-center rounded-full font-bold" style={{ background: w?.color, color: w?.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', whiteSpace: 'nowrap' }}>{w ? teamLabel(w.id) : ''}</span>
                     <span style={{ fontWeight: 800, color: w?.color, fontSize: 'clamp(13px,3vw,16px)' }}>{committedGame.winnerScore}</span>
                     <span style={{ color: '#cbd5e1' }}>–</span>
                     <span style={{ fontWeight: 800, color: l?.color, fontSize: 'clamp(13px,3vw,16px)' }}>{committedGame.loserScore}</span>
-                    <span className="inline-flex items-center rounded-full font-bold" style={{ background: l?.color, color: l?.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', whiteSpace: 'nowrap' }}>{l?.name}</span>
+                    <span className="inline-flex items-center rounded-full font-bold" style={{ background: l?.color, color: l?.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', whiteSpace: 'nowrap' }}>{l ? teamLabel(l.id) : ''}</span>
                   </div>
                 );
               }
@@ -89,38 +91,27 @@ export default function RoundRobinSection({
                     <div key={`rr-${srIdx}-${mi}-paused`} className="rounded-xl flex flex-col gap-2" style={{ padding: 'clamp(8px,2vw,12px)', background: 'rgba(220,38,38,0.04)', border: '1px dashed rgba(220,38,38,0.3)' }}>
                       <div className="flex items-center gap-2">
                         <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700, minWidth: 50 }}>{courtLabel}</span>
-                        <span className="inline-flex items-center rounded-full font-bold" style={{ background: activeTeam.color, color: activeTeam.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)' }}>{activeTeam.name}</span>
+                        <span className="inline-flex items-center rounded-full font-bold" style={{ background: activeTeam.color, color: activeTeam.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)' }}>{teamLabel(activeTeam.id)}</span>
                         <span style={{ color: '#94a3b8', fontSize: 13 }}>vs</span>
-                        <span className="inline-flex items-center rounded-full font-bold" style={{ background: pausedTeam.color, color: pausedTeam.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', opacity: 0.5, textDecoration: 'line-through' }}>{pausedTeam.name}</span>
+                        <span className="inline-flex items-center rounded-full font-bold" style={{ background: pausedTeam.color, color: pausedTeam.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', opacity: 0.5, textDecoration: 'line-through' }}>{teamLabel(pausedTeam.id)}</span>
                         <span style={{ fontSize: 11, color: '#dc2626', fontWeight: 700 }}>PAUSED</span>
                       </div>
                       <button onClick={() => onRRMatchResult(srIdx, mi, { winnerId: activeId, loserId: pausedId, winnerScore: 1, loserScore: 0, courtNumber: rrCourts[mi] ?? mi + 1 })}
                         style={{ alignSelf: 'flex-start', fontSize: 'clamp(10px,2.5vw,12px)', padding: 'clamp(3px,0.8vw,5px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.25)' }}>
-                        🏳 Forfeit — award walkover to {activeTeam.name}
+                        🏳 Forfeit — award walkover to {teamLabel(activeTeam.id)}
                       </button>
                     </div>
                   );
                 }
-                return <CourtCard key={`rr-${srIdx}-${mi}-${pendingResult ? 'done' : 'open'}`} courtLabel={courtLabel} teams={[tA, tB]} onResult={r => onRRMatchResult(srIdx, mi, { ...r, courtNumber: rrCourts[mi] ?? mi + 1 })} pendingResult={pendingResult} />;
+                return <CourtCard key={`rr-${srIdx}-${mi}-${pendingResult ? 'done' : 'open'}`} courtLabel={courtLabel} teams={[{ ...tA, name: teamLabel(tA.id) }, { ...tB, name: teamLabel(tB.id) }]} onResult={r => onRRMatchResult(srIdx, mi, { ...r, courtNumber: rrCourts[mi] ?? mi + 1 })} pendingResult={pendingResult} />;
               }
               const aIsPausedV = pausedIds.includes(idA), bIsPausedV = pausedIds.includes(idB);
               return (
                 <div key={mi} className="rounded-xl" style={{ padding: 'clamp(10px,2.5vw,14px)', background: '#fff', border: `1px solid ${aIsPausedV || bIsPausedV ? 'rgba(220,38,38,0.3)' : 'rgba(0,0,0,0.1)'}` }}>
-                  <div className="flex items-center gap-2" style={{ marginBottom: 'clamp(6px,1.5vw,10px)' }}>
-                    <p style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#0f4c75', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>{courtLabel}</p>
-                    {(aIsPausedV || bIsPausedV) && <span style={{ fontSize: 11, color: '#dc2626', fontWeight: 700 }}>⚠ Team paused</span>}
-                  </div>
-                  <div className="flex items-stretch" style={{ gap: 'clamp(6px,1.5vw,10px)' }}>
-                    <div className="flex-1 flex items-center justify-center rounded-xl" style={{ padding: 'clamp(10px,2.5vw,16px)', background: tA.color, border: `2px solid ${tA.color}`, opacity: aIsPausedV ? 0.4 : 1 }}>
-                      <span className="font-black text-center" style={{ fontSize: 'clamp(14px,3.5vw,22px)', color: tA.text }}>{tA.name}</span>
-                    </div>
-                    <div className="flex items-center justify-center flex-shrink-0">
-                      <span style={{ color: '#cbd5e1', fontWeight: 900, fontSize: 'clamp(12px,3vw,18px)' }}>VS</span>
-                    </div>
-                    <div className="flex-1 flex items-center justify-center rounded-xl" style={{ padding: 'clamp(10px,2.5vw,16px)', background: tB.color, border: `2px solid ${tB.color}`, opacity: bIsPausedV ? 0.4 : 1 }}>
-                      <span className="font-black text-center" style={{ fontSize: 'clamp(14px,3.5vw,22px)', color: tB.text }}>{tB.name}</span>
-                    </div>
-                  </div>
+                  <MatchupVsBox courtLabel={courtLabel}
+                    headerExtra={(aIsPausedV || bIsPausedV) && <span style={{ fontSize: 11, color: '#dc2626', fontWeight: 700 }}>⚠ Team paused</span>}
+                    teamA={{ ...tA, name: teamLabel(tA.id) }} teamB={{ ...tB, name: teamLabel(tB.id) }}
+                    dimA={aIsPausedV} dimB={bIsPausedV} />
                 </div>
               );
             })}

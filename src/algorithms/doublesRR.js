@@ -169,3 +169,23 @@ export function buildDoublesRRStandings(playerIds, players, history, tiebreakOrd
   });
   return list;
 }
+
+const SIDE_FALLBACK_COLOR = '#475569';
+const SIDE_FALLBACK_TEXT = '#ffffff';
+
+// Builds the chip-display data for a Doubles RR "side" (a synthetic, rotating
+// 2-player partnership). When the two players have different individually-assigned
+// colors, `chipBackground` carries a left-to-right gradient between them — renderers
+// that support it should prefer `chipBackground` over `color` for backgrounds, while
+// keeping `color` (always solid) for borders/shadows/text-contrast.
+export function buildSidePresentation(playerIds, playersById) {
+  const players = playerIds.map(id => playersById[id]).filter(Boolean);
+  const name = players.map(p => p.name).join(' & ') || playerIds.join(' & ');
+  const [a, b] = players;
+  const color = a?.color || SIDE_FALLBACK_COLOR;
+  const text = a?.text || SIDE_FALLBACK_TEXT;
+  const chipBackground = (a?.color && b?.color && a.color !== b.color)
+    ? `linear-gradient(90deg, ${a.color}, ${b.color})`
+    : undefined;
+  return { id: playerIds.join('|'), name, color, text, chipBackground };
+}
