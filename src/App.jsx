@@ -9,6 +9,7 @@ import { mkStandings, rerank, rebuildStandings } from './algorithms/standings';
 import { buildSnapshot, snapshotToState } from './snapshot';
 import { reindexPendingAfterRemoval } from './pending';
 import { generateRound } from './algorithms/pairing';
+import { generateRoundRobinSchedule } from './algorithms/roundRobin';
 import { buildTPTStandings } from './algorithms/threePlayerTeam';
 import { buildDoublesRRStandings, DEFAULT_DOUBLES_RR_TIEBREAK_ORDER } from './algorithms/doublesRR';
 import useOnline from './hooks/useOnline';
@@ -345,7 +346,7 @@ export default function App({ viewerOnly = false }) {
   }, [tournamentMode, doublesRRPlayers, history, doublesRRTiebreakOrder]);
 
   // ── Tournament lifecycle handlers ──────────────────────────────────────────
-  const handleStart = useCallback((allTeams, teamIds, courts, durSecs, title, numRounds, eventDetails = {}) => {
+  const handleStart = useCallback((allTeams, teamIds, courts, durSecs, title, numRounds, eventDetails = {}, startMode = 'swiss') => {
     setTournamentTeams(allTeams); setModuleRegistry(allTeams);
     const resolvedTitle = title || 'Tournament';
     setTournamentTitle(resolvedTitle);
@@ -354,19 +355,35 @@ export default function App({ viewerOnly = false }) {
     const s = mkStandings(teamIds);
     const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     tournamentIdRef.current = tid;
-    const tr = numRounds || 0;
+
+    // 'roundrobin' start mode skips the Swiss phase entirely — the round-robin
+    // schedule is generated up front and the tournament opens directly in RR mode.
+    const isRR = startMode === 'roundrobin';
+    const tr = isRR ? 0 : (numRounds || 0);
+    const rrSchedule = isRR ? generateRoundRobinSchedule(teamIds, courts.length) : null;
+    const rrStartSnapshot = isRR ? { startRoundNum: 1, participatingIds: [...teamIds], excludedIds: [] } : null;
+    const startRoundNum = isRR ? 1 : 0;
+
     const snap = buildSnapshot({
       activeTeamIds: teamIds, courtNumbers: courts, socialCourts: [],
       tournamentTeams: allTeams, tournamentTitle: resolvedTitle,
       tournamentLocation: location, tournamentStartTime: startTime, tournamentDurationMins: durationMins,
       timerDuration: durSecs, timerDefaultMins: durSecs > 0 ? Math.round(durSecs / 60) : 12,
-      history: [], roundNum: 0, pausedIds: [], targetRounds: tr, tournamentMode: 'swiss',
+      history: [], roundNum: startRoundNum, pausedIds: [], targetRounds: tr,
+      tournamentMode: isRR ? 'roundrobin' : 'swiss',
+      ...(isRR ? {
+        roundRobinSchedule: rrSchedule, roundRobinCourts: courts,
+        roundRobinStartRoundNum: 1, roundRobinStartSnapshot: rrStartSnapshot, roundRobinEndSnapshot: null,
+      } : {}),
     }, { _tournamentId: tid });
     pushSnapshot(snap, setFirebaseError); setRole('admin');
     setActiveTeamIds(teamIds); setCourtNumbers(courts); setTimerDuration(durSecs);
-    setStandings(s); setRound(null); setRoundNum(0); setHistory([]);
-    lastSeenRoundNum.current = 0; pendingRef.current = {}; setPending({}); setPausedIds([]); setRoundKey(0); setRoundComplete(false);
-    setTournamentMode('swiss'); setRoundRobinSchedule(null); setRoundRobinCourts(null); setRoundRobinStartRoundNum(null); setRoundRobinStartSnapshot(null); setRoundRobinEndSnapshot(null); setActiveRoundExtras([]); setTournamentFinished(false); setSocialCourts([]);
+    setStandings(s); setRound(null); setRoundNum(startRoundNum); setHistory([]);
+    lastSeenRoundNum.current = startRoundNum; pendingRef.current = {}; setPending({}); setPausedIds([]); setRoundKey(0); setRoundComplete(false);
+    setTournamentMode(isRR ? 'roundrobin' : 'swiss');
+    setRoundRobinSchedule(rrSchedule); setRoundRobinCourts(isRR ? courts : null);
+    setRoundRobinStartRoundNum(isRR ? 1 : null); setRoundRobinStartSnapshot(rrStartSnapshot); setRoundRobinEndSnapshot(null);
+    setActiveRoundExtras([]); setTournamentFinished(false); setSocialCourts([]);
     setTargetRounds(tr); setTimerAlarmed(false); applyTimerState(false, null, durSecs);
     setPhase('play'); setActiveTab('play');
   }, [applyTimerState]);

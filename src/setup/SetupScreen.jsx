@@ -4,6 +4,7 @@ import EventDetailsFields from './EventDetailsFields';
 import PlayerNameField from '../components/PlayerNameField';
 import useKnownPlayers from '../hooks/useKnownPlayers';
 import { isValidDoublesRRPlayerCount, nearestValidDoublesRRPlayerCounts } from '../algorithms/doublesRR';
+import { generateRoundRobinSchedule } from '../algorithms/roundRobin';
 
 const PRESET = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 const PALETTE = ALL_TEAMS.map(t => ({ name: t.name, color: t.color, text: t.text }));
@@ -68,11 +69,18 @@ const uid = () => Math.random().toString(36).slice(2) + Math.random().toString(3
 const emptyDraft = () => ({ name: '', duprId: '', nickname: '' });
 const emptySlot = gender => ({ id: uid(), name: '', duprId: '', nickname: '', gender });
 
-const FORMATS = [
-  { id: 'singles',      label: '🎾 Singles RR' },
-  { id: 'doublesrr',    label: '🤝 Doubles RR' },
-  { id: 'fixedpartner', label: '👫 Fixed Partner' },
-  { id: 'trio',         label: '👥 Trio' },
+// Each option pairs an engine `format` with a `startMode` ('swiss' starts in
+// the round-by-round Swiss phase; 'roundrobin' generates the full schedule up
+// front and opens directly in Round Robin mode — see App.jsx:handleStart).
+// Doubles RR (rotating partners) and Trio are inherently round-robin formats —
+// they always pre-generate their full schedule, so there's no Swiss variant.
+const FORMAT_OPTIONS = [
+  { id: 'singles-swiss',      format: 'singles',      startMode: 'swiss',      label: '🎾 Singles', sub: 'Swiss' },
+  { id: 'singles-rr',         format: 'singles',      startMode: 'roundrobin', label: '🎾 Singles', sub: 'Round Robin' },
+  { id: 'fixedpartner-swiss', format: 'fixedpartner', startMode: 'swiss',      label: '👫 Doubles · Fixed Partners', sub: 'Swiss' },
+  { id: 'fixedpartner-rr',    format: 'fixedpartner', startMode: 'roundrobin', label: '👫 Doubles · Fixed Partners', sub: 'Round Robin' },
+  { id: 'doublesrr',          format: 'doublesrr',    startMode: 'roundrobin', label: '🤝 Doubles · Rotating Partners', sub: 'Round Robin' },
+  { id: 'trio',               format: 'trio',         startMode: 'roundrobin', label: '👥 Trio Teams', sub: 'Round Robin' },
 ];
 
 const SLOT_GENDERS = { fixedpartner: ['', ''], trio: ['M', 'M', 'F'] };
@@ -104,20 +112,27 @@ const iS = { padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700
 
 function FormatSelector({ value, onChange }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-      {FORMATS.map(f => {
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {FORMAT_OPTIONS.map(f => {
         const active = value === f.id;
         return (
-          <button key={f.id} onClick={() => onChange(f.id)} type="button"
-            className="rounded-xl px-3 flex items-center justify-center text-center"
+          <button key={f.id} onClick={() => onChange(f)} type="button"
+            className="rounded-xl px-4 py-3 flex flex-col items-start text-left gap-1"
             style={{
               background: active ? 'linear-gradient(135deg,#0f4c75,#1a6fa8)' : 'rgba(255,255,255,0.55)',
               color: active ? '#fff' : '#334155',
               border: '1px solid ' + (active ? 'transparent' : 'rgba(0,0,0,0.1)'),
               cursor: 'pointer',
-              minHeight: 76,
+              minHeight: 72,
             }}>
-            <p className="font-bold text-base">{f.label}</p>
+            <p className="font-bold text-base" style={{ margin: 0 }}>{f.label}</p>
+            <span className="font-bold" style={{
+              fontSize: 11, padding: '2px 8px', borderRadius: 999, letterSpacing: '0.04em', textTransform: 'uppercase',
+              background: active ? 'rgba(255,255,255,0.18)' : 'rgba(15,76,117,0.1)',
+              color: active ? '#e0f2fe' : '#0f4c75',
+            }}>
+              {f.sub === 'Swiss' ? '🔄 Swiss' : '🔁 Round Robin'}
+            </span>
           </button>
         );
       })}
@@ -165,7 +180,10 @@ function GenderToggle({ value, onChange }) {
 }
 
 export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
+  // Wizard step: 1 = format, 2 = event details, 3 = roster/courts/timer/start
+  const [step, setStep] = useState(1);
   const [format, setFormat] = useState('singles');
+  const [startMode, setStartMode] = useState('swiss');
 
   // Shared
   const [title, setTitle] = useState('Tournament');
@@ -191,12 +209,14 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
   const isFlat = format === 'singles' || format === 'doublesrr';
   const isTeamCards = format === 'fixedpartner' || format === 'trio';
 
-  const changeFormat = next => {
-    if (next === format) return;
+  const selectFormatOption = opt => {
+    const next = opt.format;
+    if (next === format && opt.startMode === startMode) { setStep(2); return; }
     const wasFlat = isFlat, wasTeamCards = isTeamCards;
     const nextFlat = next === 'singles' || next === 'doublesrr';
     const nextTeamCards = next === 'fixedpartner' || next === 'trio';
     setFormat(next);
+    setStartMode(opt.startMode);
     if (!(wasFlat && nextFlat)) {
       setFlatPlayers([]);
       setPlayerDraft(emptyDraft());
@@ -210,7 +230,9 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
     setColorPickerTeamId(null);
     setFlatColorPickerId(null);
     setNumGames(0);
+    setStep(2);
   };
+  const selectedFormatOptionId = FORMAT_OPTIONS.find(o => o.format === format && o.startMode === startMode)?.id ?? null;
 
   // ── Flat-list handlers (singles / doublesrr) ──
   const addFlatPlayer = () => {
@@ -269,6 +291,12 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
   const validCounts = getValidGameCounts(allTeamIds.length, courts.length);
   const selectedGames = validCounts.includes(numGames) ? numGames : 0;
   const parsedRounds = selectedGames > 0 ? roundsForGames(allTeamIds.length, courts.length, selectedGames) : 0;
+
+  // Preview of the up-front-generated schedule for direct Round Robin starts
+  // (singles / fixed-partner doubles) — mirrors what RoundRobinSection shows in-app.
+  const rrPreviewSchedule = (startMode === 'roundrobin' && (format === 'singles' || format === 'fixedpartner') && allTeamIds.length >= 2 && courts.length >= 1)
+    ? generateRoundRobinSchedule(allTeamIds, courts.length)
+    : [];
 
   const trioMinCourts = Math.max(1, Math.floor(trioReadyTeams.length / 2));
   const trioTotalRounds = trioReadyTeams.length >= 2 ? trioReadyTeams.length - 1 : 0;
@@ -334,24 +362,51 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
       if (format === 'fixedpartner') {
         teams.flatMap(t => t.players).forEach(s => { if (s.name.trim()) saveKnownPlayer(s.name, s.duprId, s.nickname); });
       }
-      onStart(selectedTeams, allTeamIds, courts, timerEnabled ? timerMins * 60 : 0, title, parsedRounds, eventDetails);
+      onStart(selectedTeams, allTeamIds, courts, timerEnabled ? timerMins * 60 : 0, title, parsedRounds, eventDetails, startMode);
     }
   };
 
+  const backBtnS = { padding: '6px 14px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'rgba(0,0,0,0.05)', color: '#475569', border: '1px solid rgba(0,0,0,0.1)' };
+  const nextBtnS = { padding: '8px 20px', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: 'pointer', background: 'linear-gradient(135deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' };
+
   return (
     <div className="flex flex-col gap-4">
-      <FormatSelector value={format} onChange={changeFormat} />
+
+      {step === 1 && (
+        <div className="rounded-2xl p-6 flex flex-col gap-3" style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.7)', backdropFilter: 'blur(8px)' }}>
+          <div>
+            <p className="text-sm font-bold text-slate-700 mb-1">Tournament Format</p>
+            <p className="text-slate-500 text-xs">Pick how teams are formed and how rounds are scheduled. This determines the rest of the setup.</p>
+          </div>
+          <FormatSelector value={selectedFormatOptionId} onChange={selectFormatOption} />
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="rounded-2xl p-6 flex flex-col gap-6" style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.7)', backdropFilter: 'blur(8px)' }}>
+          <div className="flex items-center justify-between">
+            <button onClick={() => setStep(1)} type="button" style={backBtnS}>← Back</button>
+            <button onClick={() => setStep(3)} type="button" style={nextBtnS}>Next →</button>
+          </div>
+
+          <div>
+            <p className="text-sm font-bold text-slate-700 mb-1">Tournament Name</p>
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Tournament"
+              style={{ ...iS, width: '100%', fontSize: 15, fontWeight: 800, color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)' }} />
+          </div>
+
+          <EventDetailsFields location={location} setLocation={setLocation}
+            startTime={startTime} setStartTime={setStartTime}
+            durationMins={durationMins} setDurationMins={setDurationMins} />
+
+          <button onClick={() => setStep(3)} type="button" style={{ ...nextBtnS, alignSelf: 'flex-end' }}>Next →</button>
+        </div>
+      )}
+
+      {step === 3 && (
       <div className="rounded-2xl p-6 flex flex-col gap-6" style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.7)', backdropFilter: 'blur(8px)' }}>
 
-        <div>
-          <p className="text-sm font-bold text-slate-700 mb-1">Tournament Name</p>
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Tournament"
-            style={{ ...iS, width: '100%', fontSize: 15, fontWeight: 800, color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)' }} />
-        </div>
-
-        <EventDetailsFields location={location} setLocation={setLocation}
-          startTime={startTime} setStartTime={setStartTime}
-          durationMins={durationMins} setDurationMins={setDurationMins} />
+        <button onClick={() => setStep(2)} type="button" style={{ ...backBtnS, alignSelf: 'flex-start' }}>← Back</button>
 
         {isFlat && (
           <div>
@@ -375,7 +430,7 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
               <div className="flex flex-col gap-1">
                 {flatPlayers.map(p => (
                   <div key={p.id} className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.04)' }}>
-                    {format === 'singles' && (
+                    {(format === 'singles' || format === 'doublesrr') && (
                       <ColorPickerDot color={p.color} size={14} isOpen={flatColorPickerId === p.id}
                         onToggle={() => setFlatColorPickerId(x => x === p.id ? null : p.id)}
                         onPick={pal => { changeFlatPlayerColor(p.id, pal); setFlatColorPickerId(null); }} />
@@ -515,7 +570,7 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
           )}
         </div>
 
-        {(format === 'singles' || format === 'fixedpartner') && (
+        {(format === 'singles' || format === 'fixedpartner') && startMode === 'swiss' && (
           <div>
             <div className="flex items-center gap-2 mb-3">
               <p className="text-sm font-bold text-slate-700">Each team plays</p>
@@ -541,23 +596,35 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
           </div>
         )}
 
-        {(format === 'singles' || format === 'fixedpartner') && (
+        {(format === 'singles' || format === 'fixedpartner') && startMode === 'swiss' && (
           <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)', color: '#475569' }}>
             {courts.length} court{courts.length !== 1 ? 's' : ''} → {effectiveCourts * 2} play, {Math.max(0, allTeamIds.length - effectiveCourts * 2)} bye per round{parsedRounds > 0 ? ' · ' + parsedRounds + ' round' + (parsedRounds !== 1 ? 's' : '') : ''}{timerEnabled ? ' · ' + timerMins + ' min rounds' : ''}.<br />
             No back-to-back byes. Bye partnerships rotate.
           </div>
         )}
 
+        {(format === 'singles' || format === 'fixedpartner') && startMode === 'roundrobin' && (
+          rrPreviewSchedule.length > 0 ? (
+            <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)', color: '#475569' }}>
+              {allTeamIds.length} team{allTeamIds.length !== 1 ? 's' : ''} · {rrPreviewSchedule.length} round{rrPreviewSchedule.length !== 1 ? 's' : ''} · {rrPreviewSchedule.reduce((a, r) => a + r.length, 0)} total matches · everyone plays everyone once{timerEnabled ? ` · ${timerMins} min rounds` : ''}.<br />
+              The full schedule is generated up front — the tournament opens directly in Round Robin mode.
+            </div>
+          ) : (
+            <p className="text-slate-400 text-xs">Add teams and courts to see the round robin schedule preview.</p>
+          )
+        )}
+
         {format === 'trio' && trioReadyTeams.length >= 2 && (
           <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)', color: '#475569' }}>
-            {trioReadyTeams.length} teams · {trioTotalRounds} scheduling round{trioTotalRounds !== 1 ? 's' : ''} · {trioMinCourts} court{trioMinCourts !== 1 ? 's' : ''} needed · {trioTotalGames} total games{timerEnabled ? ` · ${timerMins} min rounds` : ''}
+            🔁 Round Robin · {trioReadyTeams.length} teams · {trioTotalRounds} round{trioTotalRounds !== 1 ? 's' : ''} (every team plays every other team once) · {trioMinCourts} court{trioMinCourts !== 1 ? 's' : ''} needed · {trioTotalGames} total games{timerEnabled ? ` · ${timerMins} min rounds` : ''}.<br />
+            The full schedule is generated up front — there is no Swiss phase for Trio.
           </div>
         )}
 
         {format === 'doublesrr' && doublesRRNamedPlayers.length > 0 && (
           doublesRRCountValid ? (
             <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)', color: '#475569' }}>
-              {doublesRRNamedPlayers.length} players · {doublesRRNamedPlayers.length - 1} round{doublesRRNamedPlayers.length - 1 !== 1 ? 's' : ''} · everyone partners with everyone exactly once{timerEnabled ? ` · ${timerMins} min rounds` : ''}
+              🔁 Round Robin · {doublesRRNamedPlayers.length} players · {doublesRRNamedPlayers.length - 1} round{doublesRRNamedPlayers.length - 1 !== 1 ? 's' : ''} · everyone partners with everyone exactly once{timerEnabled ? ` · ${timerMins} min rounds` : ''}
             </div>
           ) : (
             <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.25)', color: '#92400e' }}>
@@ -581,6 +648,7 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
           Start Tournament 🚀
         </button>
       </div>
+      )}
     </div>
   );
 }

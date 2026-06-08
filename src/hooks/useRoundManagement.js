@@ -94,7 +94,7 @@ export function useRoundManagement({
     if (!s.round.courts.every((_, i) => s.pending[courtKey(i)])) return;
     if (!s.liveAdditions.every((_, i) => s.pending[liveKey(i)])) return;
     roundCompletingRef.current = true;
-    const officialGames = s.round.courts.map((_, i) => ({ ...s.pending[courtKey(i)], courtNumber: s.courtNumbers[i] ?? i + 1 }));
+    const officialGames = s.round.courts.map((_, i) => ({ ...s.pending[courtKey(i)], courtNumber: s.round.courtNums?.[i] ?? s.courtNumbers[i] ?? i + 1 }));
     const liveGames     = s.liveAdditions.map((la, i) => ({ ...s.pending[liveKey(i)], courtNumber: la.courtNumber }));
     const games  = [...officialGames, ...liveGames, ...s.activeRoundExtras];
     const entry  = { roundNum: s.roundNum, games, bye: s.round.bye.map(t => t.id), paused: (s.round.paused || []).map(t => t.id) };
@@ -284,7 +284,10 @@ export function useRoundManagement({
         if (s.history.some(h => h.roundNum === targetRoundNum)) return np;
         if (srIdx > 0 && !s.history.some(h => h.roundNum === (s.roundRobinStartRoundNum || 1) + srIdx - 1)) return np;
         const rrCourts = (s.roundRobinCourts && s.roundRobinCourts.length > 0) ? s.roundRobinCourts : s.courtNumbers;
-        const games = schedRound.map((_, mi) => ({ ...np[rrMatchKey(srIdx, mi)], courtNumber: rrCourts[mi] ?? mi + 1 }));
+        const games = schedRound.map((_, mi) => {
+          const r = np[rrMatchKey(srIdx, mi)];
+          return { ...r, courtNumber: r?.courtNumber ?? rrCourts[mi] ?? mi + 1 };
+        });
         const entry = { roundNum: targetRoundNum, games, bye: [], paused: [] };
         const nh = [...s.history, entry];
         const ns = rebuildStandings(s.activeTeamIds, nh);

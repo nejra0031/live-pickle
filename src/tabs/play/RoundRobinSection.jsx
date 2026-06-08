@@ -58,9 +58,10 @@ export default function RoundRobinSection({
               const pendingResult = pending[pendingKey];
               if (committedGame) {
                 const w = teamById(committedGame.winnerId), l = teamById(committedGame.loserId);
+                const committedLabel = `Court ${committedGame.courtNumber ?? rrCourts[mi] ?? mi + 1}`;
                 return (
                   <div key={mi} className="rounded-xl flex items-center" style={{ padding: 'clamp(8px,2vw,12px)', gap: 'clamp(8px,2vw,12px)', background: '#fff', border: '1px solid rgba(0,0,0,0.08)' }}>
-                    <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700, minWidth: 50 }}>{courtLabel}</span>
+                    <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700, minWidth: 50 }}>{committedLabel}</span>
                     <span className="inline-flex items-center rounded-full font-bold" style={{ background: w?.color, color: w?.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', whiteSpace: 'nowrap' }}>{w?.name}</span>
                     <span style={{ fontWeight: 800, color: w?.color, fontSize: 'clamp(13px,3vw,16px)' }}>{committedGame.winnerScore}</span>
                     <span style={{ color: '#cbd5e1' }}>–</span>
@@ -83,14 +84,14 @@ export default function RoundRobinSection({
                         <span className="inline-flex items-center rounded-full font-bold" style={{ background: pausedTeam.color, color: pausedTeam.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', opacity: 0.5, textDecoration: 'line-through' }}>{pausedTeam.name}</span>
                         <span style={{ fontSize: 11, color: '#dc2626', fontWeight: 700 }}>PAUSED</span>
                       </div>
-                      <button onClick={() => onRRMatchResult(srIdx, mi, { winnerId: activeId, loserId: pausedId, winnerScore: 1, loserScore: 0 })}
+                      <button onClick={() => onRRMatchResult(srIdx, mi, { winnerId: activeId, loserId: pausedId, winnerScore: 1, loserScore: 0, courtNumber: rrCourts[mi] ?? mi + 1 })}
                         style={{ alignSelf: 'flex-start', fontSize: 'clamp(10px,2.5vw,12px)', padding: 'clamp(3px,0.8vw,5px) clamp(8px,2vw,12px)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.25)' }}>
                         🏳 Forfeit — award walkover to {activeTeam.name}
                       </button>
                     </div>
                   );
                 }
-                return <CourtCard key={`rr-${srIdx}-${mi}-${pendingResult ? 'done' : 'open'}`} courtLabel={courtLabel} teams={[tA, tB]} onResult={r => onRRMatchResult(srIdx, mi, r)} pendingResult={pendingResult} />;
+                return <CourtCard key={`rr-${srIdx}-${mi}-${pendingResult ? 'done' : 'open'}`} courtLabel={courtLabel} teams={[tA, tB]} onResult={r => onRRMatchResult(srIdx, mi, { ...r, courtNumber: rrCourts[mi] ?? mi + 1 })} pendingResult={pendingResult} />;
               }
               const aIsPausedV = pausedIds.includes(idA), bIsPausedV = pausedIds.includes(idB);
               return (
