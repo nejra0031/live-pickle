@@ -80,6 +80,6 @@ test('completed round appears in history tab', async ({ page }) => {
   await page.locator('button:has-text("Confirm")').first().click();
 
   await page.waitForSelector('button:has-text("Generate Round 2")', { timeout: 5000 });
-  await page.click('button:has-text("History")');
+  await page.click('button:has-text("Matches")');
   await expect(page.locator('text=Round 1')).toBeVisible();
 });

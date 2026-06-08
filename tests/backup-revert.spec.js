@@ -27,8 +27,8 @@ test('backup button appears in history after round completes', async ({ page }) 
   await completeRound(page);
   await page.waitForTimeout(1000);
 
-  await page.click('button:has-text("History")');
-  await expect(page.locator('button:has-text("Revert")')).toBeVisible({ timeout: 5000 });
+  await page.click('button:has-text("Matches")');
+  await expect(page.getByRole('button', { name: '↩ Revert', exact: true })).toBeVisible({ timeout: 5000 });
 });
 
 test('reverting to Round 1 from Round 2 restores correct state', async ({ page }) => {
@@ -45,7 +45,7 @@ test('reverting to Round 1 from Round 2 restores correct state', async ({ page }
 
   await expect(page.locator('button').filter({ hasText: /Generate Round 3/ })).toBeVisible();
 
-  await page.click('button:has-text("History")');
+  await page.click('button:has-text("Matches")');
   const revertBtns = page.locator('button:has-text("Revert")');
   await revertBtns.last().click();
 
@@ -69,7 +69,7 @@ test('future backups panel appears after accidental revert', async ({ page }) =>
   await completeRound(page);
   await page.waitForTimeout(1000);
 
-  await page.click('button:has-text("History")');
+  await page.click('button:has-text("Matches")');
   const revertBtns = page.locator('button:has-text("Revert")');
   await revertBtns.last().click();
   await page.fill('input[type="password"]', 'test1234');
@@ -77,7 +77,7 @@ test('future backups panel appears after accidental revert', async ({ page }) =>
   await page.click('button:has-text("Revert")');
 
   await page.waitForTimeout(1000);
-  await page.click('button:has-text("History")');
+  await page.click('button:has-text("Matches")');
   await expect(page.locator('text=Snapshots from reverted rounds')).toBeVisible({ timeout: 5000 });
   await expect(page.locator('button:has-text("Round 2")')).toBeVisible();
 });
