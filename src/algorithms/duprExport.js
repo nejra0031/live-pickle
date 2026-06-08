@@ -59,6 +59,20 @@ export function collectTPTPlayerIds({ history, tptTeams }) {
   return [...ids];
 }
 
+// Every player who appears in a Doubles RR history court, deduped — used by
+// the export modal to find players missing a DUPR ID.
+export function collectDoublesRRPlayerIds({ history }) {
+  const ids = new Set();
+  for (const h of history) {
+    if (!h.doublesRRCourts) continue;
+    for (const court of h.doublesRRCourts) {
+      (court.teamA || []).forEach(id => ids.add(id));
+      (court.teamB || []).forEach(id => ids.add(id));
+    }
+  }
+  return [...ids];
+}
+
 // Every team that appears in a Swiss/RR history game, deduped — used by the
 // export modal to find teams missing player names/DUPR IDs.
 export function collectSwissTeamIds({ history }) {
@@ -94,6 +108,26 @@ function buildTPTRows({ history, tptTeams, tptPlayers }) {
   return rows;
 }
 
+// Doubles RR partnerships ARE the rows — no game-definition step needed,
+// each court's teamA/teamB 2-id arrays map straight to playerA1/A2 & playerB1/B2.
+function buildDoublesRRRows({ history, doublesRRPlayers }) {
+  const rows = [];
+  for (const h of history) {
+    if (!h.doublesRRCourts) continue;
+    for (const court of h.doublesRRCourts) {
+      const { teamA, teamB, winnerIds, loserIds, winnerScore, loserScore } = court;
+      if (!winnerIds || !loserIds) continue;
+      const [pA1, pA2] = (teamA || []).map(id => doublesRRPlayers[id] || BLANK_PLAYER);
+      const [pB1, pB2] = (teamB || []).map(id => doublesRRPlayers[id] || BLANK_PLAYER);
+      const aWon = winnerIds.join(',') === (teamA || []).join(',');
+      const scoreA = aWon ? winnerScore : loserScore;
+      const scoreB = aWon ? loserScore : winnerScore;
+      rows.push(makeRow({ playerA1: pA1, playerA2: pA2, playerB1: pB1, playerB2: pB2, scoreA, scoreB }));
+    }
+  }
+  return rows;
+}
+
 function buildSwissRows({ history, teamById }) {
   const rows = [];
   for (const h of history) {
@@ -117,10 +151,10 @@ function buildSwissRows({ history, teamById }) {
 // event/date/location, which are filled in by the caller via buildDUPRCsv).
 // Every completed game produces a row; players/teams missing name or DUPR ID
 // data are exported with blank fields rather than being skipped.
-export function buildDUPRRows({ history, tournamentMode, tptTeams = {}, tptPlayers = {}, teamById }) {
-  return tournamentMode === 'tpt'
-    ? buildTPTRows({ history, tptTeams, tptPlayers })
-    : buildSwissRows({ history, teamById });
+export function buildDUPRRows({ history, tournamentMode, tptTeams = {}, tptPlayers = {}, doublesRRPlayers = {}, teamById }) {
+  if (tournamentMode === 'tpt') return buildTPTRows({ history, tptTeams, tptPlayers });
+  if (tournamentMode === 'doublesrr') return buildDoublesRRRows({ history, doublesRRPlayers });
+  return buildSwissRows({ history, teamById });
 }
 
 // Joins the header + rows into a full CSV string, filling in event/date/location/scoreType

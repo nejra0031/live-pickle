@@ -4,7 +4,7 @@ import useKnownPlayers from '../hooks/useKnownPlayers';
 import PlayerNameField from '../components/PlayerNameField';
 import {
   buildDUPRRows, buildDUPRCsv, downloadCsv, playerNeedsInfo,
-  collectTPTPlayerIds, collectSwissTeamIds, BLANK_PLAYER,
+  collectTPTPlayerIds, collectDoublesRRPlayerIds, collectSwissTeamIds, BLANK_PLAYER,
 } from '../algorithms/duprExport';
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -12,7 +12,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 const iS = { padding: '8px 10px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none', width: '100%' };
 const fieldS = { padding: '6px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none', width: '100%' };
 
-export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tptPlayers, tournamentTitle, onClose }) {
+export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tptPlayers, doublesRRPlayers = {}, tournamentTitle, onClose }) {
   const teamById = useTeamById();
   const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
   const [eventName, setEventName] = useState(tournamentTitle || 'Tournament');
@@ -23,6 +23,7 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
   // Players/teams that appear in the export but are missing a name or DUPR ID —
   // offered up for editing here so the export doesn't have to be blocked or re-run.
   const [tptOverrides, setTptOverrides] = useState({});     // playerId -> { name, duprId }
+  const [doublesRROverrides, setDoublesRROverrides] = useState({}); // playerId -> { name, duprId }
   const [swissOverrides, setSwissOverrides] = useState({}); // teamId -> [{name,duprId},{name,duprId}]
 
   const incompleteTPTPlayers = useMemo(() => {
@@ -32,6 +33,13 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
       .filter(p => p && playerNeedsInfo(p));
   }, [tournamentMode, history, tptTeams, tptPlayers]);
 
+  const incompleteDoublesRRPlayers = useMemo(() => {
+    if (tournamentMode !== 'doublesrr') return [];
+    return collectDoublesRRPlayerIds({ history })
+      .map(id => doublesRRPlayers[id])
+      .filter(p => p && playerNeedsInfo(p));
+  }, [tournamentMode, history, doublesRRPlayers]);
+
   const incompleteSwissTeams = useMemo(() => {
     if (tournamentMode === 'tpt') return [];
     return collectSwissTeamIds({ history })
@@ -40,6 +48,7 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
   }, [tournamentMode, history, teamById]);
 
   const updateTptOverride = (player, val) => setTptOverrides(prev => ({ ...prev, [player.id]: val }));
+  const updateDoublesRROverride = (player, val) => setDoublesRROverrides(prev => ({ ...prev, [player.id]: val }));
   const updateSwissOverride = (team, idx, val) => setSwissOverrides(prev => {
     const current = prev[team.id] || team.players || [BLANK_PLAYER, BLANK_PLAYER];
     const next = [...current];
@@ -54,6 +63,13 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
     return merged;
   }, [tptPlayers, tptOverrides]);
 
+  const effectiveDoublesRRPlayers = useMemo(() => {
+    if (Object.keys(doublesRROverrides).length === 0) return doublesRRPlayers;
+    const merged = { ...doublesRRPlayers };
+    for (const [id, ov] of Object.entries(doublesRROverrides)) merged[id] = { ...merged[id], ...ov };
+    return merged;
+  }, [doublesRRPlayers, doublesRROverrides]);
+
   const effectiveTeamById = useMemo(() => {
     if (Object.keys(swissOverrides).length === 0) return teamById;
     return id => {
@@ -63,8 +79,11 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
   }, [teamById, swissOverrides]);
 
   const rows = useMemo(
-    () => buildDUPRRows({ history, tournamentMode, tptTeams, tptPlayers: effectiveTptPlayers, teamById: effectiveTeamById }),
-    [history, tournamentMode, tptTeams, effectiveTptPlayers, effectiveTeamById]
+    () => buildDUPRRows({
+      history, tournamentMode, tptTeams, tptPlayers: effectiveTptPlayers,
+      doublesRRPlayers: effectiveDoublesRRPlayers, teamById: effectiveTeamById,
+    }),
+    [history, tournamentMode, tptTeams, effectiveTptPlayers, effectiveDoublesRRPlayers, effectiveTeamById]
   );
 
   // DUPR requires a name + DUPR ID for every player in a doubles match — rows
@@ -80,6 +99,7 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
   const doExport = () => {
     if (!canExport) return;
     Object.entries(tptOverrides).forEach(([id, ov]) => saveKnownPlayer(ov.name ?? tptPlayers[id]?.name, ov.duprId));
+    Object.entries(doublesRROverrides).forEach(([id, ov]) => saveKnownPlayer(ov.name ?? doublesRRPlayers[id]?.name, ov.duprId));
     Object.values(swissOverrides).forEach(pair => pair.forEach(p => { if (p?.name?.trim()) saveKnownPlayer(p.name, p.duprId); }));
     const csv = buildDUPRCsv(rows, { eventName: eventName.trim() || 'Tournament', date, location: location.trim(), scoreType });
     downloadCsv(`dupr_export_${date}.csv`, csv);
@@ -120,7 +140,7 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
           {!scoreType && <p className="text-xs mt-1" style={{ color: '#fb923c' }}>Choose how these games were scored.</p>}
         </div>
 
-        {(incompleteTPTPlayers.length > 0 || incompleteSwissTeams.length > 0) && (
+        {(incompleteTPTPlayers.length > 0 || incompleteDoublesRRPlayers.length > 0 || incompleteSwissTeams.length > 0) && (
           <div className="rounded-xl p-3 flex flex-col gap-3" style={{ background: 'rgba(251,146,60,0.08)', border: '1px solid rgba(251,146,60,0.25)' }}>
             <p className="text-xs font-bold" style={{ color: '#fb923c' }}>
               Some players are missing a name or DUPR ID. Fill them in below, or leave blank — the export will still include those games with blank fields.
@@ -133,6 +153,17 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
                   <span className="text-xs font-bold flex-1" style={{ color: '#e2e8f0' }}>{p.name || '(unnamed player)'}</span>
                   <input value={ov.duprId || ''} placeholder="DUPR ID" style={{ ...fieldS, width: 110 }}
                     onChange={e => updateTptOverride(p, { name: ov.name ?? p.name, duprId: e.target.value })} />
+                </div>
+              );
+            })}
+
+            {incompleteDoublesRRPlayers.map(p => {
+              const ov = doublesRROverrides[p.id] || p;
+              return (
+                <div key={p.id} className="flex items-center gap-2">
+                  <span className="text-xs font-bold flex-1" style={{ color: '#e2e8f0' }}>{p.name || '(unnamed player)'}</span>
+                  <input value={ov.duprId || ''} placeholder="DUPR ID" style={{ ...fieldS, width: 110 }}
+                    onChange={e => updateDoublesRROverride(p, { name: ov.name ?? p.name, duprId: e.target.value })} />
                 </div>
               );
             })}

@@ -8,8 +8,8 @@ export default function HistoryTab({
   roundRobinStartSnapshot, roundRobinEndSnapshot,
   canEditScores, canDeleteGame, canFullEdit,
   backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound, onRevertToBeginning, onEditCourtNumber,
-  onEditTPTGame, onExportDUPR,
-  tptTeams = {}, tptPlayers = {},
+  onEditTPTGame, onEditDoublesRRGame, onExportDUPR,
+  tptTeams = {}, tptPlayers = {}, doublesRRPlayers = {},
 }) {
   const teamById = useTeamById();
   const [newestFirst, setNewestFirst] = useState(true);
@@ -199,6 +199,7 @@ export default function HistoryTab({
         }
         const { h, ri } = entry;
         const isTPTRound = !!h.tptMatchups;
+        const isDoublesRRRound = !!h.doublesRRCourts;
         const seIdx = sortedEntries.findIndex(e => e.ri === ri);
 
         if (isTPTRound) {
@@ -256,6 +257,47 @@ export default function HistoryTab({
                   <div className="flex items-center gap-2">
                     <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700 }}>Bye:</span>
                     <span className="inline-flex items-center rounded-full font-bold" style={{ background: byeTeam.color, color: byeTeam.text, fontSize: 'clamp(11px,3vw,14px)', padding: '2px 10px' }}>{byeTeam.name}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        if (isDoublesRRRound) {
+          const pName = id => doublesRRPlayers[id]?.name ?? '?';
+          const sideLabel = pids => (pids || []).filter(Boolean).map(pName).join(' & ');
+          return (
+            <div key={ri} className="rounded-2xl" style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+              <div style={{ padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)', background: 'rgba(15,76,117,0.06)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+                <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#0f4c75', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Round {h.roundNum}</span>
+              </div>
+              <div style={{ padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)', display: 'flex', flexDirection: 'column', gap: 'clamp(6px,1.5vw,10px)' }}>
+                {h.doublesRRCourts.map((court, ci) => {
+                  const sideALabel = sideLabel(court.teamA);
+                  const sideBLabel = sideLabel(court.teamB);
+                  const aWon = court.winnerIds && court.winnerIds.join(',') === (court.teamA || []).join(',');
+                  const scoreA = aWon ? court.winnerScore : court.loserScore;
+                  const scoreB = aWon ? court.loserScore : court.winnerScore;
+                  return (
+                    <div key={ci} className="flex items-center flex-wrap" style={{ gap: 'clamp(4px,1vw,8px)', padding: 'clamp(4px,1vw,6px) 0', borderTop: ci > 0 ? '1px solid rgba(0,0,0,0.05)' : undefined }}>
+                      <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#0f4c75', fontWeight: 700, minWidth: 'clamp(48px,11vw,64px)', flexShrink: 0 }}>Court {ci + 1}</span>
+                      <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: aWon ? '#15803d' : '#1e293b', fontWeight: aWon ? 800 : 600 }}>{sideALabel}</span>
+                      <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{scoreA}</span>
+                      <span style={{ color: '#94a3b8' }}>–</span>
+                      <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{scoreB}</span>
+                      <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: !aWon ? '#15803d' : '#1e293b', fontWeight: !aWon ? 800 : 600 }}>{sideBLabel}</span>
+                      {canEditScores && (
+                        <button onClick={() => onEditDoublesRRGame?.(ri, ci)}
+                          style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(2px,0.5vw,4px) clamp(5px,1.2vw,8px)', borderRadius: 8, background: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)', cursor: 'pointer' }}>✏️</button>
+                      )}
+                    </div>
+                  );
+                })}
+                {h.bye?.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700 }}>Bye:</span>
+                    <span style={{ fontSize: 'clamp(11px,3vw,14px)', color: '#475569', fontWeight: 700 }}>{sideLabel(h.bye)}</span>
                   </div>
                 )}
               </div>

@@ -3,6 +3,7 @@ import { ALL_TEAMS } from '../constants';
 import EventDetailsFields from './EventDetailsFields';
 import PlayerNameField from '../components/PlayerNameField';
 import useKnownPlayers from '../hooks/useKnownPlayers';
+import { isValidDoublesRRPlayerCount, nearestValidDoublesRRPlayerCounts } from '../algorithms/doublesRR';
 
 const PRESET = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 const PALETTE = ALL_TEAMS.map(t => ({ name: t.name, color: t.color, text: t.text }));
@@ -163,7 +164,7 @@ function GenderToggle({ value, onChange }) {
   );
 }
 
-export default function SetupScreen({ onStart, onStartTPT }) {
+export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
   const [format, setFormat] = useState('singles');
 
   // Shared
@@ -189,7 +190,6 @@ export default function SetupScreen({ onStart, onStartTPT }) {
 
   const isFlat = format === 'singles' || format === 'doublesrr';
   const isTeamCards = format === 'fixedpartner' || format === 'trio';
-  const isComingSoon = format === 'doublesrr';
 
   const changeFormat = next => {
     if (next === format) return;
@@ -294,11 +294,18 @@ export default function SetupScreen({ onStart, onStartTPT }) {
     }
   };
 
+  // Doubles RR: a flat list of named players, valid only when N % 4 is 0 or 1
+  // (see isValidDoublesRRPlayerCount — every round must split into complete 2v2 courts).
+  const doublesRRNamedPlayers = format === 'doublesrr' ? flatPlayers.filter(p => p.name.trim()) : [];
+  const doublesRRCountValid = isValidDoublesRRPlayerCount(doublesRRNamedPlayers.length);
+  const doublesRRSuggestion = !doublesRRCountValid ? nearestValidDoublesRRPlayerCounts(doublesRRNamedPlayers.length) : null;
+
   const canStart =
     format === 'singles'      ? (allTeamIds.length >= 3 && courts.length >= 1) :
     format === 'fixedpartner' ? (allTeamIds.length >= 3 && courts.length >= 1) :
     format === 'trio'         ? (trioReadyTeams.length >= 2 && courts.length >= trioMinCourts) :
-    false; // doublesrr — coming soon
+    format === 'doublesrr'    ? (doublesRRCountValid && courts.length >= 1) :
+    false;
 
   const handleStart = () => {
     if (!canStart) return;
@@ -316,6 +323,13 @@ export default function SetupScreen({ onStart, onStartTPT }) {
         [...males, female].forEach(s => saveKnownPlayer(s.name, s.duprId, s.nickname));
       });
       onStartTPT(tptTeams, tptPlayersObj, courts, timerEnabled ? timerMins * 60 : 0, title.trim() || 'Tournament', eventDetails);
+    } else if (format === 'doublesrr') {
+      const playersData = {};
+      doublesRRNamedPlayers.forEach(p => {
+        playersData[p.id] = { id: p.id, name: p.name.trim(), duprId: p.duprId, color: p.color, text: p.text };
+        saveKnownPlayer(p.name, p.duprId, p.nickname);
+      });
+      onStartDoublesRR(playersData, courts, timerEnabled ? timerMins * 60 : 0, title.trim() || 'Tournament', eventDetails);
     } else {
       if (format === 'fixedpartner') {
         teams.flatMap(t => t.players).forEach(s => { if (s.name.trim()) saveKnownPlayer(s.name, s.duprId, s.nickname); });
@@ -338,12 +352,6 @@ export default function SetupScreen({ onStart, onStartTPT }) {
         <EventDetailsFields location={location} setLocation={setLocation}
           startTime={startTime} setStartTime={setStartTime}
           durationMins={durationMins} setDurationMins={setDurationMins} />
-
-        {isComingSoon && (
-          <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.25)', color: '#92400e' }}>
-            🚧 <strong>Doubles Round Robin is coming soon.</strong> You can build the player list below to get a head start, but starting a tournament in this format isn't available yet.
-          </div>
-        )}
 
         {isFlat && (
           <div>
@@ -546,16 +554,31 @@ export default function SetupScreen({ onStart, onStartTPT }) {
           </div>
         )}
 
-        {!canStart && !isComingSoon && (
+        {format === 'doublesrr' && doublesRRNamedPlayers.length > 0 && (
+          doublesRRCountValid ? (
+            <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)', color: '#475569' }}>
+              {doublesRRNamedPlayers.length} players · {doublesRRNamedPlayers.length - 1} round{doublesRRNamedPlayers.length - 1 !== 1 ? 's' : ''} · everyone partners with everyone exactly once{timerEnabled ? ` · ${timerMins} min rounds` : ''}
+            </div>
+          ) : (
+            <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.25)', color: '#92400e' }}>
+              Doubles RR needs a player count where every round can split into complete 2v2 courts (N mod 4 is 0 or 1).
+              You have {doublesRRNamedPlayers.length} — try {[doublesRRSuggestion?.lower, doublesRRSuggestion?.upper].filter(Boolean).join(' or ')}.
+            </div>
+          )
+        )}
+
+        {!canStart && (
           <p className="text-amber-600 text-xs text-center">
             {format === 'trio'
               ? (trioReadyTeams.length < 2 ? 'Need at least 2 complete teams.' : `Need at least ${trioMinCourts} court${trioMinCourts !== 1 ? 's' : ''}.`)
+              : format === 'doublesrr'
+              ? (!doublesRRCountValid ? 'Player count is unsupported — see above.' : courts.length < 1 ? 'Need at least 1 court.' : '')
               : (allTeamIds.length < 3 ? 'Need at least 3 teams.' : courts.length < 1 ? 'Need at least 1 court.' : '')}
           </p>
         )}
 
         <button onClick={handleStart} disabled={!canStart} className="w-full py-3 rounded-xl font-bold text-base btn-blue">
-          {isComingSoon ? 'Coming Soon' : 'Start Tournament 🚀'}
+          Start Tournament 🚀
         </button>
       </div>
     </div>

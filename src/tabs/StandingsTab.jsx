@@ -1,12 +1,26 @@
 import { useTeamById } from '../context/TeamRegistryContext';
 import { ORDINAL } from '../constants';
 import ThreePlayerStandingsTab from './ThreePlayerStandingsTab';
+import DoublesRRStandingsTab from './DoublesRRStandingsTab';
 
-export default function StandingsTab({ ranked, pausedIds, tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults }) {
+export default function StandingsTab({
+  ranked, pausedIds, tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults,
+  doublesRRPlayers, doublesRRStandings, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange, isAdmin,
+}) {
   const teamById = useTeamById();
 
   if (tournamentMode === 'tpt') {
     return <ThreePlayerStandingsTab tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults} />;
+  }
+
+  if (tournamentMode === 'doublesrr') {
+    return (
+      <DoublesRRStandingsTab
+        doublesRRPlayers={doublesRRPlayers} doublesRRStandings={doublesRRStandings}
+        doublesRRTiebreakOrder={doublesRRTiebreakOrder} onDoublesRRTiebreakOrderChange={onDoublesRRTiebreakOrderChange}
+        isAdmin={isAdmin}
+      />
+    );
   }
 
   return (

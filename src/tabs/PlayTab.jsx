@@ -2,6 +2,7 @@ import { hasPermission } from '../roleConfig';
 import TournamentFinished from './play/TournamentFinished';
 import RoundRobinSection from './play/RoundRobinSection';
 import ThreePlayerSection from './play/ThreePlayerSection';
+import DoublesRRSection from './play/DoublesRRSection';
 import BetweenRounds from './play/BetweenRounds';
 import ActiveRound from './play/ActiveRound';
 
@@ -22,6 +23,23 @@ export default function PlayTab(props) {
         timerDuration={props.timerDuration} timerSecsLeft={props.timerSecsLeft} timerRunning={props.timerRunning}
         breakMode={props.breakMode}
         onTPTResult={props.onTPTResult}
+        onFinishTournament={props.onFinishTournament} onBreakStart={props.onBreakStart} onBreakEnd={props.onBreakEnd}
+        onManageTeams={props.onManageTeams} onManageCourts={props.onManageCourts} onReset={props.onReset}
+        onTimerToggle={props.onTimerToggle} onTimerRestart={props.onTimerRestart} onTimerSettings={props.onTimerSettings}
+      />
+    );
+  }
+
+  if (props.tournamentMode === 'doublesrr') {
+    return (
+      <DoublesRRSection
+        doublesRRPlayers={props.doublesRRPlayers} doublesRRSchedule={props.doublesRRSchedule}
+        doublesRRResults={props.doublesRRResults}
+        courtNumbers={props.courtNumbers} history={props.history}
+        role={props.role} isAdmin={isAdmin}
+        timerDuration={props.timerDuration} timerSecsLeft={props.timerSecsLeft} timerRunning={props.timerRunning}
+        breakMode={props.breakMode}
+        onDoublesRRResult={props.onDoublesRRResult}
         onFinishTournament={props.onFinishTournament} onBreakStart={props.onBreakStart} onBreakEnd={props.onBreakEnd}
         onManageTeams={props.onManageTeams} onManageCourts={props.onManageCourts} onReset={props.onReset}
         onTimerToggle={props.onTimerToggle} onTimerRestart={props.onTimerRestart} onTimerSettings={props.onTimerSettings}

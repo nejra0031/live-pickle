@@ -13,6 +13,8 @@ import AddGameModal from './AddGameModal';
 import PresetMatchModal from './PresetMatchModal';
 import EditGameModal from './EditGameModal';
 import EditTPTGameModal from './EditTPTGameModal';
+import ManageDoublesRRPlayersModal from './ManageDoublesRRPlayersModal';
+import EditDoublesRRGameModal from './EditDoublesRRGameModal';
 import EditActiveCourtModal from './EditActiveCourtModal';
 import ExportDUPRModal from './ExportDUPRModal';
 
@@ -29,10 +31,12 @@ export default function ModalRoot({
   courtNumbers, socialCourts, roundRobinCourts, ranked,
   round, liveAdditions, nextRoundPresets, history, pending,
   tptTeams, tptPlayers, tournamentTitle,
+  doublesRRPlayers, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange,
   // handlers
   onTogglePause, onManageTeamsSave, onManageTPTTeamsSave, onManageCourtsSave,
+  onManageDoublesRRPlayersSave,
   onStartRoundRobin, addGameData, onAddGameSave, onAddPreset, onAddLiveGame,
-  onEditSave, onEditActiveCourt, onEditLiveAddition, onEditTPTSave,
+  onEditSave, onEditActiveCourt, onEditLiveAddition, onEditTPTSave, onEditDoublesRRSave,
 }) {
   const pinPurpose = modal.open === 'pin' ? modal.data?.purpose : null;
   const pinTitle = pinPurpose === 'login' ? 'Login'
@@ -61,6 +65,7 @@ export default function ModalRoot({
 
   const editGameTarget     = modal.open === 'editGame'        ? modal.data : null;
   const editTPTGameTarget  = modal.open === 'editTPTGame'     ? modal.data : null;
+  const editDoublesRRGameTarget = modal.open === 'editDoublesRRGame' ? modal.data : null;
   const editActiveCourtIdx = modal.open === 'editActiveCourt' ? modal.data : null;
   const editLiveIdxVal     = modal.open === 'editLive'        ? modal.data : null;
 
@@ -82,8 +87,10 @@ export default function ModalRoot({
       {modal.open === 'timerSettings' && <TimerSettingsModal currentMins={timerDefaultMins} onSave={onTimerSettingsSave} onClose={closeModal} />}
       {modal.open === 'manageTeams' && tournamentMode !== 'tpt' && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={onTogglePause} onSave={onManageTeamsSave} onClose={closeModal} canEditRoster={hasPermission(role, 'canEditTeams')} />}
       {modal.open === 'manageTeams' && tournamentMode === 'tpt' && isAdmin && <ManageTPTTeamsModal tptTeams={tptTeams} tptPlayers={tptPlayers} onSave={onManageTPTTeamsSave} onClose={closeModal} />}
+      {modal.open === 'manageTeams' && tournamentMode === 'doublesrr' && isAdmin && <ManageDoublesRRPlayersModal doublesRRPlayers={doublesRRPlayers} onSave={onManageDoublesRRPlayersSave} onClose={closeModal} />}
       {modal.open === 'exportDUPR' && (
         <ExportDUPRModal history={history} tournamentMode={tournamentMode} tptTeams={tptTeams} tptPlayers={tptPlayers}
+          doublesRRPlayers={doublesRRPlayers}
           tournamentTitle={tournamentTitle} onClose={closeModal} />
       )}
       {modal.open === 'manageCourts' && <ManageCourtsModal courtNumbers={courtNumbers} socialCourts={socialCourts} rrCourtCount={tournamentMode === 'roundrobin' ? (roundRobinCourts?.length ?? 0) : 0} onSave={onManageCourtsSave} onClose={closeModal} />}
@@ -111,6 +118,26 @@ export default function ModalRoot({
             teamAId={matchup.teamAId} teamBId={matchup.teamBId}
             currentResult={matchup.games?.[gi] || null}
             onSave={result => onEditTPTSave(ri, mi, gi, result)}
+            onClose={closeModal}
+          />
+        );
+      })()}
+      {editDoublesRRGameTarget && (() => {
+        const { ri, ci } = editDoublesRRGameTarget;
+        const h = history[ri];
+        const court = h?.doublesRRCourts?.[ci];
+        if (!court) return null;
+        const pName = id => doublesRRPlayers[id]?.name ?? '?';
+        const sideALabel = (court.teamA || []).map(pName).join(' & ');
+        const sideBLabel = (court.teamB || []).map(pName).join(' & ');
+        const gameLabel = `Round ${h.roundNum} · Court ${ci + 1}`;
+        return (
+          <EditDoublesRRGameModal
+            gameLabel={gameLabel}
+            sideALabel={sideALabel} sideBLabel={sideBLabel}
+            teamAIds={court.teamA} teamBIds={court.teamB}
+            currentResult={court.winnerIds ? court : null}
+            onSave={result => onEditDoublesRRSave(ri, ci, result)}
             onClose={closeModal}
           />
         );
