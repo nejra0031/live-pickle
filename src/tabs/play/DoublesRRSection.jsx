@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { hasPermission } from '../../roleConfig';
 import CourtCard from '../../components/CourtCard';
 import RoundTimer from '../../components/RoundTimer';
 import BreakBanner from './BreakBanner';
+import RoundPicker from './RoundPicker';
 
 const SIDE_COLOR = '#475569';
 const SIDE_TEXT = '#ffffff';
@@ -23,9 +25,13 @@ export default function DoublesRRSection({
   onTimerToggle, onTimerRestart, onTimerSettings,
 }) {
   const canWrite = hasPermission(role, 'canSubmitResults');
-  const currentRoundIdx = history.length;
+  const currentRoundIdx = Math.min(history.length, Math.max(0, doublesRRSchedule.length - 1));
   const totalRounds = doublesRRSchedule.length;
-  const allDone = totalRounds > 0 && currentRoundIdx >= totalRounds;
+  const allDone = totalRounds > 0 && history.length >= totalRounds;
+  const [viewedRoundIdx, setViewedRoundIdx] = useState(currentRoundIdx);
+  const ri = Math.min(Math.max(0, viewedRoundIdx), Math.max(0, totalRounds - 1));
+  const viewedRound = doublesRRSchedule[ri];
+  const isViewingCurrent = ri === currentRoundIdx;
 
   const gamesComplete = (() => {
     if (allDone) return doublesRRSchedule.reduce((acc, r) => acc + r.courts.length, 0);
@@ -63,7 +69,7 @@ export default function DoublesRRSection({
             })}
           />
         ) : (
-          <CourtCard courtLabel={`Court ${courtLabel}`} teams={[sideA, sideB]} pendingResult={pendingResult} />
+          <DoublesRRGameRow courtLabel={`Court ${courtLabel}`} sideA={sideA} sideB={sideB} result={pendingResult} />
         )}
       </div>
     );
@@ -91,18 +97,22 @@ export default function DoublesRRSection({
         </p>
       </div>
 
-      {/* Current round */}
-      {!allDone && doublesRRSchedule[currentRoundIdx] && (
+      <RoundPicker totalRounds={totalRounds} currentRoundIdx={currentRoundIdx}
+        viewedRoundIdx={ri} onSelectRound={setViewedRoundIdx}
+        roundLabel={i => `Round ${i + 1}`} />
+
+      {/* Viewed round (defaults to the live round; browsing elsewhere doesn't affect play) */}
+      {viewedRound && (
         <div className="flex flex-col" style={{ gap: 'clamp(8px,2vw,12px)' }}>
           <span style={{ color: '#0f4c75', fontWeight: 800, fontSize: 'clamp(12px,3vw,15px)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Round {currentRoundIdx + 1}
+            Round {ri + 1}
           </span>
-          {doublesRRSchedule[currentRoundIdx].courts.map((court, ci) =>
-            renderCourtCard(court, ci, currentRoundIdx, true)
+          {viewedRound.courts.map((court, ci) =>
+            renderCourtCard(court, ci, ri, isViewingCurrent)
           )}
-          {doublesRRSchedule[currentRoundIdx].byePlayerIds?.length > 0 && (
+          {viewedRound.byePlayerIds?.length > 0 && (
             <div className="rounded-xl px-4 py-2" style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', fontSize: 'clamp(11px,2.5vw,13px)', color: '#64748b', fontWeight: 600 }}>
-              Bye: <span style={{ fontWeight: 800 }}>{sideLabel(doublesRRSchedule[currentRoundIdx].byePlayerIds, doublesRRPlayers)}</span>
+              Bye: <span style={{ fontWeight: 800 }}>{sideLabel(viewedRound.byePlayerIds, doublesRRPlayers)}</span>
             </div>
           )}
         </div>
@@ -150,6 +160,34 @@ export default function DoublesRRSection({
           ↩ Reset tournament…
         </button>
       )}
+    </div>
+  );
+}
+
+// Read-only row for courts the viewer can't (or shouldn't yet) submit results for —
+// mirrors CompletedGameRow in ThreePlayerSection.jsx. Never renders score-entry inputs.
+function DoublesRRGameRow({ courtLabel, sideA, sideB, result }) {
+  if (!result) {
+    return (
+      <div className="rounded-xl flex items-center" style={{ padding: 'clamp(8px,2vw,12px)', gap: 'clamp(6px,1.5vw,10px)', background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.07)' }}>
+        <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700, minWidth: 50 }}>{courtLabel}</span>
+        <span className="inline-flex items-center rounded-full font-bold" style={{ background: sideA.color, color: sideA.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)' }}>{sideA.name}</span>
+        <span style={{ color: '#cbd5e1', fontWeight: 700 }}>vs</span>
+        <span className="inline-flex items-center rounded-full font-bold" style={{ background: sideB.color, color: sideB.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)' }}>{sideB.name}</span>
+      </div>
+    );
+  }
+  const winner = result.winnerId === sideA.id ? sideA : sideB;
+  const loser  = result.winnerId === sideA.id ? sideB : sideA;
+  return (
+    <div className="rounded-xl flex items-center flex-wrap" style={{ padding: 'clamp(8px,2vw,12px)', gap: 'clamp(6px,1.5vw,10px)', background: '#f0fdf4', border: '1px solid rgba(34,197,94,0.25)' }}>
+      <span style={{ color: '#16a34a', fontSize: 'clamp(14px,3.5vw,18px)', flexShrink: 0 }}>✓</span>
+      <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700, minWidth: 50 }}>{courtLabel}</span>
+      <span className="inline-flex items-center rounded-full font-bold" style={{ background: winner.color, color: winner.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', whiteSpace: 'nowrap' }}>{winner.name}</span>
+      <span style={{ fontWeight: 900, color: '#1e293b', fontSize: 'clamp(13px,3vw,16px)' }}>{result.winnerScore}</span>
+      <span style={{ color: '#94a3b8' }}>–</span>
+      <span style={{ fontWeight: 900, color: '#1e293b', fontSize: 'clamp(13px,3vw,16px)' }}>{result.loserScore}</span>
+      <span className="inline-flex items-center rounded-full font-bold" style={{ background: loser.color, color: loser.text, padding: '3px 10px', fontSize: 'clamp(11px,2.8vw,14px)', whiteSpace: 'nowrap' }}>{loser.name}</span>
     </div>
   );
 }

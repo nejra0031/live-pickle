@@ -3,7 +3,7 @@ import { ALL_TEAMS } from '../constants';
 import EventDetailsFields from './EventDetailsFields';
 import PlayerNameField from '../components/PlayerNameField';
 import useKnownPlayers from '../hooks/useKnownPlayers';
-import { isValidDoublesRRPlayerCount, nearestValidDoublesRRPlayerCounts } from '../algorithms/doublesRR';
+import { isValidDoublesRRPlayerCount, nearestValidDoublesRRPlayerCounts, generateDoublesRRSchedule } from '../algorithms/doublesRR';
 import { generateRoundRobinSchedule } from '../algorithms/roundRobin';
 
 const PRESET = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
@@ -327,6 +327,12 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
   const doublesRRNamedPlayers = format === 'doublesrr' ? flatPlayers.filter(p => p.name.trim()) : [];
   const doublesRRCountValid = isValidDoublesRRPlayerCount(doublesRRNamedPlayers.length);
   const doublesRRSuggestion = !doublesRRCountValid ? nearestValidDoublesRRPlayerCounts(doublesRRNamedPlayers.length) : null;
+  // Actual physical-round count depends on courts (each logical round of partnerships
+  // is chunked into courts.length-sized physical rounds) — so derive it from the
+  // real schedule rather than a player-count-only formula.
+  const doublesRRPreviewSchedule = (doublesRRCountValid && courts.length >= 1)
+    ? generateDoublesRRSchedule(doublesRRNamedPlayers.map(p => p.id), courts.length)
+    : [];
 
   const canStart =
     format === 'singles'      ? (allTeamIds.length >= 3 && courts.length >= 1) :
@@ -623,9 +629,13 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
 
         {format === 'doublesrr' && doublesRRNamedPlayers.length > 0 && (
           doublesRRCountValid ? (
-            <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)', color: '#475569' }}>
-              🔁 Round Robin · {doublesRRNamedPlayers.length} players · {doublesRRNamedPlayers.length - 1} round{doublesRRNamedPlayers.length - 1 !== 1 ? 's' : ''} · everyone partners with everyone exactly once{timerEnabled ? ` · ${timerMins} min rounds` : ''}
-            </div>
+            doublesRRPreviewSchedule.length > 0 ? (
+              <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)', color: '#475569' }}>
+                🔁 Round Robin · {doublesRRNamedPlayers.length} players · {doublesRRPreviewSchedule.length} round{doublesRRPreviewSchedule.length !== 1 ? 's' : ''} · everyone partners with everyone exactly once{timerEnabled ? ` · ${timerMins} min rounds` : ''}
+              </div>
+            ) : (
+              <p className="text-slate-400 text-xs">Add courts to see the doubles round robin schedule preview.</p>
+            )
           ) : (
             <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.25)', color: '#92400e' }}>
               Doubles RR needs a player count where every round can split into complete 2v2 courts (N mod 4 is 0 or 1).

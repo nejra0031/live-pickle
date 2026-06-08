@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useTeamById } from '../../context/TeamRegistryContext';
 import CourtCard from '../../components/CourtCard';
 import RoundTimer from '../../components/RoundTimer';
 import { hasPermission } from '../../roleConfig';
 import BreakBanner from './BreakBanner';
 import SocialCourts from './SocialCourts';
+import RoundPicker from './RoundPicker';
 
 export default function RoundRobinSection({
   roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum,
@@ -20,6 +22,10 @@ export default function RoundRobinSection({
   const rrCourts = (roundRobinCourts && roundRobinCourts.length > 0) ? roundRobinCourts : courtNumbers;
   const completedCount = roundRobinSchedule.filter((_, i) => history.some(h => h.roundNum === (roundRobinStartRoundNum || 1) + i)).length;
   const allDone = completedCount === roundRobinSchedule.length && roundRobinSchedule.length > 0;
+  const currentRoundIdx = Math.min(completedCount, Math.max(0, roundRobinSchedule.length - 1));
+  const [viewedRoundIdx, setViewedRoundIdx] = useState(currentRoundIdx);
+  const srIdx = Math.min(Math.max(0, viewedRoundIdx), Math.max(0, roundRobinSchedule.length - 1));
+  const schedRound = roundRobinSchedule[srIdx];
 
   return (
     <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
@@ -38,12 +44,16 @@ export default function RoundRobinSection({
         </p>
       </div>
 
-      {roundRobinSchedule.map((schedRound, srIdx) => {
+      <RoundPicker totalRounds={roundRobinSchedule.length} currentRoundIdx={currentRoundIdx}
+        viewedRoundIdx={srIdx} onSelectRound={setViewedRoundIdx}
+        roundLabel={i => `Round ${(roundRobinStartRoundNum || 1) + i}`} />
+
+      {schedRound && (() => {
         const labelNum = (roundRobinStartRoundNum || 1) + srIdx;
         const committedEntry = history.find(h => h.roundNum === labelNum);
         const isComplete = !!committedEntry;
         return (
-          <div key={srIdx} className="flex flex-col"
+          <div className="flex flex-col"
             style={{ gap: 'clamp(8px,2vw,12px)', padding: 'clamp(10px,2.5vw,14px)', borderRadius: 14, background: isComplete ? 'rgba(34,197,94,0.05)' : 'rgba(0,0,0,0.02)', border: `1px solid ${isComplete ? 'rgba(34,197,94,0.25)' : 'rgba(0,0,0,0.08)'}` }}>
             <div className="flex items-center justify-between">
               <span style={{ color: isComplete ? '#16a34a' : '#0f4c75', fontWeight: 800, fontSize: 'clamp(12px,3vw,15px)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{isComplete ? '✓ ' : ''}Round {labelNum}</span>
@@ -116,7 +126,7 @@ export default function RoundRobinSection({
             })}
           </div>
         );
-      })}
+      })()}
 
       {allDone && isAdmin && (
         <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(12px,3vw,18px)', gap: 'clamp(8px,2vw,12px)', background: 'linear-gradient(135deg,#fef3c7,#fde68a)', border: '1px solid rgba(217,119,6,0.3)' }}>
