@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useTeamById, useTeamLabel } from '../../context/TeamRegistryContext';
 import CourtCard from '../../components/CourtCard';
 import MatchupVsBox from '../../components/MatchupVsBox';
@@ -6,7 +5,6 @@ import RoundTimer from '../../components/RoundTimer';
 import { hasPermission } from '../../roleConfig';
 import BreakBanner from './BreakBanner';
 import SocialCourts from './SocialCourts';
-import RoundPicker from './RoundPicker';
 
 export default function RoundRobinSection({
   roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum,
@@ -25,8 +23,7 @@ export default function RoundRobinSection({
   const completedCount = roundRobinSchedule.filter((_, i) => history.some(h => h.roundNum === (roundRobinStartRoundNum || 1) + i)).length;
   const allDone = completedCount === roundRobinSchedule.length && roundRobinSchedule.length > 0;
   const currentRoundIdx = Math.min(completedCount, Math.max(0, roundRobinSchedule.length - 1));
-  const [viewedRoundIdx, setViewedRoundIdx] = useState(currentRoundIdx);
-  const srIdx = Math.min(Math.max(0, viewedRoundIdx), Math.max(0, roundRobinSchedule.length - 1));
+  const srIdx = currentRoundIdx;
   const schedRound = roundRobinSchedule[srIdx];
 
   return (
@@ -45,10 +42,6 @@ export default function RoundRobinSection({
           {roundRobinSchedule.length} round{roundRobinSchedule.length !== 1 ? 's' : ''} · {roundRobinSchedule.reduce((a, r) => a + r.length, 0)} total matches · Courts: {rrCourts.join(', ')}. {completedCount}/{roundRobinSchedule.length} round{roundRobinSchedule.length !== 1 ? 's' : ''} complete.
         </p>
       </div>
-
-      <RoundPicker totalRounds={roundRobinSchedule.length} currentRoundIdx={currentRoundIdx}
-        viewedRoundIdx={srIdx} onSelectRound={setViewedRoundIdx}
-        roundLabel={i => `Round ${(roundRobinStartRoundNum || 1) + i}`} />
 
       {schedRound && (() => {
         const labelNum = (roundRobinStartRoundNum || 1) + srIdx;

@@ -1,15 +1,9 @@
-import { useState } from 'react';
 import { hasPermission } from '../../roleConfig';
 import CourtCard from '../../components/CourtCard';
 import MatchupVsBox from '../../components/MatchupVsBox';
 import RoundTimer from '../../components/RoundTimer';
 import BreakBanner from './BreakBanner';
-import RoundPicker from './RoundPicker';
 import { buildSidePresentation } from '../../algorithms/doublesRR';
-
-function sideLabel(playerIds, players) {
-  return playerIds.map(pid => players[pid]?.name ?? '?').join(' & ');
-}
 
 export default function DoublesRRSection({
   doublesRRPlayers, doublesRRSchedule, doublesRRResults, courtNumbers, history,
@@ -23,10 +17,7 @@ export default function DoublesRRSection({
   const currentRoundIdx = Math.min(history.length, Math.max(0, doublesRRSchedule.length - 1));
   const totalRounds = doublesRRSchedule.length;
   const allDone = totalRounds > 0 && history.length >= totalRounds;
-  const [viewedRoundIdx, setViewedRoundIdx] = useState(currentRoundIdx);
-  const ri = Math.min(Math.max(0, viewedRoundIdx), Math.max(0, totalRounds - 1));
-  const viewedRound = doublesRRSchedule[ri];
-  const isViewingCurrent = ri === currentRoundIdx;
+  const viewedRound = doublesRRSchedule[currentRoundIdx];
 
   const gamesComplete = (() => {
     if (allDone) return doublesRRSchedule.reduce((acc, r) => acc + r.courts.length, 0);
@@ -92,24 +83,27 @@ export default function DoublesRRSection({
         </p>
       </div>
 
-      <RoundPicker totalRounds={totalRounds} currentRoundIdx={currentRoundIdx}
-        viewedRoundIdx={ri} onSelectRound={setViewedRoundIdx}
-        roundLabel={i => `Round ${i + 1}`} />
-
-      {/* Viewed round (defaults to the live round; browsing elsewhere doesn't affect play) */}
+      {/* Active round only — no browsing other rounds here (see Matches tab) */}
       {viewedRound && (
         <div className="flex flex-col" style={{ gap: 'clamp(8px,2vw,12px)' }}>
           <span style={{ color: '#0f4c75', fontWeight: 800, fontSize: 'clamp(12px,3vw,15px)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Round {ri + 1}
+            Round {currentRoundIdx + 1}
           </span>
           {viewedRound.courts.map((court, ci) =>
-            renderCourtCard(court, ci, ri, isViewingCurrent)
+            renderCourtCard(court, ci, currentRoundIdx, true)
           )}
-          {viewedRound.byePlayerIds?.length > 0 && (
-            <div className="rounded-xl px-4 py-2" style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', fontSize: 'clamp(11px,2.5vw,13px)', color: '#64748b', fontWeight: 600 }}>
-              Bye: <span style={{ fontWeight: 800 }}>{sideLabel(viewedRound.byePlayerIds, doublesRRPlayers)}</span>
-            </div>
-          )}
+          {viewedRound.byePlayerIds?.length > 0 && (() => {
+            const byeSide = buildSidePresentation(viewedRound.byePlayerIds, doublesRRPlayers);
+            return (
+              <div className="rounded-xl px-4 py-2 flex items-center gap-2" style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', fontSize: 'clamp(11px,2.5vw,13px)', color: '#64748b', fontWeight: 600 }}>
+                <span>Bye:</span>
+                <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold"
+                  style={{ background: byeSide.chipBackground ?? byeSide.color, color: byeSide.text, border: '2px solid rgba(255,255,255,0.15)' }}>
+                  {byeSide.name}
+                </span>
+              </div>
+            );
+          })()}
         </div>
       )}
 

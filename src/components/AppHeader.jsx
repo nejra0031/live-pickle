@@ -1,7 +1,7 @@
 import { ROLES, ROLE_MAP } from '../roleConfig';
 import ballIcon from '/ball.png';
 
-const TABS = [['play', '🎾 Play'], ['standings', '🏆 Standings'], ['history', '📋 History']];
+const TABS = [['play', '🎾 Current round'], ['standings', '🏆 Standings'], ['history', '📋 Matches']];
 
 // Renders "📍 Location · 🗓 Sat Jun 13, 9:00 AM · ⏱ 4 hours" from whichever
 // event-detail fields are set — any subset may be blank.

@@ -1,10 +1,8 @@
-import { useState } from 'react';
 import { hasPermission } from '../../roleConfig';
 import CourtCard from '../../components/CourtCard';
 import MatchupVsBox from '../../components/MatchupVsBox';
 import RoundTimer from '../../components/RoundTimer';
 import BreakBanner from './BreakBanner';
-import RoundPicker from './RoundPicker';
 import { getTPTGamesForMatchup } from '../../algorithms/threePlayerTeam';
 
 function sideLabel(playerIds, players) {
@@ -28,10 +26,7 @@ export default function ThreePlayerSection({
   const currentRoundIdx = Math.min(history.length, Math.max(0, tptSchedule.length - 1));
   const totalRounds = tptSchedule.length;
   const allDone = totalRounds > 0 && history.length >= totalRounds;
-  const [viewedRoundIdx, setViewedRoundIdx] = useState(currentRoundIdx);
-  const ri = Math.min(Math.max(0, viewedRoundIdx), Math.max(0, totalRounds - 1));
-  const viewedRound = tptSchedule[ri];
-  const isViewingCurrent = ri === currentRoundIdx;
+  const viewedRound = tptSchedule[currentRoundIdx];
 
   const gamesComplete = (() => {
     if (allDone) return totalRounds * (tptSchedule[0]?.matchups?.length ?? 0) * 3;
@@ -124,22 +119,22 @@ export default function ThreePlayerSection({
         </p>
       </div>
 
-      <RoundPicker totalRounds={totalRounds} currentRoundIdx={currentRoundIdx}
-        viewedRoundIdx={ri} onSelectRound={setViewedRoundIdx}
-        roundLabel={i => `Round ${i + 1}`} />
-
-      {/* Viewed round (defaults to the live round; browsing elsewhere doesn't affect play) */}
+      {/* Active round only — no browsing other rounds here (see Matches tab) */}
       {viewedRound && (
         <div className="flex flex-col" style={{ gap: 'clamp(8px,2vw,12px)' }}>
           <span style={{ color: '#0f4c75', fontWeight: 800, fontSize: 'clamp(12px,3vw,15px)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Round {ri + 1}
+            Round {currentRoundIdx + 1}
           </span>
           {viewedRound.matchups.map((matchup, mi) =>
-            renderMatchupCard(matchup, mi, ri, isViewingCurrent)
+            renderMatchupCard(matchup, mi, currentRoundIdx, true)
           )}
           {viewedRound.byeTeamId && tptTeams[viewedRound.byeTeamId] && (
-            <div className="rounded-xl px-4 py-2" style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', fontSize: 'clamp(11px,2.5vw,13px)', color: '#64748b', fontWeight: 600 }}>
-              Bye: <span style={{ color: tptTeams[viewedRound.byeTeamId].color, fontWeight: 800 }}>{tptTeams[viewedRound.byeTeamId].name}</span>
+            <div className="rounded-xl px-4 py-2 flex items-center gap-2" style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', fontSize: 'clamp(11px,2.5vw,13px)', color: '#64748b', fontWeight: 600 }}>
+              <span>Bye:</span>
+              <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold"
+                style={{ background: tptTeams[viewedRound.byeTeamId].color, color: tptTeams[viewedRound.byeTeamId].text, border: '2px solid rgba(255,255,255,0.15)' }}>
+                {tptTeams[viewedRound.byeTeamId].name}
+              </span>
             </div>
           )}
         </div>

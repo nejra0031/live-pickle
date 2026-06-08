@@ -6,6 +6,9 @@ import { buildSidePresentation } from '../algorithms/doublesRR';
 
 export default function HistoryTab({
   history, activeTeamIds, cancelledRoundNums,
+  tournamentMode, courtNumbers = [],
+  roundRobinSchedule = [], roundRobinCourts = [], roundRobinStartRoundNum = null,
+  tptSchedule = [], doublesRRSchedule = [],
   roundRobinStartSnapshot, roundRobinEndSnapshot,
   canEditScores, canDeleteGame, canFullEdit,
   backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound, onRevertToBeginning, onEditCourtNumber,
@@ -128,9 +131,30 @@ export default function HistoryTab({
   const effectiveCancelled = cancelledRoundNums.filter(n => !committedNums.has(n));
   // Backups for rounds no longer in history — available after a partial revert
   const futureBackups = [...backupRoundNums].filter(n => !committedNums.has(n)).sort((a, b) => a - b);
+
+  // Predetermined-schedule modes: prefill not-yet-played rounds so the whole schedule is visible up front
+  const upcomingEntries = [];
+  if (tournamentMode === 'roundrobin' && roundRobinSchedule.length > 0) {
+    roundRobinSchedule.forEach((pairs, idx) => {
+      const roundNum = (roundRobinStartRoundNum || 1) + idx;
+      if (!committedNums.has(roundNum)) upcomingEntries.push({ type: 'upcoming', mode: 'roundrobin', roundNum, pairs });
+    });
+  } else if (tournamentMode === 'tpt' && tptSchedule.length > 0) {
+    tptSchedule.forEach((round, idx) => {
+      const roundNum = idx + 1;
+      if (!committedNums.has(roundNum)) upcomingEntries.push({ type: 'upcoming', mode: 'tpt', roundNum, round });
+    });
+  } else if (tournamentMode === 'doublesrr' && doublesRRSchedule.length > 0) {
+    doublesRRSchedule.forEach((round, idx) => {
+      const roundNum = idx + 1;
+      if (!committedNums.has(roundNum)) upcomingEntries.push({ type: 'upcoming', mode: 'doublesrr', roundNum, round });
+    });
+  }
+
   const allEntries = [
     ...sortedEntries,
-    ...effectiveCancelled.map(n => ({ type: 'cancelled', roundNum: n }))
+    ...effectiveCancelled.map(n => ({ type: 'cancelled', roundNum: n })),
+    ...upcomingEntries,
   ].sort((a, b) => {
     const an = a.type === 'round' ? a.h.roundNum : a.roundNum;
     const bn = b.type === 'round' ? b.h.roundNum : b.roundNum;
@@ -142,7 +166,7 @@ export default function HistoryTab({
 
   const displayEntries = newestFirst ? [...allEntries].reverse() : allEntries;
 
-  const isEmpty = history.length === 0 && !roundRobinStartSnapshot && !roundRobinEndSnapshot && cancelledRoundNums.length === 0;
+  const isEmpty = history.length === 0 && !roundRobinStartSnapshot && !roundRobinEndSnapshot && cancelledRoundNums.length === 0 && upcomingEntries.length === 0;
 
   const hasAnyHistory = history.length > 0 || cancelledRoundNums.length > 0 || !!roundRobinStartSnapshot;
 
@@ -198,6 +222,89 @@ export default function HistoryTab({
               <span style={{ fontSize: 'clamp(11px,2.5vw,14px)', color: '#dc2626', fontWeight: 700 }}>Round {entry.roundNum} cancelled</span>
             </div>
           );
+        }
+
+        if (entry.type === 'upcoming') {
+          const { mode, roundNum } = entry;
+          const header = (
+            <div className="flex items-center justify-between" style={{ padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)', background: 'rgba(0,0,0,0.03)', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+              <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Round {roundNum}</span>
+              <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Upcoming</span>
+            </div>
+          );
+          const wrap = children => (
+            <div key={`upcoming-${roundNum}`} className="rounded-2xl" style={{ background: '#fff', border: '1px dashed rgba(0,0,0,0.15)', overflow: 'hidden', opacity: 0.7 }}>
+              {header}
+              <div style={{ padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)', display: 'flex', flexDirection: 'column', gap: 'clamp(6px,1.5vw,10px)' }}>{children}</div>
+            </div>
+          );
+
+          if (mode === 'roundrobin') {
+            const rrCourts = (roundRobinCourts && roundRobinCourts.length > 0) ? roundRobinCourts : courtNumbers;
+            return wrap(entry.pairs.map(([idA, idB], mi) => {
+              const tA = teamById(idA), tB = teamById(idB);
+              if (!tA || !tB) return null;
+              return (
+                <div key={mi} className="flex items-center flex-wrap" style={{ gap: 'clamp(6px,1.5vw,10px)' }}>
+                  <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', fontWeight: 700, minWidth: 'clamp(48px,11vw,64px)' }}>Court {rrCourts[mi] ?? mi + 1}</span>
+                  {chip(tA.id, false)}
+                  <span style={{ color: '#cbd5e1', fontWeight: 700 }}>vs</span>
+                  {chip(tB.id, false)}
+                </div>
+              );
+            }));
+          }
+
+          if (mode === 'tpt') {
+            const round = entry.round;
+            const byeTeam = round.byeTeamId ? tptTeams[round.byeTeamId] : null;
+            return wrap(<>
+              {round.matchups.map((matchup, mi) => {
+                const teamA = tptTeams[matchup.teamAId];
+                const teamB = tptTeams[matchup.teamBId];
+                if (!teamA || !teamB) return null;
+                return (
+                  <div key={mi} className="flex items-center flex-wrap gap-2">
+                    <span className="inline-flex items-center rounded-full font-bold" style={{ background: teamA.color, color: teamA.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px' }}>{teamA.name}</span>
+                    <span style={{ color: '#cbd5e1', fontWeight: 700 }}>vs</span>
+                    <span className="inline-flex items-center rounded-full font-bold" style={{ background: teamB.color, color: teamB.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px' }}>{teamB.name}</span>
+                  </div>
+                );
+              })}
+              {byeTeam && (
+                <div className="flex items-center gap-2">
+                  <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700 }}>Bye:</span>
+                  <span className="inline-flex items-center rounded-full font-bold" style={{ background: byeTeam.color, color: byeTeam.text, fontSize: 'clamp(11px,3vw,14px)', padding: '2px 10px' }}>{byeTeam.name}</span>
+                </div>
+              )}
+            </>);
+          }
+
+          // doublesrr
+          const round = entry.round;
+          return wrap(<>
+            {round.courts.map((court, ci) => {
+              const sideA = buildSidePresentation(court.teamA, doublesRRPlayers);
+              const sideB = buildSidePresentation(court.teamB, doublesRRPlayers);
+              return (
+                <div key={ci} className="flex items-center flex-wrap" style={{ gap: 'clamp(6px,1.5vw,10px)' }}>
+                  <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#94a3b8', fontWeight: 700, minWidth: 'clamp(48px,11vw,64px)' }}>Court {ci + 1}</span>
+                  <span className="inline-flex items-center rounded-full font-bold" style={{ background: sideA.chipBackground ?? sideA.color, color: sideA.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px', whiteSpace: 'nowrap' }}>{sideA.name}</span>
+                  <span style={{ color: '#cbd5e1', fontWeight: 700 }}>vs</span>
+                  <span className="inline-flex items-center rounded-full font-bold" style={{ background: sideB.chipBackground ?? sideB.color, color: sideB.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px', whiteSpace: 'nowrap' }}>{sideB.name}</span>
+                </div>
+              );
+            })}
+            {round.byePlayerIds?.length > 0 && (() => {
+              const byeSide = buildSidePresentation(round.byePlayerIds, doublesRRPlayers);
+              return (
+                <div className="flex items-center gap-2">
+                  <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700 }}>Bye:</span>
+                  <span className="inline-flex items-center rounded-full font-bold" style={{ background: byeSide.chipBackground ?? byeSide.color, color: byeSide.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px', whiteSpace: 'nowrap' }}>{byeSide.name}</span>
+                </div>
+              );
+            })()}
+          </>);
         }
         const { h, ri } = entry;
         const isTPTRound = !!h.tptMatchups;
@@ -271,8 +378,6 @@ export default function HistoryTab({
         }
 
         if (isDoublesRRRound) {
-          const pName = id => doublesRRPlayers[id]?.name ?? '?';
-          const sideLabel = pids => (pids || []).filter(Boolean).map(pName).join(' & ');
           const sideChip = (pids, won) => {
             const side = buildSidePresentation(pids || [], doublesRRPlayers);
             return (
@@ -307,12 +412,18 @@ export default function HistoryTab({
                     </div>
                   );
                 })}
-                {h.bye?.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700 }}>Bye:</span>
-                    <span style={{ fontSize: 'clamp(11px,3vw,14px)', color: '#475569', fontWeight: 700 }}>{sideLabel(h.bye)}</span>
-                  </div>
-                )}
+                {h.bye?.length > 0 && (() => {
+                  const byeSide = buildSidePresentation(h.bye, doublesRRPlayers);
+                  return (
+                    <div className="flex items-center gap-2">
+                      <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 700 }}>Bye:</span>
+                      <span className="inline-flex items-center rounded-full font-bold"
+                        style={{ background: byeSide.chipBackground ?? byeSide.color, color: byeSide.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px', whiteSpace: 'nowrap' }}>
+                        {byeSide.name}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           );

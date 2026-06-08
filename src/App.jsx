@@ -891,8 +891,10 @@ export default function App({ viewerOnly = false }) {
               {activeTab === 'history' && (
                 <HistoryTab
                   history={history} activeTeamIds={activeTeamIds} cancelledRoundNums={cancelledRoundNums}
-                  tptTeams={tptTeams} tptPlayers={tptPlayers}
-                  doublesRRPlayers={doublesRRPlayers}
+                  tournamentMode={tournamentMode} courtNumbers={courtNumbers}
+                  tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule}
+                  doublesRRPlayers={doublesRRPlayers} doublesRRSchedule={doublesRRSchedule}
+                  roundRobinSchedule={roundRobinSchedule} roundRobinCourts={roundRobinCourts} roundRobinStartRoundNum={roundRobinStartRoundNum}
                   roundRobinStartSnapshot={roundRobinStartSnapshot} roundRobinEndSnapshot={roundRobinEndSnapshot}
                   canEditScores={hasPermission(role, 'canEditHistoryScores') || hasPermission(role, 'canFullEditHistory')}
                   canDeleteGame={hasPermission(role, 'canDeleteHistoryGame')}
