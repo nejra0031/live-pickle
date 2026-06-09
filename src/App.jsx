@@ -774,7 +774,8 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
   const handleResumeTournament = useCallback(() => {
     setTournamentFinished(false);
     gatedUpdate('canFinishTournament', { tournamentFinished: false });
-  }, [roleRef]);
+    if (clubId) writeTournamentMeta(clubId, tournamentIdRef.current, { status: 'active', top3: null });
+  }, [roleRef, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleContinueSwissAfterRR = useCallback(() => { doExitRoundRobin('completed'); }, [doExitRoundRobin]);
 
