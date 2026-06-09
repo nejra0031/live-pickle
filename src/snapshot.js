@@ -56,6 +56,7 @@ export function snapshotToState(s, derived = {}) {
   values.tournamentLocation = s.tournamentLocation || '';
   values.tournamentStartTime = s.tournamentStartTime || '';
   values.tournamentDurationMins = s.tournamentDurationMins || 0;
+  values.maxPlayers = s.maxPlayers || 0;
   return values;
 }
 
@@ -70,6 +71,7 @@ export function buildSnapshot(state, overrides = {}) {
     tournamentLocation:      state.tournamentLocation ?? '',
     tournamentStartTime:     state.tournamentStartTime ?? '',
     tournamentDurationMins:  state.tournamentDurationMins ?? 0,
+    maxPlayers:              state.maxPlayers ?? 0,
     timerDuration:           state.timerDuration,
     timerDefaultMins:        state.timerDefaultMins,
     history:                 state.history,

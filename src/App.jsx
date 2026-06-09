@@ -37,6 +37,7 @@ const TOURNAMENT_INITIAL = {
   tournamentLocation: '',
   tournamentStartTime: '',
   tournamentDurationMins: 0,
+  maxPlayers: 0,
   activeTeamIds: [],
   tournamentTeams: [],
   courtNumbers: [],
@@ -89,7 +90,7 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
   // ── Tournament data (single reducer; roundMgmtStateRef below == this state) ──
   const [tstate, dispatch] = useReducer(tournamentReducer, TOURNAMENT_INITIAL);
   const {
-    tournamentTitle, tournamentLocation, tournamentStartTime, tournamentDurationMins,
+    tournamentTitle, tournamentLocation, tournamentStartTime, tournamentDurationMins, maxPlayers,
     activeTeamIds, tournamentTeams, courtNumbers, timerDuration, timerDefaultMins,
     history, round, roundNum, pending, roundComplete, pausedIds, tournamentMode,
     roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot,
@@ -102,6 +103,7 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
   const setTournamentLocation      = useCallback(v => dispatch({ type: 'SET', key: 'tournamentLocation', value: v }), []);
   const setTournamentStartTime     = useCallback(v => dispatch({ type: 'SET', key: 'tournamentStartTime', value: v }), []);
   const setTournamentDurationMins  = useCallback(v => dispatch({ type: 'SET', key: 'tournamentDurationMins', value: v }), []);
+  const setMaxPlayers              = useCallback(v => dispatch({ type: 'SET', key: 'maxPlayers', value: v }), []);
   const setActiveTeamIds           = useCallback(v => dispatch({ type: 'SET', key: 'activeTeamIds', value: v }), []);
   const setTournamentTeams         = useCallback(v => dispatch({ type: 'SET', key: 'tournamentTeams', value: v }), []);
   const setCourtNumbers            = useCallback(v => dispatch({ type: 'SET', key: 'courtNumbers', value: v }), []);
@@ -354,7 +356,7 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     setTournamentTeams(allTeams); setModuleRegistry(allTeams);
     const resolvedTitle = title || 'Tournament';
     setTournamentTitle(resolvedTitle);
-    const { location = '', startTime = '', durationMins = 0 } = eventDetails;
+    const { location = '', startTime = '', durationMins = 0, maxPlayers: mp = 0 } = eventDetails;
     setTournamentLocation(location); setTournamentStartTime(startTime); setTournamentDurationMins(durationMins);
     const s = mkStandings(teamIds);
     const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
@@ -372,6 +374,7 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
       activeTeamIds: teamIds, courtNumbers: courts, socialCourts: [],
       tournamentTeams: allTeams, tournamentTitle: resolvedTitle,
       tournamentLocation: location, tournamentStartTime: startTime, tournamentDurationMins: durationMins,
+      maxPlayers: mp,
       timerDuration: durSecs, timerDefaultMins: durSecs > 0 ? Math.round(durSecs / 60) : 12,
       history: [], roundNum: startRoundNum, pausedIds: [], targetRounds: tr,
       tournamentMode: isRR ? 'roundrobin' : 'swiss',
@@ -384,7 +387,8 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     if (clubId) setActiveTournament(clubId, tid);
     pushSnapshot(snap, setFirebaseError); setRole('admin');
     onCreated?.(clubId, tid);
-    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: isRR ? 'roundrobin' : 'swiss', status: 'active', createdAt: Date.now(), teamCount: teamIds.length });
+    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: isRR ? 'roundrobin' : 'swiss', status: 'active', createdAt: Date.now(), teamCount: teamIds.length, maxPlayers: mp });
+    setMaxPlayers(mp);
     setActiveTeamIds(teamIds); setCourtNumbers(courts); setTimerDuration(durSecs);
     setStandings(s); setRound(null); setRoundNum(startRoundNum); setHistory([]);
     lastSeenRoundNum.current = startRoundNum; pendingRef.current = {}; setPending({}); setPausedIds([]); setRoundKey(0); setRoundComplete(false);
@@ -401,7 +405,7 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     tournamentIdRef, lastSeenRoundNum, pendingRef, roleRef,
     tptResultsRef, tptScheduleRef, tptRoundCompletingRef,
     setTPTTeams, setTPTPlayers, setTPTSchedule, setTPTResults,
-    setTournamentTitle, setTournamentLocation, setTournamentStartTime, setTournamentDurationMins,
+    setTournamentTitle, setTournamentLocation, setTournamentStartTime, setTournamentDurationMins, setMaxPlayers,
     setRole, setCourtNumbers, setTimerDuration,
     setHistory, setRoundNum, setActiveTeamIds, setStandings,
     setTournamentMode, setRound, setPausedIds, setPending, setRoundKey, setRoundComplete,
@@ -418,7 +422,7 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     tournamentIdRef, lastSeenRoundNum, pendingRef, roleRef,
     doublesRRPlayersRef, doublesRRResultsRef, doublesRRScheduleRef, doublesRRRoundCompletingRef,
     setDoublesRRPlayers, setDoublesRRSchedule, setDoublesRRResults,
-    setTournamentTitle, setTournamentLocation, setTournamentStartTime, setTournamentDurationMins,
+    setTournamentTitle, setTournamentLocation, setTournamentStartTime, setTournamentDurationMins, setMaxPlayers,
     setRole, setCourtNumbers, setTimerDuration,
     setHistory, setRoundNum, setActiveTeamIds, setStandings,
     setTournamentMode, setRound, setPausedIds, setPending, setRoundKey, setRoundComplete,
@@ -440,11 +444,11 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     gatedUpdate('canEditTeams', { standingsTiebreakOrder: order });
   }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleTournamentInfoSave = useCallback(({ title, location, startTime, durationMins }) => {
+  const handleTournamentInfoSave = useCallback(({ title, location, startTime, durationMins, maxPlayers: mp = 0 }) => {
     const t = title.trim() || 'Tournament';
     setTournamentTitle(t); setTournamentLocation(location);
-    setTournamentStartTime(startTime); setTournamentDurationMins(durationMins);
-    gatedUpdate('canEditTeams', { tournamentTitle: t, tournamentLocation: location, tournamentStartTime: startTime, tournamentDurationMins: durationMins });
+    setTournamentStartTime(startTime); setTournamentDurationMins(durationMins); setMaxPlayers(mp);
+    gatedUpdate('canEditTeams', { tournamentTitle: t, tournamentLocation: location, tournamentStartTime: startTime, tournamentDurationMins: durationMins, maxPlayers: mp });
   }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doRevertToRound = useCallback(async () => {
@@ -512,7 +516,7 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     setRoundRobinStartSnapshot(null); setRoundRobinEndSnapshot(null);
     setActiveRoundExtras([]); setLiveAdditions([]); setNextRoundPresets([]);
     setTournamentFinished(false); setBreakMode(null); setCancelledRoundNums([]); setSocialCourts([]);
-    setTournamentTitle('Tournament'); setTournamentLocation(''); setTournamentStartTime(''); setTournamentDurationMins(0);
+    setTournamentTitle('Tournament'); setTournamentLocation(''); setTournamentStartTime(''); setTournamentDurationMins(0); setMaxPlayers(0);
     setTPTTeams({}); setTPTPlayers({}); setTPTSchedule([]); setTPTResults({});
     tptResultsRef.current = {}; tptScheduleRef.current = []; tptRoundCompletingRef.current = false;
     setDoublesRRPlayers({}); setDoublesRRSchedule([]); setDoublesRRResults({});
@@ -817,7 +821,7 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
           doublesRRPlayers={doublesRRPlayers}
           doublesRRTiebreakOrder={doublesRRTiebreakOrder} onDoublesRRTiebreakOrderChange={handleDoublesRRTiebreakOrderChange}
           standingsTiebreakOrder={standingsTiebreakOrder} onStandingsTiebreakOrderChange={handleStandingsTiebreakOrderChange}
-          tournamentLocation={tournamentLocation} tournamentStartTime={tournamentStartTime} tournamentDurationMins={tournamentDurationMins}
+          tournamentLocation={tournamentLocation} tournamentStartTime={tournamentStartTime} tournamentDurationMins={tournamentDurationMins} maxPlayers={maxPlayers}
           onTournamentInfoSave={handleTournamentInfoSave}
           teamNameDisplay={teamNameDisplay} onTeamNameDisplayChange={handleTeamNameDisplayChange}
           clubId={clubId}

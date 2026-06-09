@@ -20,7 +20,7 @@ export function useTPTManagement({
   // TPT state setters
   setTPTTeams, setTPTPlayers, setTPTSchedule, setTPTResults,
   // App state setters
-  setTournamentTitle, setTournamentLocation, setTournamentStartTime, setTournamentDurationMins,
+  setTournamentTitle, setTournamentLocation, setTournamentStartTime, setTournamentDurationMins, setMaxPlayers,
   setRole, setCourtNumbers, setTimerDuration,
   setHistory, setRoundNum, setActiveTeamIds, setStandings,
   setTournamentMode, setRound, setPausedIds, setPending, setRoundKey, setRoundComplete,
@@ -40,12 +40,13 @@ export function useTPTManagement({
     const resolvedTitle = title || 'Tournament';
     setTournamentTitle(resolvedTitle);
     document.title = resolvedTitle;
-    const { location = '', startTime = '', durationMins = 0 } = eventDetails;
-    setTournamentLocation(location); setTournamentStartTime(startTime); setTournamentDurationMins(durationMins);
+    const { location = '', startTime = '', durationMins = 0, maxPlayers = 0 } = eventDetails;
+    setTournamentLocation(location); setTournamentStartTime(startTime); setTournamentDurationMins(durationMins); setMaxPlayers(maxPlayers);
     const snap = buildSnapshot({
       activeTeamIds: [], courtNumbers: courts, socialCourts: [],
       tournamentTeams: [], tournamentTitle: resolvedTitle,
       tournamentLocation: location, tournamentStartTime: startTime, tournamentDurationMins: durationMins,
+      maxPlayers,
       timerDuration: durSecs, timerDefaultMins: durSecs > 0 ? Math.round(durSecs / 60) : 12,
       history: [], roundNum: 0, pausedIds: [], targetRounds: 0, tournamentMode: 'tpt',
     }, {
@@ -54,7 +55,7 @@ export function useTPTManagement({
       tptSchedule: schedule, tptResults: {},
     });
     pushSnapshot(snap, onFirebaseError);
-    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: 'tpt', status: 'active', createdAt: Date.now(), teamCount: Object.keys(tptTeamsData).length });
+    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: 'tpt', status: 'active', createdAt: Date.now(), teamCount: Object.keys(playersData).length, maxPlayers });
     setTPTTeams(tptTeamsData); setTPTPlayers(playersData);
     setTPTSchedule(schedule); tptScheduleRef.current = schedule;
     setTPTResults({}); tptResultsRef.current = {};

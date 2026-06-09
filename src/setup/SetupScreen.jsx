@@ -190,6 +190,7 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
   const [location, setLocation] = useState('');
   const [startTime, setStartTime] = useState('');
   const [durationMins, setDurationMins] = useState(0);
+  const [maxPlayers, setMaxPlayers] = useState(0);
   const [courts, setCourts] = useState([]);
   const [courtInput, setCourtInput] = useState('');
   const [courtInputError, setCourtInputError] = useState('');
@@ -343,7 +344,7 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
 
   const handleStart = () => {
     if (!canStart) return;
-    const eventDetails = { location: location.trim(), startTime, durationMins };
+    const eventDetails = { location: location.trim(), startTime, durationMins, maxPlayers: maxPlayers || 0 };
     if (format === 'trio') {
       const tptTeams = {}, tptPlayersObj = {};
       trioReadyTeams.forEach(t => {
@@ -403,7 +404,8 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
 
           <EventDetailsFields location={location} setLocation={setLocation}
             startTime={startTime} setStartTime={setStartTime}
-            durationMins={durationMins} setDurationMins={setDurationMins} />
+            durationMins={durationMins} setDurationMins={setDurationMins}
+            maxPlayers={maxPlayers} setMaxPlayers={setMaxPlayers} />
 
           <button onClick={() => setStep(3)} type="button" style={{ ...nextBtnS, alignSelf: 'flex-end' }}>Next →</button>
         </div>

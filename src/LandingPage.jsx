@@ -46,7 +46,9 @@ function TournamentCard({ t, onClick }) {
             </span>
             {t.teamCount > 0 && (
               <span style={{ color: '#64748b', fontSize: 12 }}>
-                {t.teamCount} {t.mode === 'tpt' || t.mode === 'doublesrr' ? 'players' : 'teams'}
+                {t.mode === 'tpt' || t.mode === 'doublesrr'
+                  ? (t.maxPlayers > 0 ? `${t.teamCount} / ${t.maxPlayers} players` : `${t.teamCount} players`)
+                  : (t.maxPlayers > 0 ? `${t.teamCount} teams · max ${t.maxPlayers} players` : `${t.teamCount} teams`)}
               </span>
             )}
           </div>

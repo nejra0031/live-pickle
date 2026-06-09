@@ -11,7 +11,7 @@ function parseDT(v) {
   return { date, hour: isNaN(h) ? 8 : h, min: Math.round((isNaN(m) ? 0 : m) / 5) * 5 % 60 };
 }
 
-export default function EventDetailsFields({ location, setLocation, startTime, setStartTime, durationMins, setDurationMins }) {
+export default function EventDetailsFields({ location, setLocation, startTime, setStartTime, durationMins, setDurationMins, maxPlayers, setMaxPlayers }) {
   const { date, hour, min } = parseDT(startTime);
   const setDT = (d, h, m) => setStartTime(d ? `${d}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}` : '');
 
@@ -50,6 +50,15 @@ export default function EventDetailsFields({ location, setLocation, startTime, s
             onChange={e => setDurationMins(Math.max(0, Number(e.target.value) || 0))}
             placeholder="0" style={{ ...iS, width: 80, textAlign: 'center' }} />
           <span className="text-slate-600 text-sm">minutes</span>
+        </div>
+      </div>
+      <div>
+        <p className="text-sm font-bold text-slate-700 mb-1">Max. players</p>
+        <div className="flex items-center gap-2">
+          <input type="number" min={0} max={999} value={maxPlayers || ''}
+            onChange={e => setMaxPlayers(Math.max(0, Number(e.target.value) || 0))}
+            placeholder="0" style={{ ...iS, width: 80, textAlign: 'center' }} />
+          <span className="text-slate-600 text-sm">players</span>
         </div>
       </div>
     </div>

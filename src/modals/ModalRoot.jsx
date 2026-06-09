@@ -32,7 +32,7 @@ export default function ModalRoot({
   tptTeams, tptPlayers, tournamentTitle,
   doublesRRPlayers, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange,
   standingsTiebreakOrder, onStandingsTiebreakOrderChange,
-  tournamentLocation, tournamentStartTime, tournamentDurationMins, onTournamentInfoSave,
+  tournamentLocation, tournamentStartTime, tournamentDurationMins, maxPlayers, onTournamentInfoSave,
   teamNameDisplay, onTeamNameDisplayChange,
   clubId,
   // handlers
@@ -90,7 +90,7 @@ export default function ModalRoot({
         <TournamentSettingsModal
           role={role}
           tournamentTitle={tournamentTitle} tournamentLocation={tournamentLocation}
-          tournamentStartTime={tournamentStartTime} tournamentDurationMins={tournamentDurationMins}
+          tournamentStartTime={tournamentStartTime} tournamentDurationMins={tournamentDurationMins} maxPlayers={maxPlayers}
           tournamentMode={tournamentMode}
           standingsTiebreakOrder={standingsTiebreakOrder} onStandingsTiebreakOrderChange={onStandingsTiebreakOrderChange}
           doublesRRTiebreakOrder={doublesRRTiebreakOrder} onDoublesRRTiebreakOrderChange={onDoublesRRTiebreakOrderChange}

@@ -69,7 +69,7 @@ function StartTimePicker({ startTime, setStartTime }) {
 
 export default function TournamentSettingsModal({
   role,
-  tournamentTitle, tournamentLocation, tournamentStartTime, tournamentDurationMins,
+  tournamentTitle, tournamentLocation, tournamentStartTime, tournamentDurationMins, maxPlayers: maxPlayersProp,
   tournamentMode,
   standingsTiebreakOrder, onStandingsTiebreakOrderChange,
   doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange,
@@ -97,6 +97,7 @@ export default function TournamentSettingsModal({
   const [location, setLocation] = useState(tournamentLocation || '');
   const [startTime, setStartTime] = useState(tournamentStartTime || '');
   const [durationMins, setDurationMins] = useState(tournamentDurationMins || 0);
+  const [maxPlayers, setMaxPlayers] = useState(maxPlayersProp || 0);
 
   // Teams state — swiss / rr
   const teamById = useTeamById();
@@ -140,7 +141,7 @@ export default function TournamentSettingsModal({
   const rrWarning = rrCourtCount > 0 && localCourts.filter((_, i) => !localSocial[i]).length < rrCourtCount;
 
   const handleSave = () => {
-    if (canEditEventInfo) onSaveInfo({ title, location, startTime, durationMins });
+    if (canEditEventInfo) onSaveInfo({ title, location, startTime, durationMins, maxPlayers });
     if (canEditTeams) {
       if (tournamentMode === 'tpt' && onManageTPTTeamsSave) {
         const newTeams = Object.fromEntries(localTPTTeams.map(t => [t.id, { ...t, name: t.name.trim() || t.id }]));
@@ -204,6 +205,14 @@ export default function TournamentSettingsModal({
                       onChange={e => setDurationMins(Math.max(0, Number(e.target.value) || 0))}
                       style={{ ...iS, width: 80, textAlign: 'center' }} />
                     <span style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600 }}>minutes</span>
+                  </div>
+                </div>
+                <div><FL>Max. players</FL>
+                  <div className="flex items-center gap-2">
+                    <input type="number" min={0} max={999} value={maxPlayers || ''} placeholder="0"
+                      onChange={e => setMaxPlayers(Math.max(0, Number(e.target.value) || 0))}
+                      style={{ ...iS, width: 80, textAlign: 'center' }} />
+                    <span style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600 }}>players</span>
                   </div>
                 </div>
               </div>
