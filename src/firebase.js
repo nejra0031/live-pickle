@@ -55,11 +55,11 @@ export const tournamentRef     = () => ref(db, activePaths().tournament);
 export const pendingResultsRef = () => ref(db, activePaths().tournament + '/pendingResults');
 export const presenceRef       = () => ref(db, activePaths().presence);
 
-// In TEST_MODE: reads the global config/adminPin_test (unchanged from before).
-// In prod: reads clubs/{clubId}/tournaments/{tid}/config/{leaf}.
+// PINs live at the global config/ node in both modes.
+// Per-tournament PINs can be wired up once a PIN-setup flow exists.
 export const rolePinRef = (leaf) => {
   if (TEST_MODE) return ref(db, `config/${leaf}_test`);
-  return ref(db, activePaths().config + '/' + leaf);
+  return ref(db, `config/${leaf}`);
 };
 
 // ── Club and user path helpers ─────────────────────────────────────────────
