@@ -100,7 +100,8 @@ export function useTPTManagement({
   const handleManageTPTTeamsSave = useCallback((newTPTTeams, newPlayers) => {
     setTPTTeams(newTPTTeams); setTPTPlayers(newPlayers); closeModal();
     pushAtomicUpdate({ tptTeams: newTPTTeams, players: newPlayers }, onFirebaseError);
-  }, [closeModal]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { teamCount: Object.keys(newPlayers).length });
+  }, [closeModal, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUndoTPTResult = useCallback((schedRoundIdx, matchupIdx, gameIdx) => {
     undoScheduledResult(roleRef, tptResultsRef, setTPTResults, 'tptResults', `${schedRoundIdx}_${matchupIdx}_${gameIdx}`, onFirebaseError);

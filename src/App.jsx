@@ -449,7 +449,8 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     setTournamentTitle(t); setTournamentLocation(location);
     setTournamentStartTime(startTime); setTournamentDurationMins(durationMins); setMaxPlayers(mp);
     gatedUpdate('canEditTeams', { tournamentTitle: t, tournamentLocation: location, tournamentStartTime: startTime, tournamentDurationMins: durationMins, maxPlayers: mp });
-  }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { title: t, maxPlayers: mp });
+  }, [roleRef, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doRevertToRound = useCallback(async () => {
     const target = modal.data?.roundNum;
@@ -584,7 +585,8 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     const ns = rebuildStandings(newActiveIds, history);
     setStandings(ns); closeModal();
     gatedUpdate('canEditTeams', { teamRegistry: newRegistry, activeTeamIds: newActiveIds });
-  }, [history, closeModal, roleRef]);
+    if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { teamCount: newActiveIds.length });
+  }, [history, closeModal, roleRef, clubId]);
 
   const handleTeamNameDisplayChange = useCallback(mode => {
     setTeamNameDisplay(mode);

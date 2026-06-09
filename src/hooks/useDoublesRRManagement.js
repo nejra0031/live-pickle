@@ -124,7 +124,8 @@ export function useDoublesRRManagement({
   const handleManageDoublesRRPlayersSave = useCallback((newPlayers) => {
     setDoublesRRPlayers(newPlayers); doublesRRPlayersRef.current = newPlayers; closeModal();
     pushAtomicUpdate({ doublesRRPlayers: newPlayers }, onFirebaseError);
-  }, [closeModal]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { teamCount: Object.keys(newPlayers).length });
+  }, [closeModal, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUndoDoublesRRResult = useCallback((roundIdx, courtIdx) => {
     undoScheduledResult(roleRef, doublesRRResultsRef, setDoublesRRResults, 'doublesRRResults', `${roundIdx}_${courtIdx}`, onFirebaseError);
