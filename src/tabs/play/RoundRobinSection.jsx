@@ -13,7 +13,7 @@ export default function RoundRobinSection({
   isAdmin,
   onRRMatchResult, rrMatchKey,
   onContinueSwissAfterRR, onExitRoundRobin, onSelectRRTeams, onGenerateAdditionalGames,
-  onFinishTournament, onBreakEnd, onBreakStart, onReset, onManageCourts,
+  onFinishTournament, onBreakEnd, onBreakStart, onReset, onManageCourts, onTournamentSettings,
   onTimerToggle, onTimerRestart, onTimerSettings,
 }) {
   const teamById = useTeamById();
@@ -125,7 +125,7 @@ export default function RoundRobinSection({
       {hasPermission(role, 'canSwitchTournamentMode') && !allDone && <button onClick={() => onExitRoundRobin()} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(0,0,0,0.05)', color: '#475569', border: '1px solid rgba(0,0,0,0.1)' }}>↩ Exit Round Robin (back to Swiss)</button>}
       {isAdmin && !allDone && <button onClick={onFinishTournament} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'linear-gradient(90deg,#d97706,#f59e0b)', color: '#fff', border: 'none' }}>🏁 Finish Tournament</button>}
       {isAdmin && <button onClick={onBreakStart} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(217,119,6,0.1)', color: '#92400e', border: '1px solid rgba(217,119,6,0.3)' }}>☕ Pause Tournament (Break)</button>}
-      {isAdmin && <button onClick={onReset} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 12, textDecoration: 'underline' }}>↩ Reset tournament…</button>}
+      {isAdmin && <button onClick={onTournamentSettings} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 12, textDecoration: 'underline' }}>Tournament settings…</button>}
       {isAdmin && <button onClick={onManageCourts} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#6366f1', fontSize: 12, textDecoration: 'underline' }}>🏟️ Manage courts (rename)</button>}
     </div>
   );

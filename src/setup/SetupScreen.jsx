@@ -351,9 +351,9 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
         const female = t.players.find(s => s.gender === 'F');
         const m1id = uid(), m2id = uid(), fid = uid();
         tptTeams[t.id] = { id: t.id, name: t.name.trim(), color: t.color, text: t.text, maleIds: [m1id, m2id], femaleId: fid };
-        tptPlayersObj[m1id] = { id: m1id, name: males[0].name.trim(), duprId: males[0].duprId.trim(), teamId: t.id, gender: 'male' };
-        tptPlayersObj[m2id] = { id: m2id, name: males[1].name.trim(), duprId: males[1].duprId.trim(), teamId: t.id, gender: 'male' };
-        tptPlayersObj[fid]  = { id: fid,  name: female.name.trim(),   duprId: female.duprId.trim(),   teamId: t.id, gender: 'female' };
+        tptPlayersObj[m1id] = { id: m1id, name: males[0].name.trim(), duprId: males[0].duprId.trim(), nickname: (males[0].nickname || '').trim(), teamId: t.id, gender: 'male' };
+        tptPlayersObj[m2id] = { id: m2id, name: males[1].name.trim(), duprId: males[1].duprId.trim(), nickname: (males[1].nickname || '').trim(), teamId: t.id, gender: 'male' };
+        tptPlayersObj[fid]  = { id: fid,  name: female.name.trim(),   duprId: female.duprId.trim(),   nickname: (female.nickname  || '').trim(), teamId: t.id, gender: 'female' };
         [...males, female].forEach(s => saveKnownPlayer(s.name, s.duprId, s.nickname));
       });
       onStartTPT(tptTeams, tptPlayersObj, courts, timerEnabled ? timerMins * 60 : 0, title.trim() || 'Tournament', eventDetails);

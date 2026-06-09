@@ -10,7 +10,7 @@ export default function DoublesRRSection({
   role, isAdmin,
   timerDuration, timerSecsLeft, timerRunning, breakMode,
   onDoublesRRResult, onGenerateAdditionalGames, onFinishTournament, onBreakStart, onBreakEnd,
-  onManageTeams, onManageCourts, onReset,
+  onManageTeams, onManageCourts, onReset, onTournamentSettings,
   onTimerToggle, onTimerRestart, onTimerSettings,
 }) {
   const canWrite = hasPermission(role, 'canSubmitResults');
@@ -150,8 +150,8 @@ export default function DoublesRRSection({
         </button>
       )}
       {isAdmin && (
-        <button onClick={onReset} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 12, textDecoration: 'underline' }}>
-          ↩ Reset tournament…
+        <button onClick={onTournamentSettings} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 12, textDecoration: 'underline' }}>
+          Tournament settings…
         </button>
       )}
     </div>

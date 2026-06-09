@@ -1,42 +1,5 @@
 import { ORDINAL } from '../constants';
-
-const CRITERION_LABELS = { wins: 'Wins', scoreDiff: 'Score Differential', headToHead: 'Head-to-head' };
-
-function TiebreakOrderEditor({ order, onChange }) {
-  const move = (i, dir) => {
-    const j = i + dir;
-    if (j < 0 || j >= order.length) return;
-    const next = [...order];
-    [next[i], next[j]] = [next[j], next[i]];
-    onChange(next);
-  };
-
-  return (
-    <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(6px,1.5vw,10px)', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)' }}>
-      <p style={{ color: '#4338ca', fontWeight: 800, fontSize: 'clamp(11px,2.5vw,13px)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        Ranking order (highest priority first)
-      </p>
-      <div className="flex flex-col" style={{ gap: 6 }}>
-        {order.map((criterion, i) => (
-          <div key={criterion} className="flex items-center" style={{ gap: 8 }}>
-            <span className="font-black text-slate-500" style={{ width: 22, fontSize: 13 }}>{i + 1}.</span>
-            <span className="flex-1 font-semibold" style={{ color: '#334155', fontSize: 'clamp(12px,3vw,14px)' }}>
-              {CRITERION_LABELS[criterion] || criterion}
-            </span>
-            <button onClick={() => move(i, -1)} disabled={i === 0}
-              style={{ width: 28, height: 28, borderRadius: 8, fontWeight: 700, cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.35 : 1, background: 'rgba(99,102,241,0.1)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
-              ↑
-            </button>
-            <button onClick={() => move(i, 1)} disabled={i === order.length - 1}
-              style={{ width: 28, height: 28, borderRadius: 8, fontWeight: 700, cursor: i === order.length - 1 ? 'default' : 'pointer', opacity: i === order.length - 1 ? 0.35 : 1, background: 'rgba(99,102,241,0.1)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
-              ↓
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
 
 export default function DoublesRRStandingsTab({ doublesRRStandings, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange, isAdmin }) {
   if (!doublesRRStandings || doublesRRStandings.length === 0) {
@@ -48,7 +11,12 @@ export default function DoublesRRStandingsTab({ doublesRRStandings, doublesRRTie
   return (
     <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
       {isAdmin && onDoublesRRTiebreakOrderChange && (
-        <TiebreakOrderEditor order={doublesRRTiebreakOrder} onChange={onDoublesRRTiebreakOrderChange} />
+        <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(6px,1.5vw,10px)', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)' }}>
+          <p style={{ color: '#4338ca', fontWeight: 800, fontSize: 'clamp(11px,2.5vw,13px)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Ranking order (highest priority first)
+          </p>
+          <TiebreakOrderEditor order={doublesRRTiebreakOrder} onChange={onDoublesRRTiebreakOrderChange} />
+        </div>
       )}
 
       <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}>

@@ -2,10 +2,10 @@ import { useMemo, useState } from 'react';
 import { buildTPTStandings } from '../algorithms/threePlayerTeam';
 import { ORDINAL } from '../constants';
 
-export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSchedule, tptResults }) {
+export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder }) {
   const { teamStandings, playerStandings, partnershipStandings } = useMemo(
-    () => buildTPTStandings(tptTeams, tptPlayers, tptSchedule, tptResults),
-    [tptTeams, tptPlayers, tptSchedule, tptResults]
+    () => buildTPTStandings(tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder),
+    [tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder]
   );
   const [openIds, setOpenIds] = useState(new Set());
   const toggle = id => setOpenIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -49,14 +49,11 @@ export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSched
               <span className="font-black text-slate-500" style={{ width: colW.rank, fontSize: 'clamp(14px,3.5vw,22px)', flexShrink: 0 }}>
                 {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : ORDINAL(i + 1)}
               </span>
-              <div className="flex-1 min-w-0 flex items-center gap-2">
+              <div className="flex-1 min-w-0">
                 <span className="inline-flex items-center rounded-full font-black"
                   style={{ background: team.color, color: team.text, fontSize: 'clamp(13px,3.5vw,20px)', padding: 'clamp(4px,1vw,8px) clamp(10px,2.5vw,18px)', border: '2px solid rgba(255,255,255,0.25)', boxShadow: `0 2px 8px ${team.color}44` }}>
                   {team.name}
                 </span>
-                {hasDetails && (
-                  <span style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#94a3b8', flexShrink: 0, transition: 'transform 0.15s', display: 'inline-block', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
-                )}
               </div>
               <span style={{ width: colW.stat, textAlign: 'center', color: '#475569', fontSize: 'clamp(14px,3.5vw,22px)', fontWeight: 700, flexShrink: 0 }}>{team.played}</span>
               <span style={{ width: colW.stat, textAlign: 'center', color: '#16a34a', fontWeight: 900, fontSize: 'clamp(16px,4vw,24px)', flexShrink: 0 }}>{team.wins}</span>
@@ -70,7 +67,7 @@ export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSched
                 <div style={{ background: partBg, borderTop: '1px solid rgba(0,0,0,0.05)', padding: `clamp(4px,1vw,6px) ${pad} clamp(8px,2vw,12px)` }}>
                   {partnerships.map((p, pi) => {
                     const pd = p.scoreDiff;
-                    const names = p.playerIds.map(id => tptPlayers[id]?.name ?? id).join(' & ');
+                    const names = p.playerIds.map(id => { const pl = tptPlayers[id]; return pl ? (pl.nickname || pl.name) : id; }).join(' & ');
                     const icon = p.type === 'males' ? '♂♂' : '♂♀';
                     const iconColor = p.type === 'males' ? '#1d4ed8' : '#7c3aed';
                     return (

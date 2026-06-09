@@ -25,6 +25,7 @@ export default function PlayTab(props) {
         onTPTResult={props.onTPTResult}
         onFinishTournament={props.onFinishTournament} onBreakStart={props.onBreakStart} onBreakEnd={props.onBreakEnd}
         onManageTeams={props.onManageTeams} onManageCourts={props.onManageCourts} onReset={props.onReset}
+        onTournamentSettings={props.onTournamentSettings}
         onTimerToggle={props.onTimerToggle} onTimerRestart={props.onTimerRestart} onTimerSettings={props.onTimerSettings}
       />
     );
@@ -43,6 +44,7 @@ export default function PlayTab(props) {
         onGenerateAdditionalGames={props.onGenerateAdditionalGames}
         onFinishTournament={props.onFinishTournament} onBreakStart={props.onBreakStart} onBreakEnd={props.onBreakEnd}
         onManageTeams={props.onManageTeams} onManageCourts={props.onManageCourts} onReset={props.onReset}
+        onTournamentSettings={props.onTournamentSettings}
         onTimerToggle={props.onTimerToggle} onTimerRestart={props.onTimerRestart} onTimerSettings={props.onTimerSettings}
       />
     );

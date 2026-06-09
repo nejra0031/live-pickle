@@ -6,20 +6,16 @@ import BreakBanner from './BreakBanner';
 import { getTPTGamesForMatchup } from '../../algorithms/threePlayerTeam';
 
 function sideLabel(playerIds, players) {
-  return playerIds.map(pid => players[pid]?.name ?? '?').join(' & ');
+  return playerIds.map(pid => { const p = players[pid]; return p ? (p.nickname || p.name) : '?'; }).join(' & ');
 }
 
-function GameLabel({ type, idx }) {
-  if (type === 'males_doubles') return <span style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Males doubles</span>;
-  return <span style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, color: '#be185d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mixed doubles {idx === 1 ? '#1' : '#2'}</span>;
-}
 
 export default function ThreePlayerSection({
   tptTeams, tptPlayers, tptSchedule, tptResults, courtNumbers, history,
   role, isAdmin,
   timerDuration, timerSecsLeft, timerRunning, breakMode,
   onTPTResult, onFinishTournament, onBreakStart, onBreakEnd,
-  onManageTeams, onManageCourts, onReset,
+  onManageTeams, onManageCourts, onReset, onTournamentSettings,
   onTimerToggle, onTimerRestart, onTimerSettings,
 }) {
   const canWrite = hasPermission(role, 'canSubmitResults');
@@ -77,9 +73,6 @@ export default function ThreePlayerSection({
 
           return (
             <div key={key}>
-              <div className="mb-1 px-1">
-                <GameLabel type={game.type} idx={gi} />
-              </div>
               {pendingResult || (isCurrentRound && canWrite) ? (
                 <CourtCard
                   courtLabel={game.label}
@@ -179,8 +172,8 @@ export default function ThreePlayerSection({
         </button>
       )}
       {isAdmin && (
-        <button onClick={onReset} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 12, textDecoration: 'underline' }}>
-          ↩ Reset tournament…
+        <button onClick={onTournamentSettings} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 12, textDecoration: 'underline' }}>
+          Tournament settings…
         </button>
       )}
     </div>

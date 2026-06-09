@@ -7,7 +7,7 @@ export default function ManageTPTTeamsModal({ tptTeams, tptPlayers, onSave, onCl
     Object.values(tptTeams).map(t => ({ ...t }))
   );
   const [localPlayers, setLocalPlayers] = useState(
-    Object.fromEntries(Object.entries(tptPlayers).map(([id, p]) => [id, { duprId: '', ...p }]))
+    Object.fromEntries(Object.entries(tptPlayers).map(([id, p]) => [id, { duprId: '', nickname: '', ...p }]))
   );
   const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
 
@@ -15,14 +15,14 @@ export default function ManageTPTTeamsModal({ tptTeams, tptPlayers, onSave, onCl
     setLocalTeams(p => p.map(t => t.id === teamId ? { ...t, name } : t));
 
   const updatePlayer = (playerId, val) =>
-    setLocalPlayers(p => ({ ...p, [playerId]: { ...p[playerId], name: val.name, duprId: val.duprId } }));
+    setLocalPlayers(p => ({ ...p, [playerId]: { ...p[playerId], name: val.name, duprId: val.duprId, nickname: val.nickname ?? p[playerId].nickname } }));
 
   const save = () => {
     const newTeams = Object.fromEntries(localTeams.map(t => [t.id, { ...t, name: t.name.trim() || t.id }]));
     const newPlayers = Object.fromEntries(
-      Object.entries(localPlayers).map(([id, p]) => [id, { ...p, name: p.name.trim() || id, duprId: (p.duprId || '').trim() }])
+      Object.entries(localPlayers).map(([id, p]) => [id, { ...p, name: p.name.trim() || id, duprId: (p.duprId || '').trim(), nickname: (p.nickname || '').trim() }])
     );
-    Object.values(newPlayers).forEach(p => saveKnownPlayer(p.name, p.duprId));
+    Object.values(newPlayers).forEach(p => saveKnownPlayer(p.name, p.duprId, p.nickname));
     onSave(newTeams, newPlayers);
   };
 
@@ -54,8 +54,8 @@ export default function ManageTPTTeamsModal({ tptTeams, tptPlayers, onSave, onCl
                       {p.gender === 'female' ? '♀' : '♂'}
                     </span>
                     <div style={{ flex: 1 }}>
-                      <PlayerNameField name={p.name} duprId={p.duprId || ''} knownPlayers={knownPlayers}
-                        onChange={val => updatePlayer(p.id, val)} inputStyle={iS} duprIdStyle={{ ...iS, fontSize: 12 }} />
+                      <PlayerNameField name={p.name} duprId={p.duprId || ''} nickname={p.nickname || ''} knownPlayers={knownPlayers}
+                        onChange={val => updatePlayer(p.id, val)} inputStyle={iS} />
                     </div>
                   </div>
                 ))}

@@ -5,12 +5,13 @@ import DoublesRRStandingsTab from './DoublesRRStandingsTab';
 
 export default function StandingsTab({
   ranked, pausedIds, tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults,
-  doublesRRPlayers, doublesRRStandings, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange, isAdmin,
+  doublesRRPlayers, doublesRRStandings, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange,
+  standingsTiebreakOrder, isAdmin,
 }) {
   const teamLabel = useTeamLabel();
 
   if (tournamentMode === 'tpt') {
-    return <ThreePlayerStandingsTab tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults} />;
+    return <ThreePlayerStandingsTab tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults} tiebreakOrder={standingsTiebreakOrder} />;
   }
 
   if (tournamentMode === 'doublesrr') {

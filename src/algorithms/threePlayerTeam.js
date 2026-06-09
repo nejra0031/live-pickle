@@ -36,13 +36,13 @@ export function getTPTGamesForMatchup(teamA, teamB) {
     },
     {
       type: 'mixed_a',
-      label: 'Mixed doubles',
+      label: 'Mixed doubles #1',
       sideA: [teamA.maleIds[0], teamA.femaleId],
       sideB: [teamB.maleIds[0], teamB.femaleId],
     },
     {
       type: 'mixed_b',
-      label: 'Mixed doubles',
+      label: 'Mixed doubles #2',
       sideA: [teamA.maleIds[1], teamA.femaleId],
       sideB: [teamB.maleIds[1], teamB.femaleId],
     },
@@ -51,9 +51,10 @@ export function getTPTGamesForMatchup(teamA, teamB) {
 
 // Builds team and player standings from committed results.
 // Returns { teamStandings, playerStandings }
-// teamStandings: [{ id, name, color, text, wins, losses, scoreDiff, played }] sorted wins DESC, diff DESC
+// teamStandings: [{ id, name, color, text, wins, losses, scoreDiff, played }] sorted by tiebreakOrder
 // playerStandings: { [teamId]: [{ id, name, gender, wins, losses, scoreDiff, played }] }
-export function buildTPTStandings(tptTeams, players, tptSchedule, tptResults) {
+export function buildTPTStandings(tptTeams, players, tptSchedule, tptResults, tiebreakOrder) {
+  const criteria = (tiebreakOrder && tiebreakOrder.length) ? tiebreakOrder : ['wins', 'scoreDiff'];
   const teamMap = {};
   const playerMap = {};
   const partnershipMap = {}; // key: sorted pids joined by '_'
@@ -63,7 +64,7 @@ export function buildTPTStandings(tptTeams, players, tptSchedule, tptResults) {
     const pids = [...(team.maleIds || []), team.femaleId].filter(Boolean);
     pids.forEach(pid => {
       const p = players[pid];
-      if (p) playerMap[pid] = { id: pid, name: p.name, gender: p.gender, teamId: team.id, wins: 0, losses: 0, scoreDiff: 0, played: 0 };
+      if (p) playerMap[pid] = { id: pid, name: p.nickname || p.name, gender: p.gender, teamId: team.id, wins: 0, losses: 0, scoreDiff: 0, played: 0 };
     });
     const [m1, m2] = (team.maleIds || []).filter(Boolean);
     const f = team.femaleId;
@@ -115,9 +116,45 @@ export function buildTPTStandings(tptTeams, players, tptSchedule, tptResults) {
     if (partnershipMap[lk]) { partnershipMap[lk].losses++; partnershipMap[lk].scoreDiff -= diff; partnershipMap[lk].played++; }
   });
 
-  const teamStandings = Object.values(teamMap).sort((a, b) =>
-    b.wins !== a.wins ? b.wins - a.wins : b.scoreDiff - a.scoreDiff
-  );
+  // Build H2H matchup-win map when needed.
+  // A team wins a head-to-head matchup by winning 2 of the 3 individual games.
+  let h2h = null;
+  if (criteria.includes('headToHead')) {
+    h2h = {};
+    tptSchedule.forEach((round, ri) => {
+      (round.matchups || []).forEach((matchup, mi) => {
+        const { teamAId, teamBId } = matchup;
+        let aWins = 0, bWins = 0, aScoreDiff = 0;
+        for (let gi = 0; gi < 3; gi++) {
+          const r = tptResults[`${ri}_${mi}_${gi}`];
+          if (!r) continue;
+          const diff = (r.winnerScore || 0) - (r.loserScore || 0);
+          if (r.winnerTeamId === teamAId) { aWins++; aScoreDiff += diff; }
+          else if (r.winnerTeamId === teamBId) { bWins++; aScoreDiff -= diff; }
+        }
+        if (aWins + bWins === 0) return;
+        const ak = `${teamAId}_${teamBId}`, bk = `${teamBId}_${teamAId}`;
+        if (!h2h[ak]) h2h[ak] = { wins: 0, scoreDiff: 0 };
+        if (!h2h[bk]) h2h[bk] = { wins: 0, scoreDiff: 0 };
+        if (aWins >= 2) { h2h[ak].wins++; h2h[ak].scoreDiff += aScoreDiff; h2h[bk].scoreDiff -= aScoreDiff; }
+        else if (bWins >= 2) { h2h[bk].wins++; h2h[bk].scoreDiff -= aScoreDiff; h2h[ak].scoreDiff += aScoreDiff; }
+      });
+    });
+  }
+
+  const teamStandings = Object.values(teamMap).sort((a, b) => {
+    for (const c of criteria) {
+      if (c === 'wins' && b.wins !== a.wins) return b.wins - a.wins;
+      if (c === 'scoreDiff' && b.scoreDiff !== a.scoreDiff) return b.scoreDiff - a.scoreDiff;
+      if (c === 'headToHead' && h2h) {
+        const as = h2h[`${a.id}_${b.id}`] || { wins: 0, scoreDiff: 0 };
+        const bs = h2h[`${b.id}_${a.id}`] || { wins: 0, scoreDiff: 0 };
+        if (as.wins !== bs.wins) return bs.wins - as.wins;
+        if (as.scoreDiff !== bs.scoreDiff) return bs.scoreDiff - as.scoreDiff;
+      }
+    }
+    return 0;
+  });
 
   const playerStandings = {};
   const partnershipStandings = {};

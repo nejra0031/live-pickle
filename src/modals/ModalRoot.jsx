@@ -18,6 +18,7 @@ import ManageDoublesRRPlayersModal from './ManageDoublesRRPlayersModal';
 import EditDoublesRRGameModal from './EditDoublesRRGameModal';
 import EditActiveCourtModal from './EditActiveCourtModal';
 import ExportDUPRModal from './ExportDUPRModal';
+import TournamentSettingsModal from './TournamentSettingsModal';
 
 // Renders whichever modal `modal.open` selects, plus the PIN-purpose title/check
 // derivation. All actions are passed in as handlers — no business logic lives here.
@@ -33,6 +34,8 @@ export default function ModalRoot({
   round, liveAdditions, nextRoundPresets, history, pending,
   tptTeams, tptPlayers, tournamentTitle,
   doublesRRPlayers, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange,
+  standingsTiebreakOrder, onStandingsTiebreakOrderChange,
+  tournamentLocation, tournamentStartTime, tournamentDurationMins, onTournamentInfoSave,
   teamNameDisplay, onTeamNameDisplayChange,
   // handlers
   onTogglePause, onManageTeamsSave, onManageTPTTeamsSave, onManageCourtsSave,
@@ -84,6 +87,20 @@ export default function ModalRoot({
       )}
       {modal.open === 'confirmRevertToBeginning' && (
         <ConfirmModal title="Revert to Beginning?" message="This will erase all completed rounds and return the tournament to its state before Round 1 was generated. Teams and courts will be kept. This cannot be undone." confirmLabel="Revert" onConfirm={doRevertToBeginning} onClose={closeModal} />
+      )}
+      {modal.open === 'tournamentSettings' && (
+        <TournamentSettingsModal
+          tournamentTitle={tournamentTitle} tournamentLocation={tournamentLocation}
+          tournamentStartTime={tournamentStartTime} tournamentDurationMins={tournamentDurationMins}
+          tournamentMode={tournamentMode}
+          standingsTiebreakOrder={standingsTiebreakOrder} onStandingsTiebreakOrderChange={onStandingsTiebreakOrderChange}
+          doublesRRTiebreakOrder={doublesRRTiebreakOrder} onDoublesRRTiebreakOrderChange={onDoublesRRTiebreakOrderChange}
+          onSaveInfo={onTournamentInfoSave}
+          onManageTeams={() => { closeModal(); openModal('manageTeams'); }}
+          onManageCourts={() => { closeModal(); openModal('manageCourts'); }}
+          onReset={() => { closeModal(); openModal('confirmReset'); }}
+          onClose={closeModal}
+        />
       )}
       {modal.open === 'break' && <BreakModal onStart={onBreakStart} onClose={closeModal} />}
       {modal.open === 'timerSettings' && <TimerSettingsModal currentMins={timerDefaultMins} onSave={onTimerSettingsSave} onClose={closeModal} />}

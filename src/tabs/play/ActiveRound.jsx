@@ -17,7 +17,7 @@ export default function ActiveRound({
   onResult, onLiveResult, onUndoResult, onUndoLiveResult,
   onEditActiveCourt, onRemoveActiveCourt, onEditLive, onRemoveLive,
   onRegenerateRound, onCancelRound, onLiveAddGame, onBreakStart, onBreakEnd,
-  onManageTeams, onManageCourts, onFinishTournament, onReset, onRemoveExtra,
+  onManageTeams, onManageCourts, onFinishTournament, onReset, onRemoveExtra, onTournamentSettings,
   isAdmin, isReferee,
 }) {
   const teamById  = useTeamById();
@@ -136,7 +136,7 @@ export default function ActiveRound({
               )}
 
               <button onClick={onFinishTournament} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: 'linear-gradient(90deg,#d97706,#f59e0b)', color: '#fff', border: 'none' }}>🏁 Finish Tournament</button>
-              <button onClick={onReset} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>↩ Reset tournament…</button>
+              <button onClick={onTournamentSettings} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>Tournament settings…</button>
             </div>
           )}
 

@@ -7,7 +7,7 @@ export default function BetweenRounds({
   isAdmin, isReferee, role, roundNum, finalRound, setFinalRound, targetRounds,
   nextRoundPresets, breakMode, socialCourts,
   onGenerateRound, onSelectRRTeams, onPresetMatch, onBreakStart, onBreakEnd,
-  onManageTeams, onManageCourts, onFinishTournament, onReset,
+  onManageTeams, onManageCourts, onFinishTournament, onReset, onTournamentSettings,
 }) {
   const teamById = useTeamById();
   const nextRN     = roundNum === 0 ? 1 : roundNum + 1;
@@ -70,7 +70,7 @@ export default function BetweenRounds({
           <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: (finalRound || isAutoFinal) ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
             {roundNum === 0 ? (isAutoFinal ? '🏁 Generate Final Round →' : 'Generate Round 1 →') : (finalRound || isAutoFinal) ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
           </button>
-          <button onClick={onReset} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>↩ Reset tournament…</button>
+          <button onClick={onTournamentSettings} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>Tournament settings…</button>
         </div>
 
       ) : isReferee ? (

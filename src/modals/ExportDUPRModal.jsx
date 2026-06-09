@@ -148,11 +148,18 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
 
             {incompleteTPTPlayers.map(p => {
               const ov = tptOverrides[p.id] || p;
+              const displayHint = p.nickname && p.nickname !== p.name ? ` (${p.nickname})` : '';
               return (
-                <div key={p.id} className="flex items-center gap-2">
-                  <span className="text-xs font-bold flex-1" style={{ color: '#e2e8f0' }}>{p.name || '(unnamed player)'}</span>
-                  <input value={ov.duprId || ''} placeholder="DUPR ID" style={{ ...fieldS, width: 110 }}
-                    onChange={e => updateTptOverride(p, { name: ov.name ?? p.name, duprId: e.target.value })} />
+                <div key={p.id} className="flex flex-col gap-1">
+                  <span className="text-xs font-bold" style={{ color: '#94a3b8' }}>
+                    {p.name || p.nickname || '(unnamed player)'}{displayHint && !p.name ? ` · nickname: ${p.nickname}` : ''}
+                  </span>
+                  <div className="flex gap-2">
+                    <input value={ov.name ?? p.name ?? ''} placeholder="Full legal name" style={{ ...fieldS, flex: 1 }}
+                      onChange={e => updateTptOverride(p, { name: e.target.value, duprId: ov.duprId ?? p.duprId ?? '' })} />
+                    <input value={ov.duprId ?? p.duprId ?? ''} placeholder="DUPR ID" style={{ ...fieldS, width: 110 }}
+                      onChange={e => updateTptOverride(p, { name: ov.name ?? p.name ?? '', duprId: e.target.value })} />
+                  </div>
                 </div>
               );
             })}
@@ -160,10 +167,16 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
             {incompleteDoublesRRPlayers.map(p => {
               const ov = doublesRROverrides[p.id] || p;
               return (
-                <div key={p.id} className="flex items-center gap-2">
-                  <span className="text-xs font-bold flex-1" style={{ color: '#e2e8f0' }}>{p.name || '(unnamed player)'}</span>
-                  <input value={ov.duprId || ''} placeholder="DUPR ID" style={{ ...fieldS, width: 110 }}
-                    onChange={e => updateDoublesRROverride(p, { name: ov.name ?? p.name, duprId: e.target.value })} />
+                <div key={p.id} className="flex flex-col gap-1">
+                  <span className="text-xs font-bold" style={{ color: '#94a3b8' }}>
+                    {p.name || p.nickname || '(unnamed player)'}{!p.name && p.nickname ? ` · nickname: ${p.nickname}` : ''}
+                  </span>
+                  <div className="flex gap-2">
+                    <input value={ov.name ?? p.name ?? ''} placeholder="Full legal name" style={{ ...fieldS, flex: 1 }}
+                      onChange={e => updateDoublesRROverride(p, { name: e.target.value, duprId: ov.duprId ?? p.duprId ?? '' })} />
+                    <input value={ov.duprId ?? p.duprId ?? ''} placeholder="DUPR ID" style={{ ...fieldS, width: 110 }}
+                      onChange={e => updateDoublesRROverride(p, { name: ov.name ?? p.name ?? '', duprId: e.target.value })} />
+                  </div>
                 </div>
               );
             })}

@@ -5,7 +5,7 @@ import { courtKey } from './constants';
 import { db, ref, set as fbSet, update as fbUpdate, onValue, off, get, pushSnapshot, pushAtomicUpdate, fetchBackup, clearBackups, tournamentRef } from './firebase';
 import { hasPermission } from './roleConfig';
 import { normaliseSnapshot } from './normalise';
-import { mkStandings, rerank, rebuildStandings } from './algorithms/standings';
+import { mkStandings, rerank, rebuildStandings, DEFAULT_STANDINGS_TIEBREAK_ORDER } from './algorithms/standings';
 import { buildSnapshot, snapshotToState } from './snapshot';
 import { reindexPendingAfterRemoval } from './pending';
 import { generateRound } from './algorithms/pairing';
@@ -63,6 +63,7 @@ const TOURNAMENT_INITIAL = {
   targetRounds: 0,
   socialCourts: [],
   teamNameDisplay: 'name',
+  standingsTiebreakOrder: ['wins', 'scoreDiff', 'headToHead'],
 };
 
 // SET applies one field; `value` may be a value or an updater fn (matching
@@ -93,7 +94,7 @@ export default function App({ viewerOnly = false }) {
     history, round, roundNum, pending, roundComplete, pausedIds, tournamentMode,
     roundRobinSchedule, roundRobinCourts, roundRobinStartRoundNum, roundRobinStartSnapshot,
     roundRobinEndSnapshot, activeRoundExtras, liveAdditions, nextRoundPresets, tournamentFinished,
-    cancelledRoundNums, finalRound, targetRounds, socialCourts, teamNameDisplay,
+    cancelledRoundNums, finalRound, targetRounds, socialCourts, teamNameDisplay, standingsTiebreakOrder,
   } = tstate;
 
   // Setter wrappers — keep every existing setX(...) call site byte-identical.
@@ -127,6 +128,7 @@ export default function App({ viewerOnly = false }) {
   const setTargetRounds            = useCallback(v => dispatch({ type: 'SET', key: 'targetRounds', value: v }), []);
   const setSocialCourts            = useCallback(v => dispatch({ type: 'SET', key: 'socialCourts', value: v }), []);
   const setTeamNameDisplay         = useCallback(v => dispatch({ type: 'SET', key: 'teamNameDisplay', value: v }), []);
+  const setStandingsTiebreakOrder  = useCallback(v => dispatch({ type: 'SET', key: 'standingsTiebreakOrder', value: v }), []);
 
   useEffect(() => { document.title = tournamentTitle; }, [tournamentTitle]);
   useEffect(() => { setModuleRegistry(tournamentTeams); }, [tournamentTeams]);
@@ -335,12 +337,12 @@ export default function App({ viewerOnly = false }) {
     setActiveTab(t => { const i = TAB_ORDER.indexOf(t); if (i === -1) return t; const ni = i + (dx < 0 ? 1 : -1); return TAB_ORDER[Math.max(0, Math.min(TAB_ORDER.length - 1, ni))]; });
   }, []);
 
-  const ranked = useMemo(() => rerank(standings), [standings]);
+  const ranked = useMemo(() => rerank(standings, standingsTiebreakOrder, history), [standings, standingsTiebreakOrder, history]);
 
   const tptTeamStandings = useMemo(() => {
     if (tournamentMode !== 'tpt' || Object.keys(tptTeams).length === 0) return [];
-    return buildTPTStandings(tptTeams, tptPlayers, tptSchedule, tptResults).teamStandings;
-  }, [tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults]);
+    return buildTPTStandings(tptTeams, tptPlayers, tptSchedule, tptResults, standingsTiebreakOrder).teamStandings;
+  }, [tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults, standingsTiebreakOrder]);
 
   const doublesRRStandings = useMemo(() => {
     if (tournamentMode !== 'doublesrr' || Object.keys(doublesRRPlayers).length === 0) return [];
@@ -425,6 +427,18 @@ export default function App({ viewerOnly = false }) {
   const handleDoublesRRTiebreakOrderChange = useCallback((order) => {
     setDoublesRRTiebreakOrder(order);
     gatedUpdate('canEditTeams', { doublesRRTiebreakOrder: order });
+  }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleStandingsTiebreakOrderChange = useCallback((order) => {
+    setStandingsTiebreakOrder(order);
+    gatedUpdate('canEditTeams', { standingsTiebreakOrder: order });
+  }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTournamentInfoSave = useCallback(({ title, location, startTime, durationMins }) => {
+    const t = title.trim() || 'Tournament';
+    setTournamentTitle(t); setTournamentLocation(location);
+    setTournamentStartTime(startTime); setTournamentDurationMins(durationMins);
+    gatedUpdate('canEditTeams', { tournamentTitle: t, tournamentLocation: location, tournamentStartTime: startTime, tournamentDurationMins: durationMins });
   }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doRevertToRound = useCallback(async () => {
@@ -794,6 +808,9 @@ export default function App({ viewerOnly = false }) {
           tptTeams={tptTeams} tptPlayers={tptPlayers} tournamentTitle={tournamentTitle}
           doublesRRPlayers={doublesRRPlayers}
           doublesRRTiebreakOrder={doublesRRTiebreakOrder} onDoublesRRTiebreakOrderChange={handleDoublesRRTiebreakOrderChange}
+          standingsTiebreakOrder={standingsTiebreakOrder} onStandingsTiebreakOrderChange={handleStandingsTiebreakOrderChange}
+          tournamentLocation={tournamentLocation} tournamentStartTime={tournamentStartTime} tournamentDurationMins={tournamentDurationMins}
+          onTournamentInfoSave={handleTournamentInfoSave}
           teamNameDisplay={teamNameDisplay} onTeamNameDisplayChange={handleTeamNameDisplayChange}
           onTogglePause={handleTogglePause} onManageTeamsSave={handleManageTeamsSave}
           onManageTPTTeamsSave={handleManageTPTTeamsSave} onManageCourtsSave={handleManageCourtsSave}
@@ -879,6 +896,7 @@ export default function App({ viewerOnly = false }) {
                   onExitRoundRobin={(reason) => reason ? doExitRoundRobin(reason) : handleExitRoundRobin()}
                   onManageTeams={() => openModal('manageTeams')} onManageCourts={() => openModal('manageCourts')}
                   onReset={() => openModal('confirmReset')} onCancelRound={() => openModal('pin', { purpose: 'cancelRound' })}
+                  onTournamentSettings={() => openModal('tournamentSettings')}
                   rrMatchKey={rrMatchKey}
                 />
               )}
@@ -888,6 +906,7 @@ export default function App({ viewerOnly = false }) {
                   tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults}
                   doublesRRPlayers={doublesRRPlayers} doublesRRStandings={doublesRRStandings}
                   doublesRRTiebreakOrder={doublesRRTiebreakOrder} onDoublesRRTiebreakOrderChange={handleDoublesRRTiebreakOrderChange}
+                  standingsTiebreakOrder={standingsTiebreakOrder}
                   isAdmin={isAdmin}
                 />
               )}

@@ -342,7 +342,7 @@ export default function HistoryTab({
                   const teamB = tptTeams[matchup.teamBId];
                   if (!teamA || !teamB) return null;
                   const gameDefs = getTPTGamesForMatchup(teamA, teamB);
-                  const pName = id => tptPlayers[id]?.name ?? '?';
+                  const pName = id => { const p = tptPlayers[id]; return p ? (p.nickname || p.name) : '?'; };
                   const sideLabel = pids => pids.filter(Boolean).map(pName).join(' & ');
                   const sideChip = (pids, team, won) => (
                     <span className="inline-flex items-center rounded-full font-bold"
