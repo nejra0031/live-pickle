@@ -299,7 +299,7 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
     : [];
 
   const trioMinCourts = Math.max(1, Math.floor(trioReadyTeams.length / 2));
-  const trioTotalRounds = trioReadyTeams.length >= 2 ? trioReadyTeams.length - 1 : 0;
+  const trioTotalRounds = trioReadyTeams.length >= 2 ? (trioReadyTeams.length % 2 === 0 ? trioReadyTeams.length - 1 : trioReadyTeams.length) : 0;
   const trioTotalGames = trioReadyTeams.length >= 2 ? trioTotalRounds * Math.floor(trioReadyTeams.length / 2) * 3 : 0;
 
   // ── Courts handlers (shared) ──
