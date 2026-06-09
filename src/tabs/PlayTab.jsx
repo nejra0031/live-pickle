@@ -22,7 +22,7 @@ export default function PlayTab(props) {
         role={props.role} isAdmin={isAdmin}
         timerDuration={props.timerDuration} timerSecsLeft={props.timerSecsLeft} timerRunning={props.timerRunning}
         breakMode={props.breakMode}
-        onTPTResult={props.onTPTResult}
+        onTPTResult={props.onTPTResult} onUndoTPTResult={props.onUndoTPTResult}
         onFinishTournament={props.onFinishTournament} onBreakStart={props.onBreakStart} onBreakEnd={props.onBreakEnd}
         onTournamentSettings={props.onTournamentSettings}
         onTimerToggle={props.onTimerToggle} onTimerRestart={props.onTimerRestart} onTimerSettings={props.onTimerSettings}
@@ -39,7 +39,7 @@ export default function PlayTab(props) {
         role={props.role} isAdmin={isAdmin}
         timerDuration={props.timerDuration} timerSecsLeft={props.timerSecsLeft} timerRunning={props.timerRunning}
         breakMode={props.breakMode}
-        onDoublesRRResult={props.onDoublesRRResult}
+        onDoublesRRResult={props.onDoublesRRResult} onUndoDoublesRRResult={props.onUndoDoublesRRResult}
         onGenerateAdditionalGames={props.onGenerateAdditionalGames}
         onFinishTournament={props.onFinishTournament} onBreakStart={props.onBreakStart} onBreakEnd={props.onBreakEnd}
         onTournamentSettings={props.onTournamentSettings}

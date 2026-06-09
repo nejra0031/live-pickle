@@ -306,7 +306,7 @@ export default function App({ viewerOnly = false }) {
     handleResult, handleLiveResult, handleUndoResult, handleUndoLiveResult,
     handleGenerateRound, handleRegenerateRound, doRegenerateRound, doCancelRound,
     handleExitRoundRobin, doExitRoundRobin, handleStartRoundRobin, handleGenerateAdditionalRoundRobin,
-    handleRRMatchResult, rrMatchKey,
+    handleRRMatchResult, handleUndoRRMatchResult, rrMatchKey,
   } = useRoundManagement({
     stateRef: roundMgmtStateRef,
     pending, round, roundComplete, liveAdditions, history, phase,
@@ -392,7 +392,7 @@ export default function App({ viewerOnly = false }) {
     setPhase('play'); setActiveTab('play');
   }, [applyTimerState]);
 
-  const { handleStartTPT, handleTPTResult, handleManageTPTTeamsSave } = useTPTManagement({
+  const { handleStartTPT, handleTPTResult, handleUndoTPTResult, handleManageTPTTeamsSave } = useTPTManagement({
     stateRef: roundMgmtStateRef,
     tournamentIdRef, lastSeenRoundNum, pendingRef, roleRef,
     tptResultsRef, tptScheduleRef, tptRoundCompletingRef,
@@ -408,7 +408,7 @@ export default function App({ viewerOnly = false }) {
     applyTimerState, setTimerAlarmed, onFirebaseError: setFirebaseError, closeModal,
   });
 
-  const { handleStartDoublesRR, handleDoublesRRResult, handleGenerateAdditionalDoublesRR, handleManageDoublesRRPlayersSave } = useDoublesRRManagement({
+  const { handleStartDoublesRR, handleDoublesRRResult, handleUndoDoublesRRResult, handleGenerateAdditionalDoublesRR, handleManageDoublesRRPlayersSave } = useDoublesRRManagement({
     stateRef: roundMgmtStateRef,
     tournamentIdRef, lastSeenRoundNum, pendingRef, roleRef,
     doublesRRPlayersRef, doublesRRResultsRef, doublesRRScheduleRef, doublesRRRoundCompletingRef,
@@ -863,9 +863,9 @@ export default function App({ viewerOnly = false }) {
                   tournamentFinished={tournamentFinished} breakMode={activeTab === 'play' ? breakMode : null}
                   round={round} roundNum={roundNum} tournamentMode={tournamentMode}
                   tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults}
-                  onTPTResult={handleTPTResult}
+                  onTPTResult={handleTPTResult} onUndoTPTResult={handleUndoTPTResult}
                   doublesRRPlayers={doublesRRPlayers} doublesRRSchedule={doublesRRSchedule} doublesRRResults={doublesRRResults}
-                  onDoublesRRResult={handleDoublesRRResult}
+                  onDoublesRRResult={handleDoublesRRResult} onUndoDoublesRRResult={handleUndoDoublesRRResult}
                   roundRobinSchedule={roundRobinSchedule} roundRobinCourts={roundRobinCourts} roundRobinStartRoundNum={roundRobinStartRoundNum}
                   courtNumbers={courtNumbers} socialCourts={socialCourts} liveAdditions={liveAdditions}
                   pending={pending} role={role} finalRound={finalRound} pausedIds={pausedIds}
@@ -877,7 +877,7 @@ export default function App({ viewerOnly = false }) {
                   nextRoundPresets={nextRoundPresets} roundKey={roundKey}
                   timerSecsLeft={timerSecsLeft} timerDuration={timerDuration} timerRunning={timerRunning}
                   onTimerToggle={timerToggle} onTimerRestart={() => resetTimer(timerDuration)} onTimerSettings={() => openModal('timerSettings')}
-                  onResult={handleResult} onLiveResult={handleLiveResult} onRRMatchResult={handleRRMatchResult}
+                  onResult={handleResult} onLiveResult={handleLiveResult} onRRMatchResult={handleRRMatchResult} onUndoRRMatchResult={handleUndoRRMatchResult}
                   onGenerateRound={handleGenerateRound} onRegenerateRound={handleRegenerateRound}
                   onFinishTournament={handleFinishTournament} onResumeTournament={handleResumeTournament}
                   onBreakStart={() => openModal('break')} onBreakEnd={handleBreakEnd}

@@ -383,6 +383,15 @@ export function useRoundManagement({
     });
   }, [rrMatchKey, stateRef, roleRef, pendingRef, breakModeRef, timerRunningRef, timerStartedAtRef, timerPausedSecsRef, timerDurationRef, lastSeenRoundNum, setPending, setHistory, setStandings, setRoundRobinEndSnapshot, setRoundNum, setTimerAlarmed, applyTimerState, computeSecsLeft, onFirebaseError]);
 
+  const handleUndoRRMatchResult = useCallback((srIdx, mi) => {
+    const k = rrMatchKey(srIdx, mi);
+    const np = { ...pendingRef.current }; delete np[k];
+    pendingRef.current = np; setPending(np);
+    if (hasPermission(roleRef.current, 'canSubmitResults')) {
+      pushAtomicUpdate({ [`pendingResults/${k}`]: null }, onFirebaseError);
+    }
+  }, [rrMatchKey, pendingRef, roleRef, onFirebaseError, setPending]);
+
   return {
     handleResult,
     handleLiveResult,
@@ -397,6 +406,7 @@ export function useRoundManagement({
     handleStartRoundRobin,
     handleGenerateAdditionalRoundRobin,
     handleRRMatchResult,
+    handleUndoRRMatchResult,
     rrMatchKey,
   };
 }

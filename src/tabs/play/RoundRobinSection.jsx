@@ -13,7 +13,7 @@ export default function RoundRobinSection({
   isAdmin,
   onRRMatchResult, rrMatchKey,
   onContinueSwissAfterRR, onExitRoundRobin, onSelectRRTeams, onGenerateAdditionalGames,
-  onFinishTournament, onBreakEnd, onBreakStart, onTournamentSettings,
+  onFinishTournament, onBreakEnd, onBreakStart, onTournamentSettings, onUndoRRMatchResult,
   onTimerToggle, onTimerRestart, onTimerSettings,
 }) {
   const teamById = useTeamById();
@@ -96,7 +96,7 @@ export default function RoundRobinSection({
                     </div>
                   );
                 }
-                return <CourtCard key={`rr-${srIdx}-${mi}-${pendingResult ? 'done' : 'open'}`} courtLabel={courtLabel} teams={[{ ...tA, name: teamLabel(tA.id) }, { ...tB, name: teamLabel(tB.id) }]} onResult={r => onRRMatchResult(srIdx, mi, { ...r, courtNumber: rrCourts[mi] ?? mi + 1 })} pendingResult={pendingResult} />;
+                return <CourtCard key={`rr-${srIdx}-${mi}-${pendingResult ? 'done' : 'open'}`} courtLabel={courtLabel} teams={[{ ...tA, name: teamLabel(tA.id) }, { ...tB, name: teamLabel(tB.id) }]} onResult={r => onRRMatchResult(srIdx, mi, { ...r, courtNumber: rrCourts[mi] ?? mi + 1 })} pendingResult={pendingResult} onUndo={pendingResult && onUndoRRMatchResult ? () => onUndoRRMatchResult(srIdx, mi) : undefined} />;
               }
               const aIsPausedV = pausedIds.includes(idA), bIsPausedV = pausedIds.includes(idB);
               return (

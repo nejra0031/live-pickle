@@ -9,7 +9,7 @@ export default function DoublesRRSection({
   doublesRRPlayers, doublesRRSchedule, doublesRRResults, courtNumbers, history,
   role, isAdmin,
   timerDuration, timerSecsLeft, timerRunning, breakMode,
-  onDoublesRRResult, onGenerateAdditionalGames, onFinishTournament, onBreakStart, onBreakEnd,
+  onDoublesRRResult, onUndoDoublesRRResult, onGenerateAdditionalGames, onFinishTournament, onBreakStart, onBreakEnd,
   onTournamentSettings,
   onTimerToggle, onTimerRestart, onTimerSettings,
 }) {
@@ -53,6 +53,7 @@ export default function DoublesRRSection({
               winnerIds: r.winnerId.split('|'), loserIds: r.loserId.split('|'),
               winnerScore: r.winnerScore, loserScore: r.loserScore,
             })}
+            onUndo={pendingResult && isCurrentRound && onUndoDoublesRRResult ? () => onUndoDoublesRRResult(ri, ci) : undefined}
           />
         ) : (
           <MatchupVsBox courtLabel={`Court ${courtLabel}`} teamA={sideA} teamB={sideB} compact />

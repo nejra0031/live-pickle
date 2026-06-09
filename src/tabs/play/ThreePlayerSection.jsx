@@ -1,12 +1,23 @@
+import { useContext } from 'react';
 import { hasPermission } from '../../roleConfig';
 import CourtCard from '../../components/CourtCard';
 import MatchupVsBox from '../../components/MatchupVsBox';
 import RoundTimer from '../../components/RoundTimer';
 import BreakBanner from './BreakBanner';
 import { getTPTGamesForMatchup } from '../../algorithms/threePlayerTeam';
+import { TeamRegistryContext } from '../../context/TeamRegistryContext';
 
 function sideLabel(playerIds, players) {
   return playerIds.map(pid => { const p = players[pid]; return p ? (p.nickname || p.name) : '?'; }).join(' & ');
+}
+
+function formatTPTTeamLabel(team, tptPlayers, mode) {
+  if (!team) return '';
+  const allIds = [...(team.maleIds || []), team.femaleId].filter(Boolean);
+  const playerNames = allIds.map(pid => tptPlayers[pid]?.name).filter(Boolean).join(' / ');
+  if (mode === 'players') return playerNames || team.name;
+  if (mode === 'both') return playerNames ? `${team.name} (${playerNames})` : team.name;
+  return team.name;
 }
 
 
@@ -14,10 +25,12 @@ export default function ThreePlayerSection({
   tptTeams, tptPlayers, tptSchedule, tptResults, courtNumbers, history,
   role, isAdmin,
   timerDuration, timerSecsLeft, timerRunning, breakMode,
-  onTPTResult, onFinishTournament, onBreakStart, onBreakEnd,
+  onTPTResult, onUndoTPTResult, onFinishTournament, onBreakStart, onBreakEnd,
   onTournamentSettings,
   onTimerToggle, onTimerRestart, onTimerSettings,
 }) {
+  const { teamNameDisplay } = useContext(TeamRegistryContext);
+  const tptTeamLabel = (team) => formatTPTTeamLabel(team, tptPlayers, teamNameDisplay);
   const canWrite = hasPermission(role, 'canSubmitResults');
   const currentRoundIdx = Math.min(history.length, Math.max(0, tptSchedule.length - 1));
   const totalRounds = tptSchedule.length;
@@ -56,9 +69,9 @@ export default function ThreePlayerSection({
           </span>
           <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600 }}>·</span>
           <span style={{ fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', color: '#475569' }}>
-            <span style={{ color: teamA.color, fontWeight: 800 }}>{teamA.name}</span>
+            <span style={{ color: teamA.color, fontWeight: 800 }}>{tptTeamLabel(teamA)}</span>
             <span style={{ color: '#94a3b8', margin: '0 4px' }}>vs</span>
-            <span style={{ color: teamB.color, fontWeight: 800 }}>{teamB.name}</span>
+            <span style={{ color: teamB.color, fontWeight: 800 }}>{tptTeamLabel(teamB)}</span>
           </span>
         </div>
 
@@ -79,6 +92,7 @@ export default function ThreePlayerSection({
                   teams={[sideA, sideB]}
                   pendingResult={pendingResult}
                   onResult={r => onTPTResult(ri, mi, gi, { winnerTeamId: r.winnerId, loserTeamId: r.loserId, winnerScore: r.winnerScore, loserScore: r.loserScore })}
+                  onUndo={pendingResult && isCurrentRound && onUndoTPTResult ? () => onUndoTPTResult(ri, mi, gi) : undefined}
                 />
               ) : (
                 <MatchupVsBox courtLabel={game.label} teamA={sideA} teamB={sideB} compact />
@@ -126,7 +140,7 @@ export default function ThreePlayerSection({
               <span>Bye:</span>
               <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold"
                 style={{ background: tptTeams[viewedRound.byeTeamId].color, color: tptTeams[viewedRound.byeTeamId].text, border: '2px solid rgba(255,255,255,0.15)' }}>
-                {tptTeams[viewedRound.byeTeamId].name}
+                {tptTeamLabel(tptTeams[viewedRound.byeTeamId])}
               </span>
             </div>
           )}

@@ -112,5 +112,15 @@ export function useTPTManagement({
     pushAtomicUpdate({ tptTeams: newTPTTeams, players: newPlayers }, onFirebaseError);
   }, [closeModal]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { handleStartTPT, handleTPTResult, handleManageTPTTeamsSave };
+  const handleUndoTPTResult = useCallback((schedRoundIdx, matchupIdx, gameIdx) => {
+    if (!hasPermission(roleRef.current, 'canSubmitResults')) return;
+    const key = `${schedRoundIdx}_${matchupIdx}_${gameIdx}`;
+    const newResults = { ...tptResultsRef.current };
+    delete newResults[key];
+    setTPTResults(newResults);
+    tptResultsRef.current = newResults;
+    pushAtomicUpdate({ [`tptResults/${key}`]: null }, onFirebaseError);
+  }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return { handleStartTPT, handleTPTResult, handleUndoTPTResult, handleManageTPTTeamsSave };
 }

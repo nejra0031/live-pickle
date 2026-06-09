@@ -142,5 +142,15 @@ export function useDoublesRRManagement({
     pushAtomicUpdate({ doublesRRPlayers: newPlayers }, onFirebaseError);
   }, [closeModal]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { handleStartDoublesRR, handleDoublesRRResult, handleGenerateAdditionalDoublesRR, handleManageDoublesRRPlayersSave };
+  const handleUndoDoublesRRResult = useCallback((roundIdx, courtIdx) => {
+    if (!hasPermission(roleRef.current, 'canSubmitResults')) return;
+    const key = `${roundIdx}_${courtIdx}`;
+    const newResults = { ...doublesRRResultsRef.current };
+    delete newResults[key];
+    setDoublesRRResults(newResults);
+    doublesRRResultsRef.current = newResults;
+    pushAtomicUpdate({ [`doublesRRResults/${key}`]: null }, onFirebaseError);
+  }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return { handleStartDoublesRR, handleDoublesRRResult, handleUndoDoublesRRResult, handleGenerateAdditionalDoublesRR, handleManageDoublesRRPlayersSave };
 }

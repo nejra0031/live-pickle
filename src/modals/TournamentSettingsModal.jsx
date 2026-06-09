@@ -223,27 +223,32 @@ export default function TournamentSettingsModal({
           )}
 
           {/* ── Team status ── */}
-          {canPauseTeams && tournamentMode !== 'tpt' && tournamentMode !== 'doublesrr' && onTogglePause && (
-            <Acc title="Team status" open={sec.teamStatus} onToggle={() => toggle('teamStatus')}>
-              <div className="flex flex-wrap" style={{ gap: 8 }}>
-                {(activeTeamIds || []).map(id => {
-                  const t = teamById(id);
-                  const paused = (pausedIds || []).includes(id);
-                  return (
-                    <button key={id} onClick={() => onTogglePause(id)} className="rounded-full font-bold"
-                      style={{ padding: '5px 12px', fontSize: 13, background: paused ? 'rgba(0,0,0,0.05)' : t.color, color: paused ? '#94a3b8' : t.text, border: `2px solid ${paused ? 'rgba(0,0,0,0.08)' : t.color}`, cursor: 'pointer', opacity: paused ? 0.6 : 1, textDecoration: paused ? 'line-through' : 'none' }}>
-                      {t.name}
-                    </button>
-                  );
-                })}
-              </div>
-              {(pausedIds || []).length > 0 && (
-                <p style={{ fontSize: 12, color: '#d97706', marginTop: 8 }}>
-                  {(pausedIds || []).map(id => teamById(id)?.name).filter(Boolean).join(', ')} paused — excluded from rotation.
-                </p>
-              )}
-            </Acc>
-          )}
+          {canPauseTeams && tournamentMode !== 'doublesrr' && onTogglePause && (() => {
+            const pauseTeams = tournamentMode === 'tpt'
+              ? Object.values(tptTeams || {})
+              : (activeTeamIds || []).map(id => teamById(id)).filter(Boolean);
+            const nameFor = id => tournamentMode === 'tpt' ? tptTeams?.[id]?.name : teamById(id)?.name;
+            return (
+              <Acc title="Team status" open={sec.teamStatus} onToggle={() => toggle('teamStatus')}>
+                <div className="flex flex-wrap" style={{ gap: 8 }}>
+                  {pauseTeams.map(t => {
+                    const paused = (pausedIds || []).includes(t.id);
+                    return (
+                      <button key={t.id} onClick={() => onTogglePause(t.id)} className="rounded-full font-bold"
+                        style={{ padding: '5px 12px', fontSize: 13, background: paused ? 'rgba(0,0,0,0.05)' : t.color, color: paused ? '#94a3b8' : t.text, border: `2px solid ${paused ? 'rgba(0,0,0,0.08)' : t.color}`, cursor: 'pointer', opacity: paused ? 0.6 : 1, textDecoration: paused ? 'line-through' : 'none' }}>
+                        {t.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                {(pausedIds || []).length > 0 && (
+                  <p style={{ fontSize: 12, color: '#d97706', marginTop: 8 }}>
+                    {(pausedIds || []).map(id => nameFor(id)).filter(Boolean).join(', ')} paused — excluded from rotation.
+                  </p>
+                )}
+              </Acc>
+            );
+          })()}
 
           {/* ── Teams & players — swiss / rr ── */}
           {canEditTeams && tournamentMode !== 'tpt' && tournamentMode !== 'doublesrr' && (
