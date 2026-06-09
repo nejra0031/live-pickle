@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import ballIcon from '/ball.png';
 import { DEFAULT_CLUB_ID } from './firebase';
 import { useClubs } from './hooks/useClubs';
@@ -23,11 +23,14 @@ function formatDate(ts) {
   return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function TournamentCard({ t, onClick }) {
+function TournamentCard({ t, onClick, onDelete }) {
+  const [confirming, setConfirming] = useState(false);
   const statusStyle = STATUS_STYLES[t.status] ?? STATUS_STYLES.finished;
   const modeLabel = MODE_LABELS[t.mode] ?? t.mode ?? '';
   return (
-    <button onClick={onClick} style={{ display: 'block', width: '100%', textAlign: 'left', background: '#fff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 16, padding: '16px 18px', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', transition: 'box-shadow 0.15s' }}
+    <div onClick={onClick} role="button" tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onClick(); }}
+      style={{ display: 'block', width: '100%', textAlign: 'left', background: '#fff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 16, padding: '16px 18px', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', transition: 'box-shadow 0.15s', boxSizing: 'border-box' }}
       onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,76,117,0.12)'}
       onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)'}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
@@ -56,15 +59,38 @@ function TournamentCard({ t, onClick }) {
         </div>
         <div style={{ flexShrink: 0, textAlign: 'right' }}>
           <div style={{ color: '#94a3b8', fontSize: 12 }}>{formatDate(t.createdAt)}</div>
-          <div style={{ marginTop: 8, color: '#0f4c75', fontWeight: 700, fontSize: 13 }}>Open →</div>
+          {confirming ? (
+            <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 8 }}>
+              <span style={{ fontSize: 12, color: '#64748b', alignSelf: 'center' }}>Delete?</span>
+              <button onClick={() => onDelete(t.id)}
+                style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: '#dc2626', color: '#fff', border: 'none' }}>
+                Yes
+              </button>
+              <button onClick={() => setConfirming(false)}
+                style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(0,0,0,0.06)', color: '#475569', border: '1px solid rgba(0,0,0,0.1)' }}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center', marginTop: 8 }}>
+              <div style={{ color: '#0f4c75', fontWeight: 700, fontSize: 13 }}>Open →</div>
+              {onDelete && (
+                <button onClick={e => { e.stopPropagation(); setConfirming(true); }}
+                  title="Delete tournament"
+                  style={{ fontSize: 13, lineHeight: 1, padding: '3px 7px', borderRadius: 7, fontWeight: 700, cursor: 'pointer', background: 'rgba(220,38,38,0.08)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.15)' }}>
+                  ×
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
 export default function LandingPage({ onSelectTournament, onCreateTournament, viewerOnly = false }) {
-  const { clubInfo, tournaments, loading, error, refresh } = useClubs(CLUB_ID);
+  const { clubInfo, tournaments, loading, error, refresh, deleteTournament } = useClubs(CLUB_ID);
 
   // Refresh whenever the landing page mounts (e.g. after creating a tournament)
   useEffect(() => { refresh(); }, []);
@@ -133,6 +159,7 @@ export default function LandingPage({ onSelectTournament, onCreateTournament, vi
                 key={t.id}
                 t={t}
                 onClick={() => onSelectTournament(CLUB_ID, t.id)}
+                onDelete={!viewerOnly ? deleteTournament : null}
               />
             ))}
           </div>

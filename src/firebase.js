@@ -74,6 +74,11 @@ export function writeTournamentMeta(clubId, tid, meta) {
     .catch(err => console.error('writeTournamentMeta failed', err));
 }
 
+export function deleteTournament(clubId, tid) {
+  return remove(ref(db, `clubs/${clubId}/tournaments/${tid}`))
+    .catch(err => console.error('deleteTournament failed', err));
+}
+
 // ── Known-players registry (cross-tournament, for DUPR export autocomplete) ─
 const KNOWN_PLAYERS_PATH = TEST_MODE ? 'known_players_e2e' : 'known_players';
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { get, set, clubInfoRef, clubTournamentsRef } from '../firebase';
+import { get, set, clubInfoRef, clubTournamentsRef, deleteTournament as fbDeleteTournament } from '../firebase';
 
 const DEFAULT_CLUB_INFO = { name: 'BLUE', imageUrl: null };
 
@@ -42,8 +42,13 @@ export function useClubs(clubId) {
     }
   }, [clubId]);
 
+  const deleteTournament = useCallback(async (tid) => {
+    await fbDeleteTournament(clubId, tid);
+    await fetchData();
+  }, [clubId, fetchData]);
+
   // Fetch on first render
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  return { clubInfo, tournaments, loading, error, refresh: fetchData };
+  return { clubInfo, tournaments, loading, error, refresh: fetchData, deleteTournament };
 }
