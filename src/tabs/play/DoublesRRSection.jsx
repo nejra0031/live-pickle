@@ -9,7 +9,7 @@ export default function DoublesRRSection({
   doublesRRPlayers, doublesRRSchedule, doublesRRResults, courtNumbers, history,
   role, isAdmin,
   timerDuration, timerSecsLeft, timerRunning, breakMode,
-  onDoublesRRResult, onFinishTournament, onBreakStart, onBreakEnd,
+  onDoublesRRResult, onGenerateAdditionalGames, onFinishTournament, onBreakStart, onBreakEnd,
   onManageTeams, onManageCourts, onReset,
   onTimerToggle, onTimerRestart, onTimerSettings,
 }) {
@@ -137,6 +137,11 @@ export default function DoublesRRSection({
       {isAdmin && (
         <button onClick={onManageTeams} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
           ✏️ Manage Players
+        </button>
+      )}
+      {isAdmin && (
+        <button onClick={onGenerateAdditionalGames} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(217,119,6,0.08)', color: '#92400e', border: '1px solid rgba(217,119,6,0.25)' }}>
+          🔁 Generate Additional Games
         </button>
       )}
       {isAdmin && (

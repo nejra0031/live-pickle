@@ -12,7 +12,7 @@ export default function RoundRobinSection({
   pending, pausedIds, courtNumbers, socialCourts, history,
   isAdmin,
   onRRMatchResult, rrMatchKey,
-  onContinueSwissAfterRR, onExitRoundRobin, onSelectRRTeams,
+  onContinueSwissAfterRR, onExitRoundRobin, onSelectRRTeams, onGenerateAdditionalGames,
   onFinishTournament, onBreakEnd, onBreakStart, onReset, onManageCourts,
   onTimerToggle, onTimerRestart, onTimerSettings,
 }) {
@@ -121,6 +121,7 @@ export default function RoundRobinSection({
           <button onClick={onFinishTournament} style={{ padding: 'clamp(10px,2.5vw,14px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,16px)', cursor: 'pointer', background: 'linear-gradient(90deg,#d97706,#f59e0b)', color: '#fff', border: 'none' }}>🏁 Finish Tournament</button>
         </div>
       )}
+      {isAdmin && <button onClick={onGenerateAdditionalGames} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(217,119,6,0.08)', color: '#92400e', border: '1px solid rgba(217,119,6,0.25)' }}>🔁 Generate Additional Games</button>}
       {hasPermission(role, 'canSwitchTournamentMode') && !allDone && <button onClick={() => onExitRoundRobin()} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(0,0,0,0.05)', color: '#475569', border: '1px solid rgba(0,0,0,0.1)' }}>↩ Exit Round Robin (back to Swiss)</button>}
       {isAdmin && !allDone && <button onClick={onFinishTournament} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'linear-gradient(90deg,#d97706,#f59e0b)', color: '#fff', border: 'none' }}>🏁 Finish Tournament</button>}
       {isAdmin && <button onClick={onBreakStart} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(217,119,6,0.1)', color: '#92400e', border: '1px solid rgba(217,119,6,0.3)' }}>☕ Pause Tournament (Break)</button>}

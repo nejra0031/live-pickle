@@ -51,6 +51,24 @@ export function nearestValidDoublesRRPlayerCounts(n) {
   return { lower: lower >= 4 ? lower : null, upper };
 }
 
+// Tallies individual-opponent-pair counts from an already-generated schedule's
+// court pairings — used to seed `priorOpponentCounts` when generating a follow-up
+// schedule, so its court assignments are biased away from oppositions that have
+// already occurred (partnerships are exhaustive over a full schedule and will
+// necessarily recur, but who opposes whom within a court still has freedom).
+export function countScheduleOpponentPairs(schedule) {
+  const counts = {};
+  (schedule || []).forEach(round => {
+    (round.courts || []).forEach(({ teamA, teamB }) => {
+      teamA.forEach(a => teamB.forEach(b => {
+        const k = [a, b].sort().join('|');
+        counts[k] = (counts[k] || 0) + 1;
+      }));
+    });
+  });
+  return counts;
+}
+
 // Generates a full Doubles RR schedule up front (like roundRobinSchedule/tptSchedule
 // — not regenerated round to round). Built on the existing circle-method
 // round-robin scheduler: feeding it player IDs and reinterpreting each "match"
@@ -66,14 +84,28 @@ export function nearestValidDoublesRRPlayerCounts(n) {
 // itself batches matches across multiple courts. Each chunk is then greedily
 // split into 2v2 courts minimising repeat individual-opponent pairings, mirroring
 // pairSwiss/scoreCourtPairings in pairing.js.
-export function generateDoublesRRSchedule(playerIds, numCourts) {
+//
+// `opts.startOffset` rotates the player order before the circle method runs, so
+// a follow-up schedule partners people up in a different sequence rather than
+// reproducing the same one. `opts.priorOpponentCounts` seeds the opposition
+// tally with counts from an existing schedule (see `countScheduleOpponentPairs`)
+// so the new schedule's court pairings actively avoid repeating those oppositions
+// wherever the chunk structure allows — "generate additional games" uses both to
+// produce a schedule that's structurally different from what came before.
+export function generateDoublesRRSchedule(playerIds, numCourts, opts = {}) {
   if (!playerIds || playerIds.length < 4 || !isValidDoublesRRPlayerCount(playerIds.length)) return [];
 
   const courts = Math.max(1, numCourts || 1);
   const chunkSize = courts * 2;
-  const logicalRounds = generateRoundRobinSchedule(playerIds, playerIds.length);
+  const { startOffset = 0, priorOpponentCounts = null } = opts;
+  let orderedIds = playerIds;
+  if (startOffset % playerIds.length) {
+    const o = ((startOffset % playerIds.length) + playerIds.length) % playerIds.length;
+    orderedIds = [...playerIds.slice(o), ...playerIds.slice(0, o)];
+  }
+  const logicalRounds = generateRoundRobinSchedule(orderedIds, orderedIds.length);
 
-  const opponentCounts = {};
+  const opponentCounts = priorOpponentCounts ? { ...priorOpponentCounts } : {};
   let lastRoundOpponents = new Set();
   const schedule = [];
 
@@ -180,7 +212,7 @@ const SIDE_FALLBACK_TEXT = '#ffffff';
 // keeping `color` (always solid) for borders/shadows/text-contrast.
 export function buildSidePresentation(playerIds, playersById) {
   const players = playerIds.map(id => playersById[id]).filter(Boolean);
-  const name = players.map(p => p.name).join(' & ') || playerIds.join(' & ');
+  const name = players.map(p => p.nickname || p.name).join(' & ') || playerIds.join(' & ');
   const [a, b] = players;
   const color = a?.color || SIDE_FALLBACK_COLOR;
   const text = a?.text || SIDE_FALLBACK_TEXT;

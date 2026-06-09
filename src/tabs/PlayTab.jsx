@@ -40,6 +40,7 @@ export default function PlayTab(props) {
         timerDuration={props.timerDuration} timerSecsLeft={props.timerSecsLeft} timerRunning={props.timerRunning}
         breakMode={props.breakMode}
         onDoublesRRResult={props.onDoublesRRResult}
+        onGenerateAdditionalGames={props.onGenerateAdditionalGames}
         onFinishTournament={props.onFinishTournament} onBreakStart={props.onBreakStart} onBreakEnd={props.onBreakEnd}
         onManageTeams={props.onManageTeams} onManageCourts={props.onManageCourts} onReset={props.onReset}
         onTimerToggle={props.onTimerToggle} onTimerRestart={props.onTimerRestart} onTimerSettings={props.onTimerSettings}

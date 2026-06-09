@@ -258,16 +258,34 @@ export default function HistoryTab({
           if (mode === 'tpt') {
             const round = entry.round;
             const byeTeam = round.byeTeamId ? tptTeams[round.byeTeamId] : null;
+            const pName = id => tptPlayers[id]?.name ?? '?';
+            const sideLabel = pids => pids.filter(Boolean).map(pName).join(' & ');
             return wrap(<>
               {round.matchups.map((matchup, mi) => {
                 const teamA = tptTeams[matchup.teamAId];
                 const teamB = tptTeams[matchup.teamBId];
                 if (!teamA || !teamB) return null;
+                const gameDefs = getTPTGamesForMatchup(teamA, teamB);
                 return (
-                  <div key={mi} className="flex items-center flex-wrap gap-2">
-                    <span className="inline-flex items-center rounded-full font-bold" style={{ background: teamA.color, color: teamA.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px' }}>{teamA.name}</span>
-                    <span style={{ color: '#cbd5e1', fontWeight: 700 }}>vs</span>
-                    <span className="inline-flex items-center rounded-full font-bold" style={{ background: teamB.color, color: teamB.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px' }}>{teamB.name}</span>
+                  <div key={mi} className="rounded-xl" style={{ padding: 'clamp(6px,1.5vw,10px)', border: '1px solid rgba(0,0,0,0.07)', background: 'rgba(0,0,0,0.01)' }}>
+                    <div className="flex items-center gap-2" style={{ marginBottom: 'clamp(5px,1.2vw,8px)' }}>
+                      <span className="inline-flex items-center rounded-full font-black" style={{ background: teamA.color, color: teamA.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px' }}>{teamA.name}</span>
+                      <span style={{ color: '#94a3b8', fontWeight: 700 }}>vs</span>
+                      <span className="inline-flex items-center rounded-full font-black" style={{ background: teamB.color, color: teamB.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px' }}>{teamB.name}</span>
+                    </div>
+                    {gameDefs.map((def, gi) => {
+                      const gameLabel = gi === 0 ? 'Males' : gi === 1 ? 'Mixed #1' : 'Mixed #2';
+                      return (
+                        <div key={gi} style={{ padding: 'clamp(2px,0.5vw,4px) 0', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                          <div className="flex items-center flex-wrap" style={{ gap: 'clamp(4px,1vw,8px)' }}>
+                            <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: gi === 0 ? '#1d4ed8' : '#be185d', fontWeight: 700, minWidth: 'clamp(52px,12vw,72px)', flexShrink: 0 }}>{gameLabel}</span>
+                            <span className="inline-flex items-center rounded-full font-bold" style={{ background: teamA.color, color: teamA.text, fontSize: 'clamp(10px,2.5vw,13px)', padding: '2px 8px', whiteSpace: 'nowrap' }}>{sideLabel(def.sideA)}</span>
+                            <span style={{ color: '#cbd5e1', fontWeight: 700 }}>vs</span>
+                            <span className="inline-flex items-center rounded-full font-bold" style={{ background: teamB.color, color: teamB.text, fontSize: 'clamp(10px,2.5vw,13px)', padding: '2px 8px', whiteSpace: 'nowrap' }}>{sideLabel(def.sideB)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}

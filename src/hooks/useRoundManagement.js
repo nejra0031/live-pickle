@@ -6,7 +6,7 @@ import { hasPermission } from '../roleConfig';
 import { courtKey, liveKey } from '../constants';
 import { rebuildStandings } from '../algorithms/standings';
 import { generateRound } from '../algorithms/pairing';
-import { generateRoundRobinSchedule } from '../algorithms/roundRobin';
+import { generateRoundRobinSchedule, generateRemainingRoundRobinSchedule } from '../algorithms/roundRobin';
 import { buildSnapshot } from '../snapshot';
 
 // Owns the active-round lifecycle: result submission, round generation/cancel/regenerate,
@@ -268,6 +268,62 @@ export function useRoundManagement({
     closeModal();
   }, [stateRef, roleRef, pendingRef, lastSeenRoundNum, setTournamentMode, setRoundRobinSchedule, setRoundRobinCourts, setRoundRobinStartRoundNum, setRoundRobinStartSnapshot, setRoundRobinEndSnapshot, setRoundNum, setPending, setRound, setRoundComplete, onFirebaseError, closeModal]);
 
+  // Admin-only: generates a fresh full round-robin for the same roster — rotated
+  // so its round/court groupings differ from the existing schedule (a round robin
+  // is exhaustive, so the pairing SET can't change, only how it's grouped/ordered)
+  // — and merges it with the existing schedule either by appending it as more
+  // rounds, or by replacing whatever rounds haven't been played yet.
+  const handleGenerateAdditionalRoundRobin = useCallback((mode) => {
+    const s = stateRef.current;
+    if (!hasPermission(roleRef.current, 'canSwitchTournamentMode')) { closeModal(); return; }
+    const schedule = s.roundRobinSchedule || [];
+    if (!schedule.length) { closeModal(); return; }
+    // roundRobinStartSnapshot.participatingIds is frozen at RR start — filter it
+    // against the live roster so a team deleted since then doesn't reappear in
+    // the freshly generated schedule (it would render as phantom unplayable matches).
+    const activeSet = new Set(s.activeTeamIds);
+    const participatingIds = (s.roundRobinStartSnapshot?.participatingIds || s.activeTeamIds).filter(id => activeSet.has(id));
+    if (participatingIds.length < 2) { closeModal(); return; }
+    const courts = (s.roundRobinCourts && s.roundRobinCourts.length > 0) ? s.roundRobinCourts : s.courtNumbers;
+    const n = participatingIds.length;
+    const startOffset = n > 1 ? Math.max(1, Math.floor(n / 2)) : 0;
+    const startRN = s.roundRobinStartRoundNum || 1;
+    const completedCount = schedule.filter((_, i) => s.history.some(h => h.roundNum === startRN + i)).length;
+
+    let combined;
+    if (mode === 'replace' && completedCount < schedule.length) {
+      // A full round robin is exhaustive — "another full round robin" for the
+      // same roster necessarily repeats every pair. To keep "replace" truly
+      // repeat-free, regenerate only the unplayed remainder, covering exactly
+      // the pairs that haven't played each other yet (completing the existing
+      // round robin rather than duplicating it).
+      const playedPairKeys = new Set();
+      for (let i = 0; i < completedCount; i++) {
+        const h = s.history.find(he => he.roundNum === startRN + i);
+        (h?.games || []).forEach(g => playedPairKeys.add([g.winnerId, g.loserId].sort().join('|')));
+      }
+      const remainder = generateRemainingRoundRobinSchedule(participatingIds, playedPairKeys, courts.length);
+      if (!remainder.length) { closeModal(); return; }
+      combined = [...schedule.slice(0, completedCount), ...remainder];
+    } else {
+      // Nothing to replace (the round robin already finished — every pair has
+      // played) or append mode: generate a fresh full round robin. Repeats are
+      // unavoidable here by definition (the teams are playing each other again).
+      const freshSchedule = generateRoundRobinSchedule(participatingIds, courts.length, startOffset);
+      if (!freshSchedule.length) { closeModal(); return; }
+      combined = [...schedule, ...freshSchedule];
+    }
+
+    setRoundRobinSchedule(combined);
+    // Generating more games always leaves unplayed rounds beyond whatever was
+    // previously recorded as "the end" — clear a stale end marker so the
+    // History tab doesn't keep showing "Round Robin ended at round N".
+    const clearEndSnapshot = !!s.roundRobinEndSnapshot;
+    if (clearEndSnapshot) setRoundRobinEndSnapshot(null);
+    pushAtomicUpdate({ roundRobinSchedule: combined, ...(clearEndSnapshot ? { roundRobinEndSnapshot: null } : {}) }, onFirebaseError);
+    closeModal();
+  }, [stateRef, roleRef, setRoundRobinSchedule, setRoundRobinEndSnapshot, onFirebaseError, closeModal]);
+
   const handleRRMatchResult = useCallback((srIdx, matchIdx, result) => {
     const key = rrMatchKey(srIdx, matchIdx);
     setPending(prev => {
@@ -339,6 +395,7 @@ export function useRoundManagement({
     handleExitRoundRobin,
     doExitRoundRobin,
     handleStartRoundRobin,
+    handleGenerateAdditionalRoundRobin,
     handleRRMatchResult,
     rrMatchKey,
   };

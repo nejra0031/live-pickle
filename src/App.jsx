@@ -149,7 +149,7 @@ export default function App({ viewerOnly = false }) {
   const {
     doublesRRPlayers, setDoublesRRPlayers,
     doublesRRSchedule, setDoublesRRSchedule, doublesRRResults, setDoublesRRResults,
-    doublesRRResultsRef, doublesRRScheduleRef, doublesRRRoundCompletingRef,
+    doublesRRPlayersRef, doublesRRResultsRef, doublesRRScheduleRef, doublesRRRoundCompletingRef,
   } = useDoublesRRState();
   const [doublesRRTiebreakOrder, setDoublesRRTiebreakOrder] = useState(DEFAULT_DOUBLES_RR_TIEBREAK_ORDER);
 
@@ -254,7 +254,7 @@ export default function App({ viewerOnly = false }) {
     if (s.players)     { setTPTPlayers(s.players);   }
     if (s.tptSchedule) { setTPTSchedule(s.tptSchedule); tptScheduleRef.current = s.tptSchedule; }
     if (s.tptResults)  { setTPTResults(s.tptResults); tptResultsRef.current = s.tptResults; }
-    if (s.doublesRRPlayers)  { setDoublesRRPlayers(s.doublesRRPlayers); }
+    if (s.doublesRRPlayers)  { setDoublesRRPlayers(s.doublesRRPlayers); doublesRRPlayersRef.current = s.doublesRRPlayers; }
     if (s.doublesRRSchedule) { setDoublesRRSchedule(s.doublesRRSchedule); doublesRRScheduleRef.current = s.doublesRRSchedule; }
     if (s.doublesRRResults)  { setDoublesRRResults(s.doublesRRResults); doublesRRResultsRef.current = s.doublesRRResults; }
     setDoublesRRTiebreakOrder(s.doublesRRTiebreakOrder || DEFAULT_DOUBLES_RR_TIEBREAK_ORDER);
@@ -303,7 +303,7 @@ export default function App({ viewerOnly = false }) {
   const {
     handleResult, handleLiveResult, handleUndoResult, handleUndoLiveResult,
     handleGenerateRound, handleRegenerateRound, doRegenerateRound, doCancelRound,
-    handleExitRoundRobin, doExitRoundRobin, handleStartRoundRobin,
+    handleExitRoundRobin, doExitRoundRobin, handleStartRoundRobin, handleGenerateAdditionalRoundRobin,
     handleRRMatchResult, rrMatchKey,
   } = useRoundManagement({
     stateRef: roundMgmtStateRef,
@@ -406,10 +406,10 @@ export default function App({ viewerOnly = false }) {
     applyTimerState, setTimerAlarmed, onFirebaseError: setFirebaseError, closeModal,
   });
 
-  const { handleStartDoublesRR, handleDoublesRRResult, handleManageDoublesRRPlayersSave } = useDoublesRRManagement({
+  const { handleStartDoublesRR, handleDoublesRRResult, handleGenerateAdditionalDoublesRR, handleManageDoublesRRPlayersSave } = useDoublesRRManagement({
     stateRef: roundMgmtStateRef,
     tournamentIdRef, lastSeenRoundNum, pendingRef, roleRef,
-    doublesRRResultsRef, doublesRRScheduleRef, doublesRRRoundCompletingRef,
+    doublesRRPlayersRef, doublesRRResultsRef, doublesRRScheduleRef, doublesRRRoundCompletingRef,
     setDoublesRRPlayers, setDoublesRRSchedule, setDoublesRRResults,
     setTournamentTitle, setTournamentLocation, setTournamentStartTime, setTournamentDurationMins,
     setRole, setCourtNumbers, setTimerDuration,
@@ -495,7 +495,7 @@ export default function App({ viewerOnly = false }) {
     setTPTTeams({}); setTPTPlayers({}); setTPTSchedule([]); setTPTResults({});
     tptResultsRef.current = {}; tptScheduleRef.current = []; tptRoundCompletingRef.current = false;
     setDoublesRRPlayers({}); setDoublesRRSchedule([]); setDoublesRRResults({});
-    doublesRRResultsRef.current = {}; doublesRRScheduleRef.current = []; doublesRRRoundCompletingRef.current = false;
+    doublesRRPlayersRef.current = {}; doublesRRResultsRef.current = {}; doublesRRScheduleRef.current = []; doublesRRRoundCompletingRef.current = false;
     resetTimer(0);
   }, [resetTimer, setBackupRoundNums]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -798,7 +798,9 @@ export default function App({ viewerOnly = false }) {
           onTogglePause={handleTogglePause} onManageTeamsSave={handleManageTeamsSave}
           onManageTPTTeamsSave={handleManageTPTTeamsSave} onManageCourtsSave={handleManageCourtsSave}
           onManageDoublesRRPlayersSave={handleManageDoublesRRPlayersSave}
-          onStartRoundRobin={handleStartRoundRobin} addGameData={addGameData} onAddGameSave={handleAddGameSave}
+          onStartRoundRobin={handleStartRoundRobin}
+          onChooseGenerateAdditionalGames={mode => tournamentMode === 'doublesrr' ? handleGenerateAdditionalDoublesRR(mode) : handleGenerateAdditionalRoundRobin(mode)}
+          addGameData={addGameData} onAddGameSave={handleAddGameSave}
           onAddPreset={handleAddPreset} onAddLiveGame={handleAddLiveGame}
           onEditSave={handleEditSave} onEditActiveCourt={handleEditActiveCourt} onEditLiveAddition={handleEditLiveAddition}
           onEditTPTSave={handleTPTHistoryEditSave}
@@ -870,6 +872,7 @@ export default function App({ viewerOnly = false }) {
                   onRemovePreset={pi => { setNextRoundPresets(prev => { const np = prev.filter((_, i) => i !== pi); gatedUpdate('canPresetMatch', { nextRoundPresets: np }); return np; }); }}
                   onRemoveExtra={gi => openModal('pin', { purpose: 'removeActiveRoundExtra', removeActiveRoundExtraIdx: gi })}
                   onSelectRRTeams={() => openModal('selectRRTeams')}
+                  onGenerateAdditionalGames={() => openModal('generateAdditionalGames')}
                   onPresetMatch={() => openModal('presetMatch')}
                   onLiveAddGame={() => openModal('liveAddGame')}
                   onContinueSwissAfterRR={handleContinueSwissAfterRR}

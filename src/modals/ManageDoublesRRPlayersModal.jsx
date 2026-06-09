@@ -4,18 +4,18 @@ import useKnownPlayers from '../hooks/useKnownPlayers';
 
 export default function ManageDoublesRRPlayersModal({ doublesRRPlayers, onSave, onClose }) {
   const [localPlayers, setLocalPlayers] = useState(
-    Object.fromEntries(Object.entries(doublesRRPlayers).map(([id, p]) => [id, { duprId: '', ...p }]))
+    Object.fromEntries(Object.entries(doublesRRPlayers).map(([id, p]) => [id, { duprId: '', nickname: '', ...p }]))
   );
   const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
 
   const updatePlayer = (playerId, val) =>
-    setLocalPlayers(p => ({ ...p, [playerId]: { ...p[playerId], name: val.name, duprId: val.duprId } }));
+    setLocalPlayers(p => ({ ...p, [playerId]: { ...p[playerId], name: val.name, duprId: val.duprId, nickname: val.nickname ?? p[playerId].nickname } }));
 
   const save = () => {
     const newPlayers = Object.fromEntries(
-      Object.entries(localPlayers).map(([id, p]) => [id, { ...p, name: p.name.trim() || id, duprId: (p.duprId || '').trim() }])
+      Object.entries(localPlayers).map(([id, p]) => [id, { ...p, name: p.name.trim() || id, duprId: (p.duprId || '').trim(), nickname: (p.nickname || '').trim() }])
     );
-    Object.values(newPlayers).forEach(p => saveKnownPlayer(p.name, p.duprId));
+    Object.values(newPlayers).forEach(p => saveKnownPlayer(p.name, p.duprId, p.nickname));
     onSave(newPlayers);
   };
 
@@ -32,8 +32,8 @@ export default function ManageDoublesRRPlayersModal({ doublesRRPlayers, onSave, 
               style={{ border: `1px solid ${p.color || '#64748b'}44`, background: `${p.color || '#64748b'}18` }}>
               <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: p.color || '#64748b' }} />
               <div style={{ flex: 1 }}>
-                <PlayerNameField name={p.name} duprId={p.duprId || ''} knownPlayers={knownPlayers}
-                  onChange={val => updatePlayer(p.id, val)} inputStyle={iS} duprIdStyle={{ ...iS, fontSize: 12 }} />
+                <PlayerNameField name={p.name} duprId={p.duprId || ''} nickname={p.nickname || ''} knownPlayers={knownPlayers}
+                  onChange={val => updatePlayer(p.id, val)} inputStyle={iS} />
               </div>
             </div>
           ))}

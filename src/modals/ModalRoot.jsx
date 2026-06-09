@@ -9,6 +9,7 @@ import ManageTeamsModal from './ManageTeamsModal';
 import ManageTPTTeamsModal from './ManageTPTTeamsModal';
 import ManageCourtsModal from './ManageCourtsModal';
 import SelectRoundRobinTeamsModal from './SelectRoundRobinTeamsModal';
+import GenerateAdditionalGamesModal from './GenerateAdditionalGamesModal';
 import AddGameModal from './AddGameModal';
 import PresetMatchModal from './PresetMatchModal';
 import EditGameModal from './EditGameModal';
@@ -36,7 +37,7 @@ export default function ModalRoot({
   // handlers
   onTogglePause, onManageTeamsSave, onManageTPTTeamsSave, onManageCourtsSave,
   onManageDoublesRRPlayersSave,
-  onStartRoundRobin, addGameData, onAddGameSave, onAddPreset, onAddLiveGame,
+  onStartRoundRobin, onChooseGenerateAdditionalGames, addGameData, onAddGameSave, onAddPreset, onAddLiveGame,
   onEditSave, onEditActiveCourt, onEditLiveAddition, onEditTPTSave, onEditDoublesRRSave,
 }) {
   const pinPurpose = modal.open === 'pin' ? modal.data?.purpose : null;
@@ -96,6 +97,7 @@ export default function ModalRoot({
       )}
       {modal.open === 'manageCourts' && <ManageCourtsModal courtNumbers={courtNumbers} socialCourts={socialCourts} rrCourtCount={tournamentMode === 'roundrobin' ? (roundRobinCourts?.length ?? 0) : 0} onSave={onManageCourtsSave} onClose={closeModal} />}
       {modal.open === 'selectRRTeams' && <SelectRoundRobinTeamsModal rankedTeamIds={ranked.map(t => t.id)} tournamentCourts={courtNumbers} onConfirm={onStartRoundRobin} onClose={closeModal} />}
+      {modal.open === 'generateAdditionalGames' && <GenerateAdditionalGamesModal onChoose={onChooseGenerateAdditionalGames} onClose={closeModal} />}
       {modal.open === 'addGame' && addGameData && <AddGameModal allTeamIds={activeTeamIds} defaultCourt={addGameData.defaultCourt} courtNumbers={courtNumbers} usedCourtNumbers={addGameData.usedCourts} usedTeamIds={addGameData.usedTeams} label={addGameData.label} onSave={g => onAddGameSave(addGameData.target, g)} onClose={closeModal} />}
       {modal.open === 'presetMatch' && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={nextRoundPresets.flatMap(p => [p.teamId1, p.teamId2])} usedCourtNumbers={nextRoundPresets.map(p => String(p.courtNumber))} onSave={onAddPreset} onClose={closeModal} />}
       {modal.open === 'liveAddGame' && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={[...(round?.courts.flatMap(p => p.map(t => t.id)) || []), ...liveAdditions.flatMap(la => [la.teamId1, la.teamId2])]} usedCourtNumbers={[...(round?.courts.map((_, i) => String(courtNumbers[i] ?? i + 1)) || []), ...liveAdditions.map(la => String(la.courtNumber))]} onSave={onAddLiveGame} onClose={closeModal} />}

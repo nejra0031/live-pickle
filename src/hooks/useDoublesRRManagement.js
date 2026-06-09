@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { pushSnapshot, pushAtomicUpdate } from '../firebase';
 import { hasPermission } from '../roleConfig';
 import { buildSnapshot } from '../snapshot';
-import { generateDoublesRRSchedule } from '../algorithms/doublesRR';
+import { generateDoublesRRSchedule, countScheduleOpponentPairs } from '../algorithms/doublesRR';
 
 // Owns the Doubles Round Robin tournament lifecycle: starting (a full state
 // reset + schedule generation), recording per-court results with round
@@ -13,7 +13,7 @@ export function useDoublesRRManagement({
   stateRef,
   // refs
   tournamentIdRef, lastSeenRoundNum, pendingRef, roleRef,
-  doublesRRResultsRef, doublesRRScheduleRef, doublesRRRoundCompletingRef,
+  doublesRRPlayersRef, doublesRRResultsRef, doublesRRScheduleRef, doublesRRRoundCompletingRef,
   // Doubles RR state setters
   setDoublesRRPlayers, setDoublesRRSchedule, setDoublesRRResults,
   // App state setters
@@ -49,7 +49,7 @@ export function useDoublesRRManagement({
     });
     pushSnapshot(snap, onFirebaseError);
     setRole('admin');
-    setDoublesRRPlayers(playersData);
+    setDoublesRRPlayers(playersData); doublesRRPlayersRef.current = playersData;
     setDoublesRRSchedule(schedule); doublesRRScheduleRef.current = schedule;
     setDoublesRRResults({}); doublesRRResultsRef.current = {};
     doublesRRRoundCompletingRef.current = false;
@@ -103,10 +103,44 @@ export function useDoublesRRManagement({
     doublesRRRoundCompletingRef.current = false;
   }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Admin-only: generates a fresh full Doubles RR schedule for the same roster
+  // — rotated, and biased away from the existing schedule's court oppositions —
+  // and merges it with the existing schedule either by appending it as more
+  // rounds, or replacing whatever rounds haven't been played yet. Uses the LIVE
+  // player registry (not the existing schedule's roster) so a player removed via
+  // Manage Players since the schedule was generated doesn't reappear in the new one.
+  const handleGenerateAdditionalDoublesRR = useCallback((mode) => {
+    if (!hasPermission(roleRef.current, 'canSwitchTournamentMode')) { closeModal(); return; }
+    const schedule = doublesRRScheduleRef.current;
+    if (!schedule.length) { closeModal(); return; }
+    const playerIds = Object.keys(doublesRRPlayersRef.current);
+    const courts = stateRef.current.courtNumbers || [];
+    const n = playerIds.length;
+    const startOffset = n > 1 ? Math.max(1, Math.floor(n / 2)) : 0;
+    const completedCount = stateRef.current.history.length;
+    // Bias against the matchups that will actually remain in the combined
+    // schedule: the full schedule when appending (it's all kept), but only the
+    // played portion when replacing — the unplayed remainder gets discarded, so
+    // biasing against it would just force needless repeats elsewhere without
+    // preventing any real repeat (rotating-partnership doubles can't guarantee
+    // zero repeats outright, so this keeps the bias targeted at the matchups
+    // that have actually been played, i.e. "games from before the replacement").
+    const retained = mode === 'replace' ? schedule.slice(0, completedCount) : schedule;
+    const priorOpponentCounts = countScheduleOpponentPairs(retained);
+    const freshSchedule = generateDoublesRRSchedule(playerIds, courts.length, { startOffset, priorOpponentCounts });
+    if (!freshSchedule.length) { closeModal(); return; }
+
+    const combined = mode === 'replace' ? [...retained, ...freshSchedule] : [...schedule, ...freshSchedule];
+
+    setDoublesRRSchedule(combined); doublesRRScheduleRef.current = combined;
+    pushAtomicUpdate({ doublesRRSchedule: combined }, onFirebaseError);
+    closeModal();
+  }, [stateRef, roleRef, doublesRRPlayersRef, doublesRRScheduleRef, setDoublesRRSchedule, onFirebaseError, closeModal]);
+
   const handleManageDoublesRRPlayersSave = useCallback((newPlayers) => {
-    setDoublesRRPlayers(newPlayers); closeModal();
+    setDoublesRRPlayers(newPlayers); doublesRRPlayersRef.current = newPlayers; closeModal();
     pushAtomicUpdate({ doublesRRPlayers: newPlayers }, onFirebaseError);
   }, [closeModal]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { handleStartDoublesRR, handleDoublesRRResult, handleManageDoublesRRPlayersSave };
+  return { handleStartDoublesRR, handleDoublesRRResult, handleGenerateAdditionalDoublesRR, handleManageDoublesRRPlayersSave };
 }

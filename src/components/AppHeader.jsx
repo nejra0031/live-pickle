@@ -7,19 +7,19 @@ const TABS = [['play', '🎾 Current round'], ['standings', '🏆 Standings'], [
 // event-detail fields are set — any subset may be blank.
 function formatEventInfo(location, startTime, durationMins) {
   const parts = [];
-  if (location) parts.push(`📍 ${location}`);
+  if (location) parts.push(location);
   if (startTime) {
     const d = new Date(startTime);
     if (!isNaN(d.getTime())) {
       const dateStr = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
       const timeStr = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-      parts.push(`🗓 ${dateStr}, ${timeStr}`);
+      parts.push(`${dateStr}, ${timeStr}`);
     }
   }
   if (durationMins > 0) {
     const h = Math.floor(durationMins / 60), m = durationMins % 60;
     const durStr = h > 0 ? `${h} hour${h !== 1 ? 's' : ''}${m > 0 ? ` ${m} min` : ''}` : `${m} min`;
-    parts.push(`⏱ ${durStr}`);
+    parts.push(durStr);
   }
   return parts.join(' · ');
 }
