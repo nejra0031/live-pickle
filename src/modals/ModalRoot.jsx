@@ -90,15 +90,21 @@ export default function ModalRoot({
       )}
       {modal.open === 'tournamentSettings' && (
         <TournamentSettingsModal
+          role={role}
           tournamentTitle={tournamentTitle} tournamentLocation={tournamentLocation}
           tournamentStartTime={tournamentStartTime} tournamentDurationMins={tournamentDurationMins}
           tournamentMode={tournamentMode}
           standingsTiebreakOrder={standingsTiebreakOrder} onStandingsTiebreakOrderChange={onStandingsTiebreakOrderChange}
           doublesRRTiebreakOrder={doublesRRTiebreakOrder} onDoublesRRTiebreakOrderChange={onDoublesRRTiebreakOrderChange}
+          activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds}
+          onTogglePause={onTogglePause} teamNameDisplay={teamNameDisplay} onTeamNameDisplayChange={onTeamNameDisplayChange}
+          tptTeams={tptTeams} tptPlayers={tptPlayers}
+          doublesRRPlayers={doublesRRPlayers}
+          courtNumbers={courtNumbers} socialCourts={socialCourts} roundRobinCourts={roundRobinCourts}
           onSaveInfo={onTournamentInfoSave}
-          onManageTeams={() => { closeModal(); openModal('manageTeams'); }}
-          onManageCourts={() => { closeModal(); openModal('manageCourts'); }}
-          onReset={() => { closeModal(); openModal('confirmReset'); }}
+          onManageTeamsSave={onManageTeamsSave} onManageTPTTeamsSave={onManageTPTTeamsSave}
+          onManageDoublesRRPlayersSave={onManageDoublesRRPlayersSave} onManageCourtsSave={onManageCourtsSave}
+          onReset={() => { closeModal(); openModal('pin', { purpose: 'reset' }); }}
           onClose={closeModal}
         />
       )}
