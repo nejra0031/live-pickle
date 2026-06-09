@@ -7,7 +7,7 @@ export default function BreakModal({ onStart, onClose }) {
   const valid = message.trim() && minsRaw !== '' && minsNum >= 1 && minsNum <= 120;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4"
         style={{ background: '#1e293b', border: '1px solid rgba(251,191,36,0.4)' }}
         onClick={e => e.stopPropagation()}>

@@ -5,16 +5,12 @@ import PinModal from './PinModal';
 import ConfirmModal from './ConfirmModal';
 import BreakModal from './BreakModal';
 import TimerSettingsModal from './TimerSettingsModal';
-import ManageTeamsModal from './ManageTeamsModal';
-import ManageTPTTeamsModal from './ManageTPTTeamsModal';
-import ManageCourtsModal from './ManageCourtsModal';
 import SelectRoundRobinTeamsModal from './SelectRoundRobinTeamsModal';
 import GenerateAdditionalGamesModal from './GenerateAdditionalGamesModal';
 import AddGameModal from './AddGameModal';
 import PresetMatchModal from './PresetMatchModal';
 import EditGameModal from './EditGameModal';
 import EditTPTGameModal from './EditTPTGameModal';
-import ManageDoublesRRPlayersModal from './ManageDoublesRRPlayersModal';
 import EditDoublesRRGameModal from './EditDoublesRRGameModal';
 import EditActiveCourtModal from './EditActiveCourtModal';
 import ExportDUPRModal from './ExportDUPRModal';
@@ -110,15 +106,11 @@ export default function ModalRoot({
       )}
       {modal.open === 'break' && <BreakModal onStart={onBreakStart} onClose={closeModal} />}
       {modal.open === 'timerSettings' && <TimerSettingsModal currentMins={timerDefaultMins} onSave={onTimerSettingsSave} onClose={closeModal} />}
-      {modal.open === 'manageTeams' && tournamentMode !== 'tpt' && <ManageTeamsModal activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds} onTogglePause={onTogglePause} onSave={onManageTeamsSave} onClose={closeModal} canEditRoster={hasPermission(role, 'canEditTeams')} teamNameDisplay={teamNameDisplay} onTeamNameDisplayChange={onTeamNameDisplayChange} />}
-      {modal.open === 'manageTeams' && tournamentMode === 'tpt' && isAdmin && <ManageTPTTeamsModal tptTeams={tptTeams} tptPlayers={tptPlayers} onSave={onManageTPTTeamsSave} onClose={closeModal} />}
-      {modal.open === 'manageTeams' && tournamentMode === 'doublesrr' && isAdmin && <ManageDoublesRRPlayersModal doublesRRPlayers={doublesRRPlayers} onSave={onManageDoublesRRPlayersSave} onClose={closeModal} />}
       {modal.open === 'exportDUPR' && (
         <ExportDUPRModal history={history} tournamentMode={tournamentMode} tptTeams={tptTeams} tptPlayers={tptPlayers}
           doublesRRPlayers={doublesRRPlayers}
           tournamentTitle={tournamentTitle} onClose={closeModal} />
       )}
-      {modal.open === 'manageCourts' && <ManageCourtsModal courtNumbers={courtNumbers} socialCourts={socialCourts} rrCourtCount={tournamentMode === 'roundrobin' ? (roundRobinCourts?.length ?? 0) : 0} onSave={onManageCourtsSave} onClose={closeModal} />}
       {modal.open === 'selectRRTeams' && <SelectRoundRobinTeamsModal rankedTeamIds={ranked.map(t => t.id)} tournamentCourts={courtNumbers} onConfirm={onStartRoundRobin} onClose={closeModal} />}
       {modal.open === 'generateAdditionalGames' && <GenerateAdditionalGamesModal onChoose={onChooseGenerateAdditionalGames} onClose={closeModal} />}
       {modal.open === 'addGame' && addGameData && <AddGameModal allTeamIds={activeTeamIds} defaultCourt={addGameData.defaultCourt} courtNumbers={courtNumbers} usedCourtNumbers={addGameData.usedCourts} usedTeamIds={addGameData.usedTeams} label={addGameData.label} onSave={g => onAddGameSave(addGameData.target, g)} onClose={closeModal} />}

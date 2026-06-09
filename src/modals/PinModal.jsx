@@ -25,7 +25,7 @@ export default function PinModal({ title = 'Login', checkPin, pinLoadError, onSu
   const ready = !!checkPin;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="rounded-2xl p-6 w-full max-w-xs flex flex-col gap-4"
         style={{ background: '#1e293b', border: `1px solid ${hasErr ? '#ef4444' : 'rgba(99,102,241,0.4)'}` }}
         onClick={e => e.stopPropagation()}>

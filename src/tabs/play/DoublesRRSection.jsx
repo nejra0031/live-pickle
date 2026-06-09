@@ -10,7 +10,7 @@ export default function DoublesRRSection({
   role, isAdmin,
   timerDuration, timerSecsLeft, timerRunning, breakMode,
   onDoublesRRResult, onGenerateAdditionalGames, onFinishTournament, onBreakStart, onBreakEnd,
-  onManageTeams, onManageCourts, onReset, onTournamentSettings,
+  onTournamentSettings,
   onTimerToggle, onTimerRestart, onTimerSettings,
 }) {
   const canWrite = hasPermission(role, 'canSubmitResults');
@@ -135,23 +135,13 @@ export default function DoublesRRSection({
         </button>
       )}
       {isAdmin && (
-        <button onClick={onManageTeams} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
-          ✏️ Manage Players
-        </button>
-      )}
-      {isAdmin && (
         <button onClick={onGenerateAdditionalGames} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(217,119,6,0.08)', color: '#92400e', border: '1px solid rgba(217,119,6,0.25)' }}>
           🔁 Generate Additional Games
         </button>
       )}
       {isAdmin && (
-        <button onClick={onManageCourts} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#6366f1', fontSize: 12, textDecoration: 'underline' }}>
-          🏟️ Manage courts (rename)
-        </button>
-      )}
-      {isAdmin && (
-        <button onClick={onTournamentSettings} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 12, textDecoration: 'underline' }}>
-          Tournament settings…
+        <button onClick={onTournamentSettings} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
+          ⚙️ Tournament Settings
         </button>
       )}
     </div>

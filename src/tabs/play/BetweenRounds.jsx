@@ -3,11 +3,13 @@ import { ROLE_MAP, hasPermission } from '../../roleConfig';
 import BreakBanner from './BreakBanner';
 import SocialCourts from './SocialCourts';
 
+const settingsBtnStyle = { width: '100%', padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' };
+
 export default function BetweenRounds({
   isAdmin, isReferee, role, roundNum, finalRound, setFinalRound, targetRounds,
   nextRoundPresets, breakMode, socialCourts,
   onGenerateRound, onSelectRRTeams, onPresetMatch, onBreakStart, onBreakEnd,
-  onManageTeams, onManageCourts, onFinishTournament, onReset, onTournamentSettings,
+  onFinishTournament, onTournamentSettings,
 }) {
   const teamById = useTeamById();
   const nextRN     = roundNum === 0 ? 1 : roundNum + 1;
@@ -27,8 +29,6 @@ export default function BetweenRounds({
               { label: '🔁', sub: 'Round Robin', onClick: onSelectRRTeams,   bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
               { label: '📌', sub: 'Pre-set',     onClick: onPresetMatch,      bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
               { label: '☕', sub: 'Break',        onClick: onBreakStart,       bg: 'rgba(217,119,6,0.08)',   color: '#92400e', border: 'rgba(217,119,6,0.25)' },
-              { label: '✏️', sub: 'Teams',        onClick: onManageTeams,      bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
-              { label: '🏟️', sub: 'Courts',       onClick: onManageCourts,     bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
               { label: '🏁', sub: 'Finish',       onClick: onFinishTournament, bg: 'rgba(217,119,6,0.08)',   color: '#92400e', border: 'rgba(217,119,6,0.25)' },
             ].map(({ label, sub, onClick, bg, color, border }) => (
               <button key={sub} onClick={onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: 'clamp(8px,2vw,12px) 4px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', background: bg, color, border: `1px solid ${border}` }}>
@@ -70,7 +70,7 @@ export default function BetweenRounds({
           <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: (finalRound || isAutoFinal) ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
             {roundNum === 0 ? (isAutoFinal ? '🏁 Generate Final Round →' : 'Generate Round 1 →') : (finalRound || isAutoFinal) ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
           </button>
-          <button onClick={onTournamentSettings} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>Tournament settings…</button>
+          <button onClick={onTournamentSettings} style={settingsBtnStyle}>⚙️ Tournament Settings</button>
         </div>
 
       ) : isReferee ? (
@@ -81,16 +81,12 @@ export default function BetweenRounds({
               🔁 Switch to Round Robin
             </button>
           )}
-          {(hasPermission(role, 'canPauseTeams') || hasPermission(role, 'canEditTeams')) && (
-            <button onClick={onManageTeams} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
-              ✏️ Manage Teams
-            </button>
-          )}
           {hasPermission(role, 'canGenerateRound') && !(targetRounds > 0 && roundNum >= targetRounds) && (
             <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: (finalRound || isAutoFinal) ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
               {roundNum === 0 ? (isAutoFinal ? '🏁 Generate Final Round →' : 'Generate Round 1 →') : (finalRound || isAutoFinal) ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
             </button>
           )}
+          <button onClick={onTournamentSettings} style={settingsBtnStyle}>⚙️ Tournament Settings</button>
         </div>
 
       ) : (

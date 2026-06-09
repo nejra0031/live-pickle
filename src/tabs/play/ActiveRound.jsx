@@ -17,7 +17,7 @@ export default function ActiveRound({
   onResult, onLiveResult, onUndoResult, onUndoLiveResult,
   onEditActiveCourt, onRemoveActiveCourt, onEditLive, onRemoveLive,
   onRegenerateRound, onCancelRound, onLiveAddGame, onBreakStart, onBreakEnd,
-  onManageTeams, onManageCourts, onFinishTournament, onReset, onRemoveExtra, onTournamentSettings,
+  onFinishTournament, onRemoveExtra, onTournamentSettings,
   isAdmin, isReferee,
 }) {
   const teamById  = useTeamById();
@@ -88,8 +88,6 @@ export default function ActiveRound({
                   { label: '🔀', sub: 'Regenerate',   onClick: onRegenerateRound, bg: 'rgba(15,76,117,0.08)',   color: '#0f4c75', border: 'rgba(15,76,117,0.2)' },
                   { label: '➕', sub: 'Add Game',      onClick: onLiveAddGame,     bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
                   { label: '☕', sub: 'Break',          onClick: onBreakStart,      bg: 'rgba(217,119,6,0.08)',   color: '#92400e', border: 'rgba(217,119,6,0.25)' },
-                  { label: '✏️', sub: 'Teams',          onClick: onManageTeams,     bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
-                  { label: '🏟️', sub: 'Courts',         onClick: onManageCourts,    bg: 'rgba(99,102,241,0.08)',  color: '#4338ca', border: 'rgba(99,102,241,0.25)' },
                   { label: '✕',  sub: 'Cancel Round',  onClick: onCancelRound,     bg: 'rgba(220,38,38,0.07)',   color: '#dc2626', border: 'rgba(220,38,38,0.2)' },
                 ].map(({ label, sub, onClick, bg, color, border }) => (
                   <button key={sub} onClick={onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: 'clamp(8px,2vw,12px) 4px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', background: bg, color, border: `1px solid ${border}` }}>
@@ -136,7 +134,7 @@ export default function ActiveRound({
               )}
 
               <button onClick={onFinishTournament} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: 'linear-gradient(90deg,#d97706,#f59e0b)', color: '#fff', border: 'none' }}>🏁 Finish Tournament</button>
-              <button onClick={onTournamentSettings} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}>Tournament settings…</button>
+              <button onClick={onTournamentSettings} style={{ width: '100%', padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>⚙️ Tournament Settings</button>
             </div>
           )}
 
@@ -149,11 +147,7 @@ export default function ActiveRound({
                   <button onClick={onCancelRound} style={{ flex: 1, padding: 'clamp(8px,2vw,11px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(220,38,38,0.07)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)' }}>✕ Cancel Round</button>
                 </div>
               )}
-              {(hasPermission(role, 'canPauseTeams') || hasPermission(role, 'canEditTeams')) && (
-                <button onClick={onManageTeams} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>
-                  ✏️ Manage Teams
-                </button>
-              )}
+              <button onClick={onTournamentSettings} style={{ width: '100%', padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>⚙️ Tournament Settings</button>
             </div>
           )}
         </>

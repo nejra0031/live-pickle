@@ -42,21 +42,25 @@ function FL({ children }) {
   return <p style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 4, marginTop: 0 }}>{children}</p>;
 }
 
+const selS = { ...iS, width: 'auto', background: '#1e293b' };
+
 function StartTimePicker({ startTime, setStartTime }) {
   const { date, hour, min } = parseDT(startTime);
   const setDT = (d, h, m) => setStartTime(d ? `${d}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}` : '');
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-      <input type="date" value={date} onChange={e => setDT(e.target.value, hour, min)}
+      <input type="date" value={date}
+        onChange={e => setDT(e.target.value, hour, min)}
+        onClick={e => e.currentTarget.showPicker?.()}
         onWheel={e => e.currentTarget.blur()}
-        style={{ ...iS, flex: '1 1 auto', minWidth: 110 }} />
+        style={{ ...iS, flex: '1 1 auto', minWidth: 110, background: '#1e293b' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <select value={hour} onChange={e => setDT(date, Number(e.target.value), min)} style={{ ...iS, width: 'auto' }}>
-          {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}</option>)}
+        <select value={hour} onChange={e => setDT(date, Number(e.target.value), min)} style={selS}>
+          {Array.from({ length: 24 }, (_, h) => <option key={h} value={h} style={{ background: '#1e293b' }}>{String(h).padStart(2, '0')}</option>)}
         </select>
         <span style={{ color: '#94a3b8', fontWeight: 900, fontSize: 15 }}>:</span>
-        <select value={min} onChange={e => setDT(date, hour, Number(e.target.value))} style={{ ...iS, width: 'auto' }}>
-          {MINUTES.map(m => <option key={m} value={m}>{String(m).padStart(2, '0')}</option>)}
+        <select value={min} onChange={e => setDT(date, hour, Number(e.target.value))} style={selS}>
+          {MINUTES.map(m => <option key={m} value={m} style={{ background: '#1e293b' }}>{String(m).padStart(2, '0')}</option>)}
         </select>
       </div>
     </div>
@@ -79,6 +83,7 @@ export default function TournamentSettingsModal({
 }) {
   const canEditEventInfo = hasPermission(role, 'canEditEventInfo');
   const canEditStandingsOrder = hasPermission(role, 'canEditStandingsOrder');
+  const canPauseTeams = hasPermission(role, 'canPauseTeams');
   const canEditTeams = hasPermission(role, 'canEditTeams');
   const canEditCourts = hasPermission(role, 'canEditCourts');
   const canResetTournament = hasPermission(role, 'canResetTournament');
@@ -211,37 +216,38 @@ export default function TournamentSettingsModal({
                 <TiebreakOrderEditor
                   order={tournamentMode === 'doublesrr' ? doublesRRTiebreakOrder : standingsTiebreakOrder}
                   onChange={tournamentMode === 'doublesrr' ? onDoublesRRTiebreakOrderChange : onStandingsTiebreakOrderChange}
+                  dark
                 />
               </div>
+            </Acc>
+          )}
+
+          {/* ── Team status ── */}
+          {canPauseTeams && tournamentMode !== 'tpt' && tournamentMode !== 'doublesrr' && onTogglePause && (
+            <Acc title="Team status" open={sec.teamStatus} onToggle={() => toggle('teamStatus')}>
+              <div className="flex flex-wrap" style={{ gap: 8 }}>
+                {(activeTeamIds || []).map(id => {
+                  const t = teamById(id);
+                  const paused = (pausedIds || []).includes(id);
+                  return (
+                    <button key={id} onClick={() => onTogglePause(id)} className="rounded-full font-bold"
+                      style={{ padding: '5px 12px', fontSize: 13, background: paused ? 'rgba(0,0,0,0.05)' : t.color, color: paused ? '#94a3b8' : t.text, border: `2px solid ${paused ? 'rgba(0,0,0,0.08)' : t.color}`, cursor: 'pointer', opacity: paused ? 0.6 : 1, textDecoration: paused ? 'line-through' : 'none' }}>
+                      {t.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {(pausedIds || []).length > 0 && (
+                <p style={{ fontSize: 12, color: '#d97706', marginTop: 8 }}>
+                  {(pausedIds || []).map(id => teamById(id)?.name).filter(Boolean).join(', ')} paused — excluded from rotation.
+                </p>
+              )}
             </Acc>
           )}
 
           {/* ── Teams & players — swiss / rr ── */}
           {canEditTeams && tournamentMode !== 'tpt' && tournamentMode !== 'doublesrr' && (
             <Acc title="Teams & players" open={sec.teams} onToggle={() => toggle('teams')}>
-
-              {onTogglePause && (
-                <div style={{ marginBottom: 16 }}>
-                  <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Team status</p>
-                  <div className="flex flex-wrap" style={{ gap: 8 }}>
-                    {(activeTeamIds || []).map(id => {
-                      const t = teamById(id);
-                      const paused = (pausedIds || []).includes(id);
-                      return (
-                        <button key={id} onClick={() => onTogglePause(id)} className="rounded-full font-bold"
-                          style={{ padding: '5px 12px', fontSize: 13, background: paused ? 'rgba(0,0,0,0.05)' : t.color, color: paused ? '#94a3b8' : t.text, border: `2px solid ${paused ? 'rgba(0,0,0,0.08)' : t.color}`, cursor: 'pointer', opacity: paused ? 0.6 : 1, textDecoration: paused ? 'line-through' : 'none' }}>
-                          {t.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {(pausedIds || []).length > 0 && (
-                    <p style={{ fontSize: 12, color: '#d97706', marginTop: 6 }}>
-                      {(pausedIds || []).map(id => teamById(id)?.name).filter(Boolean).join(', ')} paused — excluded from rotation.
-                    </p>
-                  )}
-                </div>
-              )}
 
               {onTeamNameDisplayChange && (
                 <div style={{ marginBottom: 16 }}>

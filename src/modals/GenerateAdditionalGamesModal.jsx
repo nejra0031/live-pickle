@@ -3,7 +3,7 @@
 // allows — and choose how it merges with what's already there.
 export default function GenerateAdditionalGamesModal({ onChoose, onClose }) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 modal-box" onClick={e => e.stopPropagation()}>
         <div className="text-sm font-bold uppercase tracking-widest" style={{ color: '#fbbf24' }}>🔁 Generate Additional Games</div>
         <p className="text-sm text-slate-300">

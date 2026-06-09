@@ -14,7 +14,7 @@ export default function SelectRoundRobinTeamsModal({ rankedTeamIds, tournamentCo
   const orderedCourts = tournamentCourts.filter(c => selectedCourts.has(c));
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4 modal-box" onClick={e => e.stopPropagation()}>
         <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">🔁 Start Round Robin</div>
 

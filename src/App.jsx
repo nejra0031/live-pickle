@@ -894,8 +894,7 @@ export default function App({ viewerOnly = false }) {
                   onLiveAddGame={() => openModal('liveAddGame')}
                   onContinueSwissAfterRR={handleContinueSwissAfterRR}
                   onExitRoundRobin={(reason) => reason ? doExitRoundRobin(reason) : handleExitRoundRobin()}
-                  onManageTeams={() => openModal('manageTeams')} onManageCourts={() => openModal('manageCourts')}
-                  onReset={() => openModal('confirmReset')} onCancelRound={() => openModal('pin', { purpose: 'cancelRound' })}
+                  onCancelRound={() => openModal('pin', { purpose: 'cancelRound' })}
                   onTournamentSettings={() => openModal('tournamentSettings')}
                   rrMatchKey={rrMatchKey}
                 />

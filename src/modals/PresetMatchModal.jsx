@@ -26,7 +26,7 @@ export default function PresetMatchModal({ allTeamIds, courtNumbers, usedTeamIds
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4 modal-box" onClick={e => e.stopPropagation()}>
         <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">📌 Pre-set Matchup</div>
         <p className="text-xs text-slate-500">Lock in a game for the next round. Remaining courts are filled by the algorithm.</p>

@@ -3,7 +3,7 @@ import { useState } from 'react';
 export default function TimerSettingsModal({ currentMins, onSave, onClose }) {
   const [mins, setMins] = useState(currentMins);
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="rounded-2xl p-6 w-full max-w-xs flex flex-col gap-4 modal-box" onClick={e => e.stopPropagation()}>
         <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">⚙️ Timer Settings</div>
         <div className="flex items-center gap-3">
