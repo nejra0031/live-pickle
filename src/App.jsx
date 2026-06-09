@@ -81,7 +81,7 @@ function tournamentReducer(state, action) {
   return state;
 }
 
-export default function App({ viewerOnly = false, clubId = null, onCreated = null, onBack = null }) {
+export default function App({ viewerOnly = false, clubId = null, tournamentId = null, onCreated = null, onBack = null }) {
   const online = useOnline();
 
   // ── Phase & identity ──────────────────────────────────────────────────────
@@ -232,9 +232,10 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
   } = useRoundTimer({ timerDuration, roleRef, onFirebaseError: setFirebaseError });
 
   // ── Firebase main listener callback ───────────────────────────────────────
-  const tournamentIdRef    = useRef(null);
+  const tournamentIdRef    = useRef(tournamentId);
   const lastSeenRoundNum   = useRef(-1);
   const historyLengthRef   = useRef(0);
+  const metaSyncedRef      = useRef(false);
 
   const updateAllStates = useCallback((s) => {
     if (!s || s.phase === 'waiting') { setPhase(p => p === 'play' ? 'waiting' : p); return; }
@@ -264,6 +265,13 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     setDoublesRRTiebreakOrder(s.doublesRRTiebreakOrder || DEFAULT_DOUBLES_RR_TIEBREAK_ORDER);
     historyLengthRef.current = s.history.length;
     if (s._tournamentId) tournamentIdRef.current = s._tournamentId;
+    // One-time backfill: write location/startTime into meta so the landing page can show them
+    if (!metaSyncedRef.current && clubId && tournamentIdRef.current) {
+      metaSyncedRef.current = true;
+      const loc = s.tournamentLocation || '';
+      const st  = s.tournamentStartTime || '';
+      if (loc || st) writeTournamentMeta(clubId, tournamentIdRef.current, { location: loc, startTime: st });
+    }
     const isNew = s.roundNum !== lastSeenRoundNum.current;
     if (isNew) { lastSeenRoundNum.current = s.roundNum; pendingRef.current = {}; setPending({}); setRoundKey(k => k + 1); }
     const tRun = s.timerRunning || false, tSA = s.timerStartedAt || null, tPS = s.timerPausedSecsLeft ?? s.timerDuration ?? 0;

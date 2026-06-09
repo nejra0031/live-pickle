@@ -51,6 +51,7 @@ function Root() {
     <App
       key={activeContext?.tournamentId ?? 'new'}
       clubId={activeContext?.clubId}
+      tournamentId={activeContext?.tournamentId ?? null}
       onCreated={handleCreated}
       onBack={handleBack}
     />

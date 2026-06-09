@@ -36,6 +36,7 @@ function ViewerRoot() {
       key={activeContext?.tournamentId}
       viewerOnly={true}
       clubId={activeContext?.clubId}
+      tournamentId={activeContext?.tournamentId ?? null}
       onBack={handleBack}
     />
   );
