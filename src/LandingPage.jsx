@@ -1,9 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ballIcon from '/ball.png';
 import { DEFAULT_CLUB_ID } from './firebase';
 import { useClubs } from './hooks/useClubs';
 
 const CLUB_ID = DEFAULT_CLUB_ID;
+
+function toSlug(title) {
+  return (title || 'tournament')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'tournament';
+}
+
+function buildSlugMap(tournaments) {
+  const slugCount = {};
+  tournaments.forEach(t => { const s = toSlug(t.title); slugCount[s] = (slugCount[s] || 0) + 1; });
+  const idToSlug = {}, slugToId = {};
+  tournaments.forEach(t => {
+    const base = toSlug(t.title);
+    const slug = slugCount[base] > 1 ? `${base}-${t.id.slice(0, 6)}` : base;
+    idToSlug[t.id] = slug;
+    slugToId[slug] = t.id;
+  });
+  return { idToSlug, slugToId };
+}
 
 const MODE_LABELS = {
   swiss:      'Swiss',
@@ -101,8 +122,19 @@ function TournamentCard({ t, onClick, onDelete }) {
 export default function LandingPage({ onSelectTournament, onCreateTournament, viewerOnly = false }) {
   const { clubInfo, tournaments, loading, error, refresh, deleteTournament } = useClubs(CLUB_ID);
 
+  const { idToSlug, slugToId } = useMemo(() => buildSlugMap(tournaments), [tournaments]);
+
   // Refresh whenever the landing page mounts (e.g. after creating a tournament)
   useEffect(() => { refresh(); }, []);
+
+  // Auto-navigate to tournament from URL hash on initial load
+  useEffect(() => {
+    if (loading) return;
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    const id = slugToId[hash];
+    if (id) onSelectTournament(CLUB_ID, id);
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
@@ -167,7 +199,11 @@ export default function LandingPage({ onSelectTournament, onCreateTournament, vi
               <TournamentCard
                 key={t.id}
                 t={t}
-                onClick={() => onSelectTournament(CLUB_ID, t.id)}
+                onClick={() => {
+                  const slug = idToSlug[t.id] || t.id;
+                  history.pushState({ clubId: CLUB_ID, tournamentId: t.id }, '', `#${slug}`);
+                  onSelectTournament(CLUB_ID, t.id);
+                }}
                 onDelete={!viewerOnly ? deleteTournament : null}
               />
             ))}
