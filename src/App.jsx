@@ -387,7 +387,8 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     if (clubId) setActiveTournament(clubId, tid);
     pushSnapshot(snap, setFirebaseError); setRole('admin');
     onCreated?.(clubId, tid);
-    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: isRR ? 'roundrobin' : 'swiss', status: 'active', createdAt: Date.now(), teamCount: teamIds.length, maxPlayers: mp });
+    const playerCount = allTeams.reduce((n, t) => n + (t.players?.length || 1), 0);
+    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: isRR ? 'roundrobin' : 'swiss', status: 'active', createdAt: Date.now(), playerCount, maxPlayers: mp });
     setMaxPlayers(mp);
     setActiveTeamIds(teamIds); setCourtNumbers(courts); setTimerDuration(durSecs);
     setStandings(s); setRound(null); setRoundNum(startRoundNum); setHistory([]);
@@ -585,7 +586,7 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     const ns = rebuildStandings(newActiveIds, history);
     setStandings(ns); closeModal();
     gatedUpdate('canEditTeams', { teamRegistry: newRegistry, activeTeamIds: newActiveIds });
-    if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { teamCount: newActiveIds.length });
+    if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { playerCount: newRegistry.reduce((n, t) => n + (t.players?.length || 1), 0) });
   }, [history, closeModal, roleRef, clubId]);
 
   const handleTeamNameDisplayChange = useCallback(mode => {

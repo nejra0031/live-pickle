@@ -53,7 +53,7 @@ export function useDoublesRRManagement({
       doublesRRPlayers: playersData, doublesRRSchedule: schedule, doublesRRResults: {},
     });
     pushSnapshot(snap, onFirebaseError);
-    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: 'doublesrr', status: 'active', createdAt: Date.now(), teamCount: Object.keys(playersData).length, maxPlayers });
+    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: 'doublesrr', status: 'active', createdAt: Date.now(), playerCount: Object.keys(playersData).length, maxPlayers });
     setDoublesRRPlayers(playersData); doublesRRPlayersRef.current = playersData;
     setDoublesRRSchedule(schedule); doublesRRScheduleRef.current = schedule;
     setDoublesRRResults({}); doublesRRResultsRef.current = {};
@@ -124,7 +124,7 @@ export function useDoublesRRManagement({
   const handleManageDoublesRRPlayersSave = useCallback((newPlayers) => {
     setDoublesRRPlayers(newPlayers); doublesRRPlayersRef.current = newPlayers; closeModal();
     pushAtomicUpdate({ doublesRRPlayers: newPlayers }, onFirebaseError);
-    if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { teamCount: Object.keys(newPlayers).length });
+    if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { playerCount: Object.keys(newPlayers).length });
   }, [closeModal, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUndoDoublesRRResult = useCallback((roundIdx, courtIdx) => {

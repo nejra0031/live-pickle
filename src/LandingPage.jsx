@@ -44,11 +44,12 @@ function TournamentCard({ t, onClick }) {
             <span style={{ background: statusStyle.bg, color: statusStyle.color, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6 }}>
               {statusStyle.label}
             </span>
-            {t.teamCount > 0 && (
+            {(t.playerCount > 0 || t.teamCount > 0) && (
               <span style={{ color: '#64748b', fontSize: 12 }}>
-                {t.mode === 'tpt' || t.mode === 'doublesrr'
-                  ? (t.maxPlayers > 0 ? `${t.teamCount} / ${t.maxPlayers} players` : `${t.teamCount} players`)
-                  : (t.maxPlayers > 0 ? `${t.teamCount} teams · max ${t.maxPlayers} players` : `${t.teamCount} teams`)}
+                {(() => {
+                  const n = t.playerCount || t.teamCount;
+                  return t.maxPlayers > 0 ? `${n} / ${t.maxPlayers} players` : `${n} players`;
+                })()}
               </span>
             )}
           </div>

@@ -55,7 +55,7 @@ export function useTPTManagement({
       tptSchedule: schedule, tptResults: {},
     });
     pushSnapshot(snap, onFirebaseError);
-    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: 'tpt', status: 'active', createdAt: Date.now(), teamCount: Object.keys(playersData).length, maxPlayers });
+    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: 'tpt', status: 'active', createdAt: Date.now(), playerCount: Object.keys(playersData).length, maxPlayers });
     setTPTTeams(tptTeamsData); setTPTPlayers(playersData);
     setTPTSchedule(schedule); tptScheduleRef.current = schedule;
     setTPTResults({}); tptResultsRef.current = {};
@@ -100,7 +100,7 @@ export function useTPTManagement({
   const handleManageTPTTeamsSave = useCallback((newTPTTeams, newPlayers) => {
     setTPTTeams(newTPTTeams); setTPTPlayers(newPlayers); closeModal();
     pushAtomicUpdate({ tptTeams: newTPTTeams, players: newPlayers }, onFirebaseError);
-    if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { teamCount: Object.keys(newPlayers).length });
+    if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { playerCount: Object.keys(newPlayers).length });
   }, [closeModal, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUndoTPTResult = useCallback((schedRoundIdx, matchupIdx, gameIdx) => {
