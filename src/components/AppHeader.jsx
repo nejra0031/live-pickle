@@ -43,9 +43,6 @@ export default function AppHeader({
       <div ref={headerRef} style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 40, background: '#fff', borderBottom: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: headerHidden ? 'none' : undefined }}>
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 clamp(12px,3vw,20px)' }}>
           <div className="flex items-center gap-3 py-3">
-            {onBack && (
-              <button onClick={onBack} title="Back to tournaments" style={{ flexShrink: 0, fontSize: 13, padding: '6px 10px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: 'rgba(0,0,0,0.04)', color: '#64748b', border: '1px solid rgba(0,0,0,0.08)', whiteSpace: 'nowrap' }}>← Tournaments</button>
-            )}
             <img src={ballIcon} alt="pickleball" style={{ width: 'clamp(36px,7vw,52px)', height: 'clamp(36px,7vw,52px)', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
             <div className="flex-1 min-w-0">
               <h1 className="font-black tracking-tight leading-tight truncate" style={{ fontSize: 'clamp(16px,4vw,26px)', color: '#0f4c75' }}>{tournamentTitle}</h1>

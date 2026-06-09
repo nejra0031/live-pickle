@@ -359,6 +359,10 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
     return buildDoublesRRStandings(Object.keys(doublesRRPlayers), doublesRRPlayers, history, doublesRRTiebreakOrder);
   }, [tournamentMode, doublesRRPlayers, history, doublesRRTiebreakOrder]);
 
+  // Tracks the mode-appropriate top standings so handleFinishTournament can write top3 to meta
+  const effectiveRankedRef = useRef([]);
+  effectiveRankedRef.current = tournamentMode === 'tpt' ? tptTeamStandings : tournamentMode === 'doublesrr' ? doublesRRStandings : ranked;
+
   // ── Tournament lifecycle handlers ──────────────────────────────────────────
   const handleStart = useCallback((allTeams, teamIds, courts, durSecs, title, numRounds, eventDetails = {}, startMode = 'swiss') => {
     setTournamentTeams(allTeams); setModuleRegistry(allTeams);
@@ -761,7 +765,10 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
     const s = computeSecsLeft(); applyTimerState(false, null, s);
     setBreakMode(null); setTournamentFinished(true);
     gatedUpdate('canFinishTournament', { tournamentFinished: true, timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s, breakMode: null });
-    if (clubId) writeTournamentMeta(clubId, tournamentIdRef.current, { status: 'finished' });
+    if (clubId) {
+      const top3 = effectiveRankedRef.current.slice(0, 3).map(t => ({ name: t.name, color: t.color || '#0f4c75', text: t.text || '#fff' }));
+      writeTournamentMeta(clubId, tournamentIdRef.current, { status: 'finished', top3 });
+    }
   }, [computeSecsLeft, applyTimerState, roleRef, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleResumeTournament = useCallback(() => {

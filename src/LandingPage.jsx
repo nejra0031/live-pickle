@@ -58,6 +58,8 @@ function TournamentCard({ t, onClick, onDelete }) {
       style={{ display: 'block', width: '100%', textAlign: 'left', background: '#fff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 16, padding: '16px 18px', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', transition: 'box-shadow 0.15s', boxSizing: 'border-box' }}
       onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,76,117,0.12)'}
       onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)'}>
+
+      {/* Top row: title + meta on left, delete button on right */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 800, fontSize: 17, color: '#0f172a', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -115,6 +117,27 @@ function TournamentCard({ t, onClick, onDelete }) {
           )}
         </div>
       </div>
+
+      {/* Mini podium for finished tournaments */}
+      {t.status === 'finished' && t.top3?.length > 0 && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'center', gap: 8, alignItems: 'flex-end' }}>
+          {[t.top3[1], t.top3[0], t.top3[2]].map((entry, i) => {
+            if (!entry) return <div key={i} style={{ flex: '1 1 0' }} />;
+            const medals = ['🥈', '🥇', '🥉'];
+            const barH   = [22, 30, 16];
+            const barBg  = i === 1 ? 'linear-gradient(180deg,#fbbf24,#d97706)' : i === 0 ? 'linear-gradient(180deg,#cbd5e1,#94a3b8)' : 'linear-gradient(180deg,#f59e42,#b45309)';
+            return (
+              <div key={i} style={{ flex: '1 1 0', maxWidth: 110, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <span style={{ fontSize: 14 }}>{medals[i]}</span>
+                <span style={{ background: entry.color, color: entry.text, fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 6, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', textAlign: 'center' }}>
+                  {entry.name}
+                </span>
+                <div style={{ width: '100%', height: barH[i], borderRadius: '4px 4px 0 0', background: barBg }} />
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
