@@ -79,6 +79,7 @@ export default function TournamentSettingsModal({
   courtNumbers, socialCourts, roundRobinCourts,
   onSaveInfo, onManageTeamsSave, onManageTPTTeamsSave, onManageDoublesRRPlayersSave, onManageCourtsSave,
   onReset,
+  onManageMembers,
   onClose,
 }) {
   const canEditEventInfo = hasPermission(role, 'canEditEventInfo');
@@ -360,7 +361,7 @@ export default function TournamentSettingsModal({
                           <div style={{ flex: 1 }}>
                             <PlayerNameField name={p.name} duprId={p.duprId || ''} nickname={p.nickname || ''} knownPlayers={knownPlayers}
                               onChange={val => setLocalTPTPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], name: val.name, duprId: val.duprId, nickname: val.nickname ?? prev[p.id].nickname } }))}
-                              inputStyle={fS} />
+                              inputStyle={fS} showFullName={false} />
                           </div>
                         </div>
                       ))}
@@ -394,7 +395,7 @@ export default function TournamentSettingsModal({
                     <div style={{ flex: 1 }}>
                       <PlayerNameField name={p.name} duprId={p.duprId || ''} nickname={p.nickname || ''} knownPlayers={knownPlayers}
                         onChange={val => setLocalDRRPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], name: val.name, duprId: val.duprId, nickname: val.nickname ?? prev[p.id].nickname } }))}
-                        inputStyle={fS} />
+                        inputStyle={fS} showFullName={false} />
                     </div>
                   </div>
                 ))}
@@ -438,6 +439,17 @@ export default function TournamentSettingsModal({
                 + Add court
               </button>
               {!courtsValid && <p style={{ fontSize: 12, color: '#fbbf24', marginTop: 6 }}>Court names must be unique and non-empty.</p>}
+            </Acc>
+          )}
+
+          {/* ── Club members ── */}
+          {onManageMembers && canResetTournament && (
+            <Acc title="Club members" open={sec.members} onToggle={() => toggle('members')}>
+              <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>View and add members to this club.</p>
+              <button onClick={onManageMembers}
+                style={{ padding: '8px 16px', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>
+                Manage members…
+              </button>
             </Acc>
           )}
 

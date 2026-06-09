@@ -15,23 +15,70 @@ const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
 export { ref, set, update, onValue, off, push, get, onDisconnect, remove };
 
-// ── Path constants (test-isolated) ────────────────────────────────────────
+// ── Active tournament context ──────────────────────────────────────────────
 const TEST_MODE = import.meta.env.VITE_TEST_MODE === 'true';
-const TOURNAMENT_PATH  = TEST_MODE ? 'current_tournament_e2e' : 'current_tournament';
-const BACKUPS_PATH     = TEST_MODE ? 'tournament_backups_e2e' : 'tournament_backups';
-const PRESENCE_PATH    = TEST_MODE ? 'presence_e2e'            : 'presence';
-const KNOWN_PLAYERS_PATH = TEST_MODE ? 'known_players_e2e'    : 'known_players';
+export const DEFAULT_CLUB_ID = TEST_MODE ? 'blue_test' : 'blue';
 
-// Exported so App.jsx can use the correct path for presence push/listen
-export const tournamentRef     = () => ref(db, TOURNAMENT_PATH);
-export const pendingResultsRef = () => ref(db, `${TOURNAMENT_PATH}/pendingResults`);
-export const rolePinRef        = (pinPath) => ref(db, TEST_MODE ? `${pinPath}_test` : pinPath);
-export const presenceRef       = () => ref(db, PRESENCE_PATH);
-export const knownPlayersRef   = () => ref(db, KNOWN_PLAYERS_PATH);
+let _activeClubId = null;
+let _activeTournamentId = null;
+
+export function setActiveTournament(clubId, tournamentId) {
+  _activeClubId = clubId;
+  _activeTournamentId = tournamentId;
+}
+
+export function getActiveContext() {
+  return { clubId: _activeClubId, tournamentId: _activeTournamentId };
+}
+
+function activePaths() {
+  if (TEST_MODE) {
+    const base = 'clubs/blue_test/tournaments/e2e_tournament';
+    return {
+      tournament: base + '/current',
+      backups:    base + '/backups',
+      presence:   base + '/presence',
+      config:     base + '/config',
+    };
+  }
+  const base = `clubs/${_activeClubId}/tournaments/${_activeTournamentId}`;
+  return {
+    tournament: base + '/current',
+    backups:    base + '/backups',
+    presence:   base + '/presence',
+    config:     base + '/config',
+  };
+}
+
+// ── Tournament-scoped path helpers ─────────────────────────────────────────
+export const tournamentRef     = () => ref(db, activePaths().tournament);
+export const pendingResultsRef = () => ref(db, activePaths().tournament + '/pendingResults');
+export const presenceRef       = () => ref(db, activePaths().presence);
+
+// In TEST_MODE: reads the global config/adminPin_test (unchanged from before).
+// In prod: reads clubs/{clubId}/tournaments/{tid}/config/{leaf}.
+export const rolePinRef = (leaf) => {
+  if (TEST_MODE) return ref(db, `config/${leaf}_test`);
+  return ref(db, activePaths().config + '/' + leaf);
+};
+
+// ── Club and user path helpers ─────────────────────────────────────────────
+export const clubInfoRef        = (clubId) => ref(db, `clubs/${clubId}/info`);
+export const clubTournamentsRef = (clubId) => ref(db, `clubs/${clubId}/tournaments`);
+export const tournamentMetaRef  = (clubId, tid) => ref(db, `clubs/${clubId}/tournaments/${tid}/meta`);
+export const usersRef           = () => ref(db, 'users');
+export const userRef            = (uid) => ref(db, `users/${uid}`);
+
+export function writeTournamentMeta(clubId, tid, meta) {
+  return update(ref(db, `clubs/${clubId}/tournaments/${tid}/meta`), meta)
+    .catch(err => console.error('writeTournamentMeta failed', err));
+}
 
 // ── Known-players registry (cross-tournament, for DUPR export autocomplete) ─
-// Keyed by a slug derived from the trimmed name so re-saving the same person
-// updates their entry instead of creating duplicates.
+const KNOWN_PLAYERS_PATH = TEST_MODE ? 'known_players_e2e' : 'known_players';
+
+export const knownPlayersRef = () => ref(db, KNOWN_PLAYERS_PATH);
+
 function playerSlug(name) {
   return name.trim().toLowerCase().replace(/\s+/g, '_').replace(/[.#$\[\]/]/g, '');
 }
@@ -42,8 +89,6 @@ export function saveKnownPlayer(name, duprId, nickname) {
   const trimmedName = (name || '').trim();
   const slug = playerSlug(trimmedName);
   if (!slug) return Promise.resolve();
-  // `nickname` is omitted from the update when not passed in, so existing
-  // nicknames survive saves from call sites that don't know about them.
   const fields = { id: slug, name: trimmedName, duprID: (duprId || '').trim() };
   if (nickname !== undefined) fields.nickname = (nickname || '').trim();
   return update(ref(db, `${KNOWN_PLAYERS_PATH}/${slug}`), fields)
@@ -69,18 +114,18 @@ export function isOwnToken(tok) {
 
 // ── Backup helpers ─────────────────────────────────────────────────────────
 export function writeBackup(roundNum, snap) {
-  return set(ref(db, `${BACKUPS_PATH}/round_${roundNum}`), { ...snap, _backupAt: Date.now() }).catch(err => {
+  return set(ref(db, activePaths().backups + `/round_${roundNum}`), { ...snap, _backupAt: Date.now() }).catch(err => {
     console.error('Backup write failed', err);
   });
 }
 export function fetchBackup(roundNum) {
-  return get(ref(db, `${BACKUPS_PATH}/round_${roundNum}`));
+  return get(ref(db, activePaths().backups + `/round_${roundNum}`));
 }
 export function fetchBackupIndex() {
-  return get(ref(db, BACKUPS_PATH));
+  return get(ref(db, activePaths().backups));
 }
 export function clearBackups() {
-  return remove(ref(db, BACKUPS_PATH)).catch(err => console.error('Backup clear failed', err));
+  return remove(ref(db, activePaths().backups)).catch(err => console.error('Backup clear failed', err));
 }
 
 // ── Atomic helpers ─────────────────────────────────────────────────────────

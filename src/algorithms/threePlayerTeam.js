@@ -1,5 +1,14 @@
 // Schedule generation and standings for the 3-player team tournament format.
 
+export function formatTPTTeamLabel(team, tptPlayers, mode) {
+  if (!team) return '';
+  const allIds = [...(team.maleIds || []), team.femaleId].filter(Boolean);
+  const playerNames = allIds.map(pid => tptPlayers[pid]?.name).filter(Boolean).join(' / ');
+  if (mode === 'players') return playerNames || team.name;
+  if (mode === 'both') return playerNames ? `${team.name} (${playerNames})` : team.name;
+  return team.name;
+}
+
 // Returns array of scheduling rounds, each: { matchups: [{teamAId, teamBId}], byeTeamId }
 // Uses the same circle-method rotation as generateRoundRobinSchedule.
 export function generateTPTSchedule(teamIds) {

@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const { seedTPTTournament, clearE2EData } = require('./helpers/firebase.js');
-const { loginAsAdmin } = require('./helpers/app.js');
+const { loginAsAdmin, navigateToTournament } = require('./helpers/app.js');
 
 // Smoke coverage for the 3-Player Team (TPT) play path — the surface a future
 // useTPTManagement extraction (plan C.4) would touch. Seeds a 2-team / 1-round
@@ -12,7 +12,7 @@ test.beforeEach(async () => {
 
 test('renders the TPT play view with matchup and game labels', async ({ page }) => {
   await page.goto('/_admin.html');
-  await page.waitForSelector('text=E2E TPT Tournament', { timeout: 8000 });
+  await navigateToTournament(page, 'E2E TPT Tournament');
   await loginAsAdmin(page);
 
   await expect(page.locator('text=3-Player Team Tournament')).toBeVisible();
@@ -26,7 +26,7 @@ test('renders the TPT play view with matchup and game labels', async ({ page }) 
 
 test('records a TPT game result', async ({ page }) => {
   await page.goto('/_admin.html');
-  await page.waitForSelector('text=E2E TPT Tournament', { timeout: 8000 });
+  await navigateToTournament(page, 'E2E TPT Tournament');
   await loginAsAdmin(page);
 
   // First game card = males doubles; two score inputs + Confirm.

@@ -1,3 +1,5 @@
+import { pairKey } from './pairingUtils';
+
 export function buildByeCounts(history) {
   const solo = {}, pairs = {};
   history.forEach(rd => {
@@ -5,7 +7,7 @@ export function buildByeCounts(history) {
     ids.forEach(id => { solo[id] = (solo[id] || 0) + 1; });
     for (let i = 0; i < ids.length; i++)
       for (let j = i + 1; j < ids.length; j++) {
-        const k = [ids[i], ids[j]].sort().join('|');
+        const k = pairKey(ids[i], ids[j]);
         pairs[k] = (pairs[k] || 0) + 1;
       }
   });
@@ -17,7 +19,7 @@ export function scoreByeGroup(ids, { solo, pairs }) {
   for (let i = 0; i < ids.length; i++) {
     ss += solo[ids[i]] || 0;
     for (let j = i + 1; j < ids.length; j++) {
-      const k = [ids[i], ids[j]].sort().join('|');
+      const k = pairKey(ids[i], ids[j]);
       ps += pairs[k] || 0;
     }
   }

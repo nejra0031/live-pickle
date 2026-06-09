@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useReducer, useCallback, useMemo } from 'r
 import { TeamRegistryContext } from './context/TeamRegistryContext';
 import { setModuleRegistry } from './constants';
 import { courtKey } from './constants';
-import { db, ref, set as fbSet, update as fbUpdate, onValue, off, get, pushSnapshot, pushAtomicUpdate, fetchBackup, clearBackups, tournamentRef } from './firebase';
+import { db, ref, set as fbSet, update as fbUpdate, onValue, off, get, pushSnapshot, pushAtomicUpdate, fetchBackup, clearBackups, tournamentRef, setActiveTournament, writeTournamentMeta } from './firebase';
 import { hasPermission } from './roleConfig';
 import { normaliseSnapshot } from './normalise';
 import { mkStandings, rerank, rebuildStandings, DEFAULT_STANDINGS_TIEBREAK_ORDER } from './algorithms/standings';
@@ -23,7 +23,7 @@ import { useDoublesRRState } from './hooks/useDoublesRRState';
 import { useDoublesRRManagement } from './hooks/useDoublesRRManagement';
 import SetupScreen from './setup/SetupScreen';
 import StandingsTab from './tabs/StandingsTab';
-import HistoryTab from './tabs/HistoryTab';
+import MatchesTab from './tabs/MatchesTab';
 import PlayTab from './tabs/PlayTab';
 import ModalRoot from './modals/ModalRoot';
 import AppHeader from './components/AppHeader';
@@ -80,7 +80,7 @@ function tournamentReducer(state, action) {
   return state;
 }
 
-export default function App({ viewerOnly = false }) {
+export default function App({ viewerOnly = false, clubId = null, onCreated = null, onBack = null }) {
   const online = useOnline();
 
   // ── Phase & identity ──────────────────────────────────────────────────────
@@ -325,7 +325,7 @@ export default function App({ viewerOnly = false }) {
   });
 
   // ── Swipe navigation ──────────────────────────────────────────────────────
-  const TAB_ORDER     = ['play', 'standings', 'history'];
+  const TAB_ORDER     = ['play', 'standings', 'matches'];
   const swipeTouchRef = useRef(null);
   const handleSwipeStart = useCallback(e => { const t = e.touches[0]; swipeTouchRef.current = { x: t.clientX, y: t.clientY }; }, []);
   const handleSwipeEnd   = useCallback(e => {
@@ -380,7 +380,11 @@ export default function App({ viewerOnly = false }) {
         roundRobinStartRoundNum: 1, roundRobinStartSnapshot: rrStartSnapshot, roundRobinEndSnapshot: null,
       } : {}),
     }, { _tournamentId: tid });
+    // Route all subsequent Firebase calls to the new tournament's path before writing
+    if (clubId) setActiveTournament(clubId, tid);
     pushSnapshot(snap, setFirebaseError); setRole('admin');
+    onCreated?.(clubId, tid);
+    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: isRR ? 'roundrobin' : 'swiss', status: 'active', createdAt: Date.now(), teamCount: teamIds.length });
     setActiveTeamIds(teamIds); setCourtNumbers(courts); setTimerDuration(durSecs);
     setStandings(s); setRound(null); setRoundNum(startRoundNum); setHistory([]);
     lastSeenRoundNum.current = startRoundNum; pendingRef.current = {}; setPending({}); setPausedIds([]); setRoundKey(0); setRoundComplete(false);
@@ -390,7 +394,7 @@ export default function App({ viewerOnly = false }) {
     setActiveRoundExtras([]); setTournamentFinished(false); setSocialCourts([]);
     setTargetRounds(tr); setTimerAlarmed(false); applyTimerState(false, null, durSecs);
     setPhase('play'); setActiveTab('play');
-  }, [applyTimerState]);
+  }, [applyTimerState, clubId, onCreated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { handleStartTPT, handleTPTResult, handleUndoTPTResult, handleManageTPTTeamsSave } = useTPTManagement({
     stateRef: roundMgmtStateRef,
@@ -406,6 +410,7 @@ export default function App({ viewerOnly = false }) {
     setActiveRoundExtras, setTournamentFinished, setSocialCourts,
     setPhase, setActiveTab,
     applyTimerState, setTimerAlarmed, onFirebaseError: setFirebaseError, closeModal,
+    clubId,
   });
 
   const { handleStartDoublesRR, handleDoublesRRResult, handleUndoDoublesRRResult, handleGenerateAdditionalDoublesRR, handleManageDoublesRRPlayersSave } = useDoublesRRManagement({
@@ -422,6 +427,7 @@ export default function App({ viewerOnly = false }) {
     setActiveRoundExtras, setTournamentFinished, setSocialCourts,
     setPhase, setActiveTab,
     applyTimerState, setTimerAlarmed, onFirebaseError: setFirebaseError, closeModal,
+    clubId,
   });
 
   const handleDoublesRRTiebreakOrderChange = useCallback((order) => {
@@ -496,6 +502,7 @@ export default function App({ viewerOnly = false }) {
   }, [roleRef]);
 
   const doReset = useCallback(() => {
+    if (clubId) writeTournamentMeta(clubId, tournamentIdRef.current, { status: 'setup' });
     pushSnapshot(null, setFirebaseError); clearBackups();
     setBackupRoundNums(new Set()); historyLengthRef.current = 0;
     lastSeenRoundNum.current = -1; setPhase('setup');
@@ -739,7 +746,8 @@ export default function App({ viewerOnly = false }) {
     const s = computeSecsLeft(); applyTimerState(false, null, s);
     setBreakMode(null); setTournamentFinished(true);
     gatedUpdate('canFinishTournament', { tournamentFinished: true, timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s, breakMode: null });
-  }, [computeSecsLeft, applyTimerState, roleRef]);
+    if (clubId) writeTournamentMeta(clubId, tournamentIdRef.current, { status: 'finished' });
+  }, [computeSecsLeft, applyTimerState, roleRef, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleResumeTournament = useCallback(() => {
     setTournamentFinished(false);
@@ -812,6 +820,7 @@ export default function App({ viewerOnly = false }) {
           tournamentLocation={tournamentLocation} tournamentStartTime={tournamentStartTime} tournamentDurationMins={tournamentDurationMins}
           onTournamentInfoSave={handleTournamentInfoSave}
           teamNameDisplay={teamNameDisplay} onTeamNameDisplayChange={handleTeamNameDisplayChange}
+          clubId={clubId}
           onTogglePause={handleTogglePause} onManageTeamsSave={handleManageTeamsSave}
           onManageTPTTeamsSave={handleManageTPTTeamsSave} onManageCourtsSave={handleManageCourtsSave}
           onManageDoublesRRPlayersSave={handleManageDoublesRRPlayersSave}
@@ -833,6 +842,7 @@ export default function App({ viewerOnly = false }) {
           phase={phase} role={role} presence={presence} online={online} viewerOnly={viewerOnly}
           onLoginToggle={() => { if (role) setRole(null); else openModal('pin', { purpose: 'login' }); }}
           activeTab={activeTab} onTabChange={setActiveTab}
+          onBack={onBack}
         />
 
         <StatusBanners
@@ -909,8 +919,8 @@ export default function App({ viewerOnly = false }) {
                   isAdmin={isAdmin}
                 />
               )}
-              {activeTab === 'history' && (
-                <HistoryTab
+              {activeTab === 'matches' && (
+                <MatchesTab
                   history={history} activeTeamIds={activeTeamIds} cancelledRoundNums={cancelledRoundNums}
                   tournamentMode={tournamentMode} courtNumbers={courtNumbers}
                   tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule}

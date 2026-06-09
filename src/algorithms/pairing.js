@@ -1,11 +1,12 @@
 import { rerank } from './standings';
 import { buildByeCounts, greedySelectByes } from './bye';
+import { pairKey, greedyAdjacentSwapPair } from './pairingUtils';
 
 export function buildMatchupCounts(history) {
   const c = {};
   history.forEach(rd => rd.games.forEach(g => {
-    const key = [g.winnerId, g.loserId].sort().join('|');
-    c[key] = (c[key] || 0) + 1;
+    const k = pairKey(g.winnerId, g.loserId);
+    c[k] = (c[k] || 0) + 1;
   }));
   return c;
 }
@@ -13,14 +14,14 @@ export function buildMatchupCounts(history) {
 export function getLastRoundMatchups(history) {
   if (!history.length) return new Set();
   const s = new Set();
-  history[history.length - 1].games.forEach(g => s.add([g.winnerId, g.loserId].sort().join('|')));
+  history[history.length - 1].games.forEach(g => s.add(pairKey(g.winnerId, g.loserId)));
   return s;
 }
 
 function scoreCourtPairings(courts, mc, lrm) {
   let s = 0;
   courts.forEach(([a, b]) => {
-    const k = [a.id, b.id].sort().join('|');
+    const k = pairKey(a.id, b.id);
     if (lrm.has(k)) s += 100000;
     s += (mc[k] || 0) * 1000;
   });
@@ -41,17 +42,7 @@ function pairSwiss(playing, allSt, mc, lrm) {
   const ranked = rerank(allSt);
   const rankOf = id => { const i = ranked.findIndex(t => t.id === id); return i === -1 ? 9999 : i; };
   const byRank = [...playing].sort((a, b) => rankOf(b.id) - rankOf(a.id));
-  const def = [];
-  for (let c = 0; c < Math.floor(byRank.length / 2); c++)
-    def.push([byRank[c * 2], byRank[c * 2 + 1]]);
-  let best = def, bs = scoreCourtPairings(def, mc, lrm);
-  for (let c = 0; c < def.length - 1; c++) {
-    const s1 = def.map(p => [...p]); [s1[c][1], s1[c+1][0]] = [s1[c+1][0], s1[c][1]];
-    const sc1 = scoreCourtPairings(s1, mc, lrm); if (sc1 < bs) { bs = sc1; best = s1; }
-    const s2 = def.map(p => [...p]); [s2[c][1], s2[c+1][1]] = [s2[c+1][1], s2[c][1]];
-    const sc2 = scoreCourtPairings(s2, mc, lrm); if (sc2 < bs) { bs = sc2; best = s2; }
-  }
-  return best;
+  return greedyAdjacentSwapPair(byRank, courts => scoreCourtPairings(courts, mc, lrm));
 }
 
 function selectByes(didnt, hadBye, numBye, byeCounts) {

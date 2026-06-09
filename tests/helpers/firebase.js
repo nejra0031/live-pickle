@@ -4,9 +4,13 @@ const DB_URL = 'https://live-pickle-default-rtdb.asia-southeast1.firebasedatabas
 const TEST_PIN = 'test1234';
 const TEST_PIN_HASH = createHash('sha256').update(TEST_PIN).digest('hex');
 
-const E2E_TOURNAMENT_PATH = 'current_tournament_e2e';
-const E2E_BACKUPS_PATH    = 'tournament_backups_e2e';
-const E2E_PRESENCE_PATH   = 'presence_e2e';
+const E2E_CLUB_ID       = 'blue_test';
+const E2E_TOURNAMENT_ID = 'e2e_tournament';
+const E2E_BASE          = `clubs/${E2E_CLUB_ID}/tournaments/${E2E_TOURNAMENT_ID}`;
+// Keep exported names unchanged so spec files need no edits
+const E2E_TOURNAMENT_PATH = E2E_BASE + '/current';
+const E2E_BACKUPS_PATH    = E2E_BASE + '/backups';
+const E2E_PRESENCE_PATH   = E2E_BASE + '/presence';
 
 async function fbReq(path, method, body) {
   const res = await fetch(`${DB_URL}/${path}.json`, {
@@ -63,6 +67,15 @@ async function seedTournament(overrides = {}) {
     ...overrides,
   };
   await fbSet(E2E_TOURNAMENT_PATH, base);
+  // Seed meta so the landing page can list this tournament
+  await fbSet(`${E2E_BASE}/meta`, {
+    id: E2E_TOURNAMENT_ID,
+    title: base.tournamentTitle,
+    mode: base.tournamentMode,
+    status: 'active',
+    createdAt: base.savedAt,
+    teamCount: (base.activeTeamIds || []).length,
+  });
 }
 
 // Minimal 3-Player Team (TPT) tournament: 2 teams, 1 scheduled round, 1 matchup.
@@ -106,18 +119,24 @@ async function seedTPTTournament(overrides = {}) {
     ...overrides,
   };
   await fbSet(E2E_TOURNAMENT_PATH, base);
+  // Seed meta so the landing page can list this tournament
+  await fbSet(`${E2E_BASE}/meta`, {
+    id: E2E_TOURNAMENT_ID,
+    title: base.tournamentTitle,
+    mode: base.tournamentMode,
+    status: 'active',
+    createdAt: base.savedAt,
+    teamCount: 0,
+  });
 }
 
 async function clearE2EData() {
-  await Promise.all([
-    fbDelete(E2E_TOURNAMENT_PATH).catch(() => {}),
-    fbDelete(E2E_BACKUPS_PATH).catch(() => {}),
-    fbDelete(E2E_PRESENCE_PATH).catch(() => {}),
-  ]);
+  await fbDelete(`clubs/${E2E_CLUB_ID}`).catch(() => {});
 }
 
 module.exports = {
   DB_URL, TEST_PIN, TEST_PIN_HASH,
+  E2E_CLUB_ID, E2E_TOURNAMENT_ID, E2E_BASE,
   E2E_TOURNAMENT_PATH, E2E_BACKUPS_PATH, E2E_PRESENCE_PATH,
   fbSet, fbDelete, fbGet, seedTournament, seedTPTTournament, clearE2EData,
 };

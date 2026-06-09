@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
-import { pushSnapshot, pushAtomicUpdate } from '../firebase';
-import { hasPermission } from '../roleConfig';
+import { pushSnapshot, pushAtomicUpdate, setActiveTournament, writeTournamentMeta } from '../firebase';
 import { buildSnapshot } from '../snapshot';
+import { hasPermission } from '../roleConfig';
 import { generateDoublesRRSchedule, countScheduleOpponentPairs } from '../algorithms/doublesRR';
+import { applyTournamentStartState } from './tournamentStartHelpers';
+import { undoScheduledResult, submitScheduledResult } from './scheduledResultHelpers';
 
 // Owns the Doubles Round Robin tournament lifecycle: starting (a full state
 // reset + schedule generation), recording per-court results with round
@@ -27,10 +29,12 @@ export function useDoublesRRManagement({
   setPhase, setActiveTab,
   // callbacks
   applyTimerState, setTimerAlarmed, onFirebaseError, closeModal,
+  clubId,
 }) {
   const handleStartDoublesRR = useCallback((playersData, courts, durSecs, title, eventDetails = {}) => {
     const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     tournamentIdRef.current = tid;
+    if (clubId) setActiveTournament(clubId, tid);
     const schedule = generateDoublesRRSchedule(Object.keys(playersData), courts.length);
     const resolvedTitle = title || 'Tournament';
     setTournamentTitle(resolvedTitle);
@@ -48,59 +52,45 @@ export function useDoublesRRManagement({
       doublesRRPlayers: playersData, doublesRRSchedule: schedule, doublesRRResults: {},
     });
     pushSnapshot(snap, onFirebaseError);
-    setRole('admin');
+    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: 'doublesrr', status: 'active', createdAt: Date.now(), teamCount: Object.keys(playersData).length });
     setDoublesRRPlayers(playersData); doublesRRPlayersRef.current = playersData;
     setDoublesRRSchedule(schedule); doublesRRScheduleRef.current = schedule;
     setDoublesRRResults({}); doublesRRResultsRef.current = {};
     doublesRRRoundCompletingRef.current = false;
-    setCourtNumbers(courts); setTimerDuration(durSecs);
-    setHistory([]); setRoundNum(0); setActiveTeamIds([]); setStandings([]);
-    setTournamentMode('doublesrr'); setRound(null); setPausedIds([]);
-    lastSeenRoundNum.current = 0; pendingRef.current = {}; setPending({}); setRoundKey(0); setRoundComplete(false);
-    setRoundRobinSchedule(null); setRoundRobinCourts(null); setRoundRobinStartRoundNum(null);
-    setRoundRobinStartSnapshot(null); setRoundRobinEndSnapshot(null);
-    setActiveRoundExtras([]); setTournamentFinished(false); setSocialCourts([]);
-    setTimerAlarmed(false); applyTimerState(false, null, durSecs);
-    setPhase('play'); setActiveTab('play');
+    applyTournamentStartState({
+      tournamentMode: 'doublesrr', courts, durSecs,
+      lastSeenRoundNum, pendingRef,
+      setRole, setCourtNumbers, setTimerDuration,
+      setHistory, setRoundNum, setActiveTeamIds, setStandings,
+      setTournamentMode, setRound, setPausedIds, setPending, setRoundKey, setRoundComplete,
+      setRoundRobinSchedule, setRoundRobinCourts, setRoundRobinStartRoundNum,
+      setRoundRobinStartSnapshot, setRoundRobinEndSnapshot,
+      setActiveRoundExtras, setTournamentFinished, setSocialCourts,
+      setTimerAlarmed, applyTimerState,
+      setPhase, setActiveTab,
+    });
   }, [applyTimerState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDoublesRRResult = useCallback((roundIdx, courtIdx, result) => {
-    if (!hasPermission(roleRef.current, 'canSubmitResults')) return;
-    const key = `${roundIdx}_${courtIdx}`;
-    const newResults = { ...doublesRRResultsRef.current, [key]: result };
-    setDoublesRRResults(newResults);
-    doublesRRResultsRef.current = newResults;
-
-    const schedRound = doublesRRScheduleRef.current[roundIdx];
-    if (!schedRound) { pushAtomicUpdate({ [`doublesRRResults/${key}`]: result }, onFirebaseError); return; }
-
-    const allDone = !doublesRRRoundCompletingRef.current &&
-      schedRound.courts.every((_, ci) => !!newResults[`${roundIdx}_${ci}`]);
-
-    if (!allDone) {
-      pushAtomicUpdate({ [`doublesRRResults/${key}`]: result }, onFirebaseError);
-      return;
-    }
-
-    doublesRRRoundCompletingRef.current = true;
-    const curRoundNum = stateRef.current.roundNum;
-    const newRoundNum = curRoundNum + 1;
-    const histEntry = {
-      roundNum: newRoundNum,
-      games: [], bye: schedRound.byePlayerIds || [], paused: [],
-      doublesRRCourts: schedRound.courts.map((court, ci) => {
-        const r = newResults[`${roundIdx}_${ci}`];
-        return { teamA: court.teamA, teamB: court.teamB, ...r };
+    submitScheduledResult({
+      key: `${roundIdx}_${courtIdx}`,
+      result,
+      resultsRef: doublesRRResultsRef, setResults: setDoublesRRResults, firebasePath: 'doublesRRResults',
+      roundCompletingRef: doublesRRRoundCompletingRef,
+      getScheduleRound: () => doublesRRScheduleRef.current[roundIdx],
+      isRoundComplete: (schedRound, newResults) =>
+        schedRound.courts.every((_, ci) => !!newResults[`${roundIdx}_${ci}`]),
+      buildHistEntry: (schedRound, newResults, newRoundNum) => ({
+        roundNum: newRoundNum,
+        games: [], bye: schedRound.byePlayerIds || [], paused: [],
+        doublesRRCourts: schedRound.courts.map((court, ci) => {
+          const r = newResults[`${roundIdx}_${ci}`];
+          return { teamA: court.teamA, teamB: court.teamB, ...r };
+        }),
       }),
-    };
-    const newHistory = [...stateRef.current.history, histEntry];
-    pushAtomicUpdate(
-      { [`doublesRRResults/${key}`]: result, history: newHistory, roundNum: newRoundNum },
-      onFirebaseError
-    );
-    setHistory(newHistory);
-    setRoundNum(newRoundNum);
-    doublesRRRoundCompletingRef.current = false;
+      stateRef, setHistory, setRoundNum,
+      roleRef, onFirebaseError,
+    });
   }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Admin-only: generates a fresh full Doubles RR schedule for the same roster
@@ -118,13 +108,6 @@ export function useDoublesRRManagement({
     const n = playerIds.length;
     const startOffset = n > 1 ? Math.max(1, Math.floor(n / 2)) : 0;
     const completedCount = stateRef.current.history.length;
-    // Bias against the matchups that will actually remain in the combined
-    // schedule: the full schedule when appending (it's all kept), but only the
-    // played portion when replacing — the unplayed remainder gets discarded, so
-    // biasing against it would just force needless repeats elsewhere without
-    // preventing any real repeat (rotating-partnership doubles can't guarantee
-    // zero repeats outright, so this keeps the bias targeted at the matchups
-    // that have actually been played, i.e. "games from before the replacement").
     const retained = mode === 'replace' ? schedule.slice(0, completedCount) : schedule;
     const priorOpponentCounts = countScheduleOpponentPairs(retained);
     const freshSchedule = generateDoublesRRSchedule(playerIds, courts.length, { startOffset, priorOpponentCounts });
@@ -143,13 +126,7 @@ export function useDoublesRRManagement({
   }, [closeModal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUndoDoublesRRResult = useCallback((roundIdx, courtIdx) => {
-    if (!hasPermission(roleRef.current, 'canSubmitResults')) return;
-    const key = `${roundIdx}_${courtIdx}`;
-    const newResults = { ...doublesRRResultsRef.current };
-    delete newResults[key];
-    setDoublesRRResults(newResults);
-    doublesRRResultsRef.current = newResults;
-    pushAtomicUpdate({ [`doublesRRResults/${key}`]: null }, onFirebaseError);
+    undoScheduledResult(roleRef, doublesRRResultsRef, setDoublesRRResults, 'doublesRRResults', `${roundIdx}_${courtIdx}`, onFirebaseError);
   }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { handleStartDoublesRR, handleDoublesRRResult, handleUndoDoublesRRResult, handleGenerateAdditionalDoublesRR, handleManageDoublesRRPlayersSave };

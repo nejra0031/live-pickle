@@ -1,7 +1,11 @@
+import { useContext } from 'react';
 import { ORDINAL } from '../constants';
 import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
+import { TeamRegistryContext } from '../context/TeamRegistryContext';
+import { formatPlayerName } from '../algorithms/doublesRR';
 
-export default function DoublesRRStandingsTab({ doublesRRStandings, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange, isAdmin }) {
+export default function DoublesRRStandingsTab({ doublesRRPlayers = {}, doublesRRStandings, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange, isAdmin }) {
+  const { teamNameDisplay } = useContext(TeamRegistryContext);
   if (!doublesRRStandings || doublesRRStandings.length === 0) {
     return <div className="text-center text-slate-400 py-8 text-sm">No results yet.</div>;
   }
@@ -42,7 +46,7 @@ export default function DoublesRRStandingsTab({ doublesRRStandings, doublesRRTie
               <div className="flex-1 min-w-0">
                 <span className="inline-flex items-center rounded-full font-black"
                   style={{ background: p.color || '#475569', color: p.text || '#fff', fontSize: 'clamp(13px,3.5vw,20px)', padding: 'clamp(4px,1vw,8px) clamp(10px,2.5vw,18px)', border: '2px solid rgba(255,255,255,0.25)' }}>
-                  {p.name}
+                  {formatPlayerName(doublesRRPlayers[p.id] || p, teamNameDisplay)}
                 </span>
               </div>
               <span style={{ width: colW.stat, textAlign: 'center', color: '#475569', fontSize: 'clamp(14px,3.5vw,22px)', fontWeight: 700 }}>{p.played}</span>

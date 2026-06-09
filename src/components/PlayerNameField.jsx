@@ -9,14 +9,19 @@ import useDebounce from '../hooks/useDebounce';
 //
 //   Full (nickname prop provided): three fields shown in display-first order:
 //     1. Nickname input  — the name shown in the game UI (placeholder "Name")
-//     2. Name input      — full legal name, only needed for DUPR export (de-emphasised)
+//     2. Full name text  — full legal name (read-only label, only shown when set via autocomplete)
 //     3. DUPR ID input
 //   Autocomplete searches all three fields; suggestions show the display name first.
 //
 // onChange always emits { name, duprId } and, when in full mode, also { nickname }.
+//
+// showFullName (default true, full mode only): when true the full legal name is
+// shown as static read-only text below the nickname field; when false it is
+// hidden entirely. Has no effect in basic mode.
 export default function PlayerNameField({
   name, duprId, nickname, onChange,
   knownPlayers = [], placeholder = 'Name', inputStyle = {}, duprIdStyle = inputStyle,
+  showFullName = true,
 }) {
   const [suggestions, setSuggestions] = useState([]);
   const [open, setOpen] = useState(false);
@@ -82,13 +87,9 @@ export default function PlayerNameField({
           style={inputStyle}
         />
         {dropdown}
-        {/* Secondary: full legal name for DUPR export only */}
-        <input
-          value={name}
-          placeholder="Full name (DUPR export)"
-          onChange={e => emit({ name: e.target.value })}
-          style={{ ...inputStyle, opacity: 0.6, fontSize: inputStyle.fontSize ? `calc(${inputStyle.fontSize} - 1px)` : '0.9em' }}
-        />
+        {showFullName && name && (
+          <p style={{ margin: 0, padding: '1px 2px', fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>{name}</p>
+        )}
         <input
           value={duprId}
           placeholder="DUPR ID"

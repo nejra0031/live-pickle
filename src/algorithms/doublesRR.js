@@ -1,4 +1,5 @@
 import { generateRoundRobinSchedule } from './roundRobin';
+import { pairKey, greedyAdjacentSwapPair } from './pairingUtils';
 
 // Score how good a candidate set of court oppositions is — lower is better.
 // Mirrors scoreCourtPairings in pairing.js, but counts INDIVIDUAL opponent-pair
@@ -7,7 +8,7 @@ function scoreCourtOppositions(courts, opponentCounts, lastRoundOpponents) {
   let s = 0;
   courts.forEach(([teamA, teamB]) => {
     teamA.forEach(a => teamB.forEach(b => {
-      const k = [a, b].sort().join('|');
+      const k = pairKey(a, b);
       if (lastRoundOpponents.has(k)) s += 100000;
       s += (opponentCounts[k] || 0) * 1000;
     }));
@@ -16,19 +17,9 @@ function scoreCourtOppositions(courts, opponentCounts, lastRoundOpponents) {
 }
 
 // Greedy + adjacent-swap pairing of partnerships into 2v2 courts, minimising
-// individual opponent repeats — directly mirrors pairSwiss in pairing.js.
+// individual opponent repeats — delegates to greedyAdjacentSwapPair in pairingUtils.js.
 function pairPartnershipsIntoCourts(partnerships, opponentCounts, lastRoundOpponents) {
-  const def = [];
-  for (let c = 0; c < Math.floor(partnerships.length / 2); c++)
-    def.push([partnerships[c * 2], partnerships[c * 2 + 1]]);
-  let best = def, bs = scoreCourtOppositions(def, opponentCounts, lastRoundOpponents);
-  for (let c = 0; c < def.length - 1; c++) {
-    const s1 = def.map(p => [...p]); [s1[c][1], s1[c + 1][0]] = [s1[c + 1][0], s1[c][1]];
-    const sc1 = scoreCourtOppositions(s1, opponentCounts, lastRoundOpponents); if (sc1 < bs) { bs = sc1; best = s1; }
-    const s2 = def.map(p => [...p]); [s2[c][1], s2[c + 1][1]] = [s2[c + 1][1], s2[c][1]];
-    const sc2 = scoreCourtOppositions(s2, opponentCounts, lastRoundOpponents); if (sc2 < bs) { bs = sc2; best = s2; }
-  }
-  return best;
+  return greedyAdjacentSwapPair(partnerships, courts => scoreCourtOppositions(courts, opponentCounts, lastRoundOpponents));
 }
 
 // Doubles RR requires every round to produce an even number of vertex-disjoint
@@ -61,7 +52,7 @@ export function countScheduleOpponentPairs(schedule) {
   (schedule || []).forEach(round => {
     (round.courts || []).forEach(({ teamA, teamB }) => {
       teamA.forEach(a => teamB.forEach(b => {
-        const k = [a, b].sort().join('|');
+        const k = pairKey(a, b);
         counts[k] = (counts[k] || 0) + 1;
       }));
     });
@@ -124,7 +115,7 @@ export function generateDoublesRRSchedule(playerIds, numCourts, opts = {}) {
 
       const roundOpponents = new Set();
       courtPairs.forEach(([teamA, teamB]) => teamA.forEach(a => teamB.forEach(b => {
-        const k = [a, b].sort().join('|');
+        const k = pairKey(a, b);
         opponentCounts[k] = (opponentCounts[k] || 0) + 1;
         roundOpponents.add(k);
       })));
@@ -141,7 +132,7 @@ const TIEBREAK_CRITERIA = {
   wins:       (a, b) => b.wins - a.wins,
   scoreDiff:  (a, b) => b.scoreDiff - a.scoreDiff,
   headToHead: (a, b, h2h) => {
-    const rec = h2h[[a.id, b.id].sort().join('|')];
+    const rec = h2h[pairKey(a.id, b.id)];
     if (!rec || !rec[a.id] || !rec[b.id]) return 0;
     if (rec[b.id].wins !== rec[a.id].wins) return rec[b.id].wins - rec[a.id].wins;
     return rec[b.id].diff - rec[a.id].diff;
@@ -177,7 +168,7 @@ export function buildDoublesRRStandings(playerIds, players, history, tiebreakOrd
         p.played++; p.losses++; p.scoreFor += loserScore; p.scoreAgainst += winnerScore; p.scoreDiff += loserScore - winnerScore;
       });
       winnerIds.forEach(w => loserIds.forEach(l => {
-        const k = [w, l].sort().join('|');
+        const k = pairKey(w, l);
         if (!h2h[k]) h2h[k] = {};
         h2h[k][w] = h2h[k][w] || { wins: 0, diff: 0 };
         h2h[k][l] = h2h[k][l] || { wins: 0, diff: 0 };
@@ -205,14 +196,25 @@ export function buildDoublesRRStandings(playerIds, players, history, tiebreakOrd
 const SIDE_FALLBACK_COLOR = '#475569';
 const SIDE_FALLBACK_TEXT = '#ffffff';
 
+// Formats a single DoublesRR player's display name according to mode:
+//   'name'    — nickname if set, otherwise real name
+//   'players' — real name only
+//   'both'    — "nickname (name)" if nickname set, otherwise name
+export function formatPlayerName(player, mode) {
+  if (!player) return '';
+  if (mode === 'players') return player.name;
+  if (mode === 'both') return player.nickname ? `${player.nickname} (${player.name})` : player.name;
+  return player.nickname || player.name;
+}
+
 // Builds the chip-display data for a Doubles RR "side" (a synthetic, rotating
 // 2-player partnership). When the two players have different individually-assigned
 // colors, `chipBackground` carries a left-to-right gradient between them — renderers
 // that support it should prefer `chipBackground` over `color` for backgrounds, while
 // keeping `color` (always solid) for borders/shadows/text-contrast.
-export function buildSidePresentation(playerIds, playersById) {
+export function buildSidePresentation(playerIds, playersById, mode = 'name') {
   const players = playerIds.map(id => playersById[id]).filter(Boolean);
-  const name = players.map(p => p.nickname || p.name).join(' & ') || playerIds.join(' & ');
+  const name = players.map(p => formatPlayerName(p, mode)).join(' & ') || playerIds.join(' & ');
   const [a, b] = players;
   const color = a?.color || SIDE_FALLBACK_COLOR;
   const text = a?.text || SIDE_FALLBACK_TEXT;

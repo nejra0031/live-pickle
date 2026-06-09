@@ -15,6 +15,7 @@ import EditDoublesRRGameModal from './EditDoublesRRGameModal';
 import EditActiveCourtModal from './EditActiveCourtModal';
 import ExportDUPRModal from './ExportDUPRModal';
 import TournamentSettingsModal from './TournamentSettingsModal';
+import ClubMembersPanel from '../components/ClubMembersPanel';
 
 // Renders whichever modal `modal.open` selects, plus the PIN-purpose title/check
 // derivation. All actions are passed in as handlers — no business logic lives here.
@@ -33,6 +34,7 @@ export default function ModalRoot({
   standingsTiebreakOrder, onStandingsTiebreakOrderChange,
   tournamentLocation, tournamentStartTime, tournamentDurationMins, onTournamentInfoSave,
   teamNameDisplay, onTeamNameDisplayChange,
+  clubId,
   // handlers
   onTogglePause, onManageTeamsSave, onManageTPTTeamsSave, onManageCourtsSave,
   onManageDoublesRRPlayersSave,
@@ -101,8 +103,12 @@ export default function ModalRoot({
           onManageTeamsSave={onManageTeamsSave} onManageTPTTeamsSave={onManageTPTTeamsSave}
           onManageDoublesRRPlayersSave={onManageDoublesRRPlayersSave} onManageCourtsSave={onManageCourtsSave}
           onReset={() => { closeModal(); openModal('pin', { purpose: 'reset' }); }}
+          onManageMembers={clubId ? () => { closeModal(); openModal('clubMembers'); } : null}
           onClose={closeModal}
         />
+      )}
+      {modal.open === 'clubMembers' && clubId && (
+        <ClubMembersPanel clubId={clubId} onClose={closeModal} />
       )}
       {modal.open === 'break' && <BreakModal onStart={onBreakStart} onClose={closeModal} />}
       {modal.open === 'timerSettings' && <TimerSettingsModal currentMins={timerDefaultMins} onSave={onTimerSettingsSave} onClose={closeModal} />}

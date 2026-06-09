@@ -1,9 +1,13 @@
+import { useContext } from 'react';
 import { hasPermission } from '../../roleConfig';
 import CourtCard from '../../components/CourtCard';
 import MatchupVsBox from '../../components/MatchupVsBox';
 import RoundTimer from '../../components/RoundTimer';
 import BreakBanner from './BreakBanner';
+import TournamentCompleteBlock from './TournamentCompleteBlock';
+import { scheduleProgress } from './scheduleProgress';
 import { buildSidePresentation } from '../../algorithms/doublesRR';
+import { TeamRegistryContext } from '../../context/TeamRegistryContext';
 
 export default function DoublesRRSection({
   doublesRRPlayers, doublesRRSchedule, doublesRRResults, courtNumbers, history,
@@ -13,10 +17,9 @@ export default function DoublesRRSection({
   onTournamentSettings,
   onTimerToggle, onTimerRestart, onTimerSettings,
 }) {
+  const { teamNameDisplay } = useContext(TeamRegistryContext);
   const canWrite = hasPermission(role, 'canSubmitResults');
-  const currentRoundIdx = Math.min(history.length, Math.max(0, doublesRRSchedule.length - 1));
-  const totalRounds = doublesRRSchedule.length;
-  const allDone = totalRounds > 0 && history.length >= totalRounds;
+  const { currentRoundIdx, totalRounds, allDone } = scheduleProgress(doublesRRSchedule, history);
   const viewedRound = doublesRRSchedule[currentRoundIdx];
 
   const gamesComplete = (() => {
@@ -39,8 +42,8 @@ export default function DoublesRRSection({
     const pendingResult = stored
       ? { winnerId: stored.winnerIds.join('|'), loserId: stored.loserIds.join('|'), winnerScore: stored.winnerScore, loserScore: stored.loserScore }
       : null;
-    const sideA = buildSidePresentation(court.teamA, doublesRRPlayers);
-    const sideB = buildSidePresentation(court.teamB, doublesRRPlayers);
+    const sideA = buildSidePresentation(court.teamA, doublesRRPlayers, teamNameDisplay);
+    const sideB = buildSidePresentation(court.teamB, doublesRRPlayers, teamNameDisplay);
 
     return (
       <div key={ci}>
@@ -94,7 +97,7 @@ export default function DoublesRRSection({
             renderCourtCard(court, ci, currentRoundIdx, true)
           )}
           {viewedRound.byePlayerIds?.length > 0 && (() => {
-            const byeSide = buildSidePresentation(viewedRound.byePlayerIds, doublesRRPlayers);
+            const byeSide = buildSidePresentation(viewedRound.byePlayerIds, doublesRRPlayers, teamNameDisplay);
             return (
               <div className="rounded-xl px-4 py-2 flex items-center gap-2" style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', fontSize: 'clamp(11px,2.5vw,13px)', color: '#64748b', fontWeight: 600 }}>
                 <span>Bye:</span>
@@ -108,21 +111,7 @@ export default function DoublesRRSection({
         </div>
       )}
 
-      {/* All done */}
-      {allDone && isAdmin && (
-        <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(12px,3vw,18px)', gap: 'clamp(8px,2vw,12px)', background: 'linear-gradient(135deg,#fef3c7,#fde68a)', border: '1px solid rgba(217,119,6,0.3)' }}>
-          <p className="font-black text-center" style={{ color: '#92400e', fontSize: 'clamp(15px,3.5vw,20px)', margin: 0 }}>All rounds complete!</p>
-          <button onClick={onFinishTournament} style={{ padding: 'clamp(10px,2.5vw,14px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,16px)', cursor: 'pointer', background: 'linear-gradient(90deg,#d97706,#f59e0b)', color: '#fff', border: 'none' }}>
-            🏁 Finish Tournament
-          </button>
-        </div>
-      )}
-      {allDone && !isAdmin && (
-        <div className="rounded-2xl p-8 text-center" style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)' }}>
-          <div style={{ fontSize: 'clamp(28px,7vw,44px)', marginBottom: 8 }}>🏆</div>
-          <p className="font-bold" style={{ color: '#0f4c75', fontSize: 'clamp(14px,3.5vw,20px)' }}>All rounds complete!</p>
-        </div>
-      )}
+      {allDone && <TournamentCompleteBlock isAdmin={isAdmin} onFinish={onFinishTournament} />}
 
       {/* Admin controls */}
       {isAdmin && !allDone && (

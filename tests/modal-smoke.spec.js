@@ -10,9 +10,30 @@ test.beforeEach(async () => {
   await seedTournament();
 });
 
+// Teams & Courts moved into Tournament Settings modal (commit 6cba45a)
+test('opens Teams & players section in Tournament Settings modal', async ({ page }) => {
+  await page.goto('/_admin.html');
+  await waitForPlayTab(page);
+  await loginAsAdmin(page);
+
+  await page.locator('button:has-text("Tournament Settings")').first().click();
+  await expect(page.locator('.modal-overlay')).toBeVisible({ timeout: 3000 });
+  await page.locator('button:has-text("Teams & players")').first().click();
+  await expect(page.locator('text=Rename')).toBeVisible({ timeout: 3000 });
+});
+
+test('opens Courts section in Tournament Settings modal', async ({ page }) => {
+  await page.goto('/_admin.html');
+  await waitForPlayTab(page);
+  await loginAsAdmin(page);
+
+  await page.locator('button:has-text("Tournament Settings")').first().click();
+  await expect(page.locator('.modal-overlay')).toBeVisible({ timeout: 3000 });
+  await page.locator('button:has-text("Courts")').first().click();
+  await expect(page.locator('text=Add court')).toBeVisible({ timeout: 3000 });
+});
+
 const cases = [
-  { tool: 'Teams',       title: 'Manage Teams' },
-  { tool: 'Courts',      title: 'Manage Courts' },
   { tool: 'Pre-set',     title: 'Pre-set Matchup' },
   { tool: 'Round Robin', title: 'Start Round Robin' },
 ];

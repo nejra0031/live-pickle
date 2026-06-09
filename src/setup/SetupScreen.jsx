@@ -398,7 +398,7 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
           <div>
             <p className="text-sm font-bold text-slate-700 mb-1">Tournament Name</p>
             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Tournament"
-              style={{ ...iS, width: '100%', fontSize: 15, fontWeight: 800, color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)' }} />
+              style={{ ...iS, width: '100%', color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)' }} />
           </div>
 
           <EventDetailsFields location={location} setLocation={setLocation}
@@ -473,7 +473,7 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
                           onBlur={() => setEditingTeamId(null)}
                           onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingTeamId(null); }}
                           placeholder="Team name"
-                          style={{ ...iS, flex: 1, fontWeight: 800, fontSize: 14, color: '#0f4c75', border: `1px solid ${team.color}66` }} />
+                          style={{ ...iS, flex: 1, color: '#0f4c75', border: `1px solid ${team.color}66` }} />
                       ) : (
                         <span onClick={() => setEditingTeamId(team.id)} className="flex items-center gap-1"
                           style={{ flex: 1, fontWeight: 800, fontSize: 14, color: team.name.trim() ? '#0f4c75' : '#94a3b8', cursor: 'text' }}>
@@ -492,7 +492,7 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
                           </div>
                           <PlayerNameField name={slot.name} duprId={slot.duprId} nickname={slot.nickname} knownPlayers={knownPlayers}
                             onChange={val => updateSlot(team.id, sIdx, { name: val.name, duprId: val.duprId, nickname: val.nickname ?? slot.nickname })}
-                            inputStyle={{ ...iS, width: '100%', fontSize: 12 }} />
+                            inputStyle={{ ...iS, width: '100%' }} />
                         </div>
                       ))}
                     </div>
@@ -565,7 +565,7 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
             <div className="flex items-center gap-3">
               <input type="number" min={1} max={99} value={timerMins}
                 onChange={e => setTimerMins(Math.max(1, Number(e.target.value)))}
-                style={{ ...iS, width: 64, textAlign: 'center', fontSize: 14, background: 'rgba(255,255,255,0.7)', color: '#1e293b', border: '1px solid rgba(0,0,0,0.15)' }} />
+                style={{ ...iS, width: 64, textAlign: 'center', background: 'rgba(255,255,255,0.7)', color: '#1e293b', border: '1px solid rgba(0,0,0,0.15)' }} />
               <span className="text-slate-600 text-sm">minutes per round</span>
             </div>
           )}

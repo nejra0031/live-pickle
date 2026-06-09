@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
-import { buildTPTStandings } from '../algorithms/threePlayerTeam';
+import { useContext, useMemo, useState } from 'react';
+import { buildTPTStandings, formatTPTTeamLabel } from '../algorithms/threePlayerTeam';
+import { TeamRegistryContext } from '../context/TeamRegistryContext';
 import { ORDINAL } from '../constants';
 
 export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder }) {
@@ -7,6 +8,7 @@ export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSched
     () => buildTPTStandings(tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder),
     [tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder]
   );
+  const { teamNameDisplay } = useContext(TeamRegistryContext);
   const [openIds, setOpenIds] = useState(new Set());
   const toggle = id => setOpenIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
@@ -52,7 +54,7 @@ export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSched
               <div className="flex-1 min-w-0">
                 <span className="inline-flex items-center rounded-full font-black"
                   style={{ background: team.color, color: team.text, fontSize: 'clamp(13px,3.5vw,20px)', padding: 'clamp(4px,1vw,8px) clamp(10px,2.5vw,18px)', border: '2px solid rgba(255,255,255,0.25)', boxShadow: `0 2px 8px ${team.color}44` }}>
-                  {team.name}
+                  {formatTPTTeamLabel(team, tptPlayers, teamNameDisplay)}
                 </span>
               </div>
               <span style={{ width: colW.stat, textAlign: 'center', color: '#475569', fontSize: 'clamp(14px,3.5vw,22px)', fontWeight: 700, flexShrink: 0 }}>{team.played}</span>

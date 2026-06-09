@@ -1,3 +1,5 @@
+import { pairKey } from './pairingUtils';
+
 // Circle-method round-robin → flattened into court-sized scheduling rounds.
 // Returns array of scheduling rounds; each scheduling round is an array of [teamIdA, teamIdB] pairs.
 //
@@ -48,7 +50,7 @@ export function generateRemainingRoundRobinSchedule(teamIds, playedPairKeys, num
   for (let i = 0; i < teamIds.length; i++) {
     for (let j = i + 1; j < teamIds.length; j++) {
       const a = teamIds[i], b = teamIds[j];
-      if (!playedPairKeys.has([a, b].sort().join('|'))) remaining.push([a, b]);
+      if (!playedPairKeys.has(pairKey(a, b))) remaining.push([a, b]);
     }
   }
   if (!remaining.length) return [];

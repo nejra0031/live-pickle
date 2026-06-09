@@ -7,8 +7,18 @@ async function loginAsAdmin(page) {
   await page.waitForSelector('button:has-text("Admin")', { timeout: 5000 });
 }
 
+// Navigate from the landing page into a specific tournament and wait until
+// the tournament view is ready. The tournament's title must be visible on the
+// landing page as a clickable card.
+async function navigateToTournament(page, title) {
+  await page.waitForSelector(`text=${title}`, { timeout: 8000 });
+  await page.click(`text=${title}`);
+  // The "← Tournaments" back button only appears inside the tournament view.
+  await page.waitForSelector('button:has-text("← Tournaments")', { timeout: 8000 });
+}
+
 async function waitForPlayTab(page) {
-  await page.waitForSelector('text=E2E Test Tournament', { timeout: 8000 });
+  await navigateToTournament(page, 'E2E Test Tournament');
 }
 
 async function generateRound(page) {
@@ -17,4 +27,4 @@ async function generateRound(page) {
   await page.waitForSelector('text=Round', { timeout: 5000 });
 }
 
-module.exports = { loginAsAdmin, waitForPlayTab, generateRound };
+module.exports = { loginAsAdmin, navigateToTournament, waitForPlayTab, generateRound };
