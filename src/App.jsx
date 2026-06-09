@@ -388,7 +388,7 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     pushSnapshot(snap, setFirebaseError); setRole('admin');
     onCreated?.(clubId, tid);
     const playerCount = allTeams.reduce((n, t) => n + (t.players?.length || 1), 0);
-    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: isRR ? 'roundrobin' : 'swiss', status: 'active', createdAt: Date.now(), playerCount, maxPlayers: mp });
+    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: isRR ? 'roundrobin' : 'swiss', status: 'active', createdAt: Date.now(), playerCount, maxPlayers: mp, location, startTime });
     setMaxPlayers(mp);
     setActiveTeamIds(teamIds); setCourtNumbers(courts); setTimerDuration(durSecs);
     setStandings(s); setRound(null); setRoundNum(startRoundNum); setHistory([]);
@@ -450,7 +450,7 @@ export default function App({ viewerOnly = false, clubId = null, onCreated = nul
     setTournamentTitle(t); setTournamentLocation(location);
     setTournamentStartTime(startTime); setTournamentDurationMins(durationMins); setMaxPlayers(mp);
     gatedUpdate('canEditTeams', { tournamentTitle: t, tournamentLocation: location, tournamentStartTime: startTime, tournamentDurationMins: durationMins, maxPlayers: mp });
-    if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { title: t, maxPlayers: mp });
+    if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { title: t, maxPlayers: mp, location, startTime });
   }, [roleRef, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doRevertToRound = useCallback(async () => {

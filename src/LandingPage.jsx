@@ -18,9 +18,13 @@ const STATUS_STYLES = {
   finished: { bg: '#f1f5f9', color: '#64748b', label: 'Finished' },
 };
 
-function formatDate(ts) {
+function formatStartTime(ts) {
   if (!ts) return '';
-  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const d = new Date(ts);
+  if (isNaN(d)) return '';
+  const date = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return `${date} · ${time}`;
 }
 
 function TournamentCard({ t, onClick, onDelete }) {
@@ -56,9 +60,14 @@ function TournamentCard({ t, onClick, onDelete }) {
               </span>
             )}
           </div>
+          {(t.startTime || t.location) && (
+            <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {t.startTime && <span style={{ color: '#475569', fontSize: 12 }}>{formatStartTime(t.startTime)}</span>}
+              {t.location  && <span style={{ color: '#64748b',  fontSize: 12 }}>📍 {t.location}</span>}
+            </div>
+          )}
         </div>
         <div style={{ flexShrink: 0, textAlign: 'right' }}>
-          <div style={{ color: '#94a3b8', fontSize: 12 }}>{formatDate(t.createdAt)}</div>
           {confirming ? (
             <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 8 }}>
               <span style={{ fontSize: 12, color: '#64748b', alignSelf: 'center' }}>Delete?</span>

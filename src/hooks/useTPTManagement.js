@@ -55,7 +55,7 @@ export function useTPTManagement({
       tptSchedule: schedule, tptResults: {},
     });
     pushSnapshot(snap, onFirebaseError);
-    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: 'tpt', status: 'active', createdAt: Date.now(), playerCount: Object.keys(playersData).length, maxPlayers });
+    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: 'tpt', status: 'active', createdAt: Date.now(), playerCount: Object.keys(playersData).length, maxPlayers, location, startTime });
     setTPTTeams(tptTeamsData); setTPTPlayers(playersData);
     setTPTSchedule(schedule); tptScheduleRef.current = schedule;
     setTPTResults({}); tptResultsRef.current = {};

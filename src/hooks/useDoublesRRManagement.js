@@ -53,7 +53,7 @@ export function useDoublesRRManagement({
       doublesRRPlayers: playersData, doublesRRSchedule: schedule, doublesRRResults: {},
     });
     pushSnapshot(snap, onFirebaseError);
-    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: 'doublesrr', status: 'active', createdAt: Date.now(), playerCount: Object.keys(playersData).length, maxPlayers });
+    if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: 'doublesrr', status: 'active', createdAt: Date.now(), playerCount: Object.keys(playersData).length, maxPlayers, location, startTime });
     setDoublesRRPlayers(playersData); doublesRRPlayersRef.current = playersData;
     setDoublesRRSchedule(schedule); doublesRRScheduleRef.current = schedule;
     setDoublesRRResults({}); doublesRRResultsRef.current = {};
