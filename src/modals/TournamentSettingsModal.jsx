@@ -324,6 +324,19 @@ export default function TournamentSettingsModal({
           {/* ── Teams & players — TPT ── */}
           {canEditTeams && tournamentMode === 'tpt' && (
             <Acc title="Teams & players" open={sec.teams} onToggle={() => toggle('teams')}>
+              {onTeamNameDisplayChange && (
+                <div style={{ marginBottom: 16 }}>
+                  <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Chip display</p>
+                  <div className="flex gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    {DISPLAY_MODE_OPTIONS.map(opt => (
+                      <button key={opt.value} onClick={() => onTeamNameDisplayChange(opt.value)}
+                        style={{ flex: 1, padding: '6px 4px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', background: teamNameDisplay === opt.value ? 'rgba(99,102,241,0.3)' : 'transparent', color: teamNameDisplay === opt.value ? '#a5b4fc' : '#94a3b8', border: teamNameDisplay === opt.value ? '1px solid rgba(99,102,241,0.4)' : '1px solid transparent' }}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex flex-col gap-4">
                 {localTPTTeams.map(team => {
                   const players = [...(team.maleIds || []), team.femaleId].filter(Boolean).map(pid => localTPTPlayers[pid]).filter(Boolean);
@@ -356,6 +369,19 @@ export default function TournamentSettingsModal({
           {/* ── Players — DoublesRR ── */}
           {canEditTeams && tournamentMode === 'doublesrr' && (
             <Acc title="Players" open={sec.teams} onToggle={() => toggle('teams')}>
+              {onTeamNameDisplayChange && (
+                <div style={{ marginBottom: 16 }}>
+                  <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Chip display</p>
+                  <div className="flex gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    {DISPLAY_MODE_OPTIONS.map(opt => (
+                      <button key={opt.value} onClick={() => onTeamNameDisplayChange(opt.value)}
+                        style={{ flex: 1, padding: '6px 4px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', background: teamNameDisplay === opt.value ? 'rgba(99,102,241,0.3)' : 'transparent', color: teamNameDisplay === opt.value ? '#a5b4fc' : '#94a3b8', border: teamNameDisplay === opt.value ? '1px solid rgba(99,102,241,0.4)' : '1px solid transparent' }}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex flex-col gap-3">
                 {Object.values(localDRRPlayers).map(p => (
                   <div key={p.id} className="rounded-xl p-3 flex items-center gap-2" style={{ border: `1px solid ${p.color || '#64748b'}44`, background: `${p.color || '#64748b'}18` }}>
