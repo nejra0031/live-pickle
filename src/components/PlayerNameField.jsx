@@ -11,7 +11,13 @@ import useDebounce from '../hooks/useDebounce';
 //     1. Nickname input  — the name shown in the game UI (placeholder "Name")
 //     2. Full name text  — full legal name (read-only label, only shown when set via autocomplete)
 //     3. DUPR ID input
-//   Autocomplete searches all three fields; suggestions show the display name first.
+//
+// The "Name"/nickname input only suggests matches against known players' name/nickname;
+// the DUPR ID input only suggests matches against known players' DUPR ID. Picking a
+// suggestion from either field fills in all known fields for that player.
+//
+// `excludeKeys` (optional Set of known-player ids — i.e. `name.trim().toLowerCase()`)
+// hides players already present elsewhere in the current roster from suggestions.
 //
 // onChange always emits { name, duprId } and, when in full mode, also { nickname }.
 //
@@ -20,43 +26,54 @@ import useDebounce from '../hooks/useDebounce';
 // hidden entirely. Has no effect in basic mode.
 export default function PlayerNameField({
   name, duprId, nickname, onChange,
-  knownPlayers = [], placeholder = 'Name', inputStyle = {}, duprIdStyle = inputStyle,
+  knownPlayers = [], excludeKeys, placeholder = 'Name', inputStyle = {}, duprIdStyle = inputStyle,
   showFullName = true,
 }) {
-  const [suggestions, setSuggestions] = useState([]);
-  const [open, setOpen] = useState(false);
+  const [nameSuggestions, setNameSuggestions] = useState([]);
+  const [nameOpen, setNameOpen] = useState(false);
+  const [duprSuggestions, setDuprSuggestions] = useState([]);
+  const [duprOpen, setDuprOpen] = useState(false);
   const wrapRef = useRef(null);
   const showNickname = nickname !== undefined;
 
   const displayName = p => p.nickname || p.name;
+  const isExcluded = p => excludeKeys?.has(p.id);
 
-  const search = useDebounce((q) => {
+  const searchName = useDebounce((q) => {
     const query = q.trim().toLowerCase();
-    if (!query) { setSuggestions([]); return; }
-    setSuggestions(
-      knownPlayers.filter(p =>
-        p.name.toLowerCase().includes(query) ||
-        (p.nickname && p.nickname.toLowerCase().includes(query)) ||
-        (p.duprID && p.duprID.toLowerCase().includes(query))
-      ).slice(0, 6)
+    if (!query) { setNameSuggestions([]); return; }
+    setNameSuggestions(
+      knownPlayers.filter(p => !isExcluded(p) && (
+        p.name.toLowerCase().includes(query) || (p.nickname && p.nickname.toLowerCase().includes(query))
+      )).slice(0, 6)
+    );
+  }, 250);
+
+  const searchDupr = useDebounce((q) => {
+    const query = q.trim().toLowerCase();
+    if (!query) { setDuprSuggestions([]); return; }
+    setDuprSuggestions(
+      knownPlayers.filter(p => !isExcluded(p) && p.duprID && p.duprID.toLowerCase().includes(query)).slice(0, 6)
     );
   }, 250);
 
   useEffect(() => {
-    const onDocClick = e => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    const onDocClick = e => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) { setNameOpen(false); setDuprOpen(false); }
+    };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
   const pick = (p) => {
     onChange({ name: p.name, duprId: p.duprID || '', nickname: p.nickname || '' });
-    setOpen(false);
-    setSuggestions([]);
+    setNameOpen(false); setNameSuggestions([]);
+    setDuprOpen(false); setDuprSuggestions([]);
   };
 
   const emit = (fields) => onChange({ name, duprId, ...(showNickname ? { nickname } : {}), ...fields });
 
-  const dropdown = open && suggestions.length > 0 && (
+  const renderDropdown = (open, suggestions) => open && suggestions.length > 0 && (
     <ul style={{
       position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30, marginTop: 2,
       listStyle: 'none', padding: 4, borderRadius: 8, maxHeight: 160, overflowY: 'auto',
@@ -77,45 +94,57 @@ export default function PlayerNameField({
 
   if (showNickname) {
     return (
-      <div ref={wrapRef} style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' }}>
+      <div ref={wrapRef} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {/* Primary: display name (nickname) */}
-        <input
-          value={nickname}
-          placeholder="Name"
-          onChange={e => { emit({ nickname: e.target.value }); search(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          style={inputStyle}
-        />
-        {dropdown}
+        <div style={{ position: 'relative' }}>
+          <input
+            value={nickname}
+            placeholder="Name"
+            onChange={e => { emit({ nickname: e.target.value }); searchName(e.target.value); setNameOpen(true); }}
+            onFocus={() => setNameOpen(true)}
+            style={inputStyle}
+          />
+          {renderDropdown(nameOpen, nameSuggestions)}
+        </div>
         {showFullName && name && (
           <p style={{ margin: 0, padding: '1px 2px', fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>{name}</p>
         )}
-        <input
-          value={duprId}
-          placeholder="DUPR ID"
-          onChange={e => emit({ duprId: e.target.value })}
-          style={duprIdStyle}
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            value={duprId}
+            placeholder="DUPR ID"
+            onChange={e => { emit({ duprId: e.target.value }); searchDupr(e.target.value); setDuprOpen(true); }}
+            onFocus={() => setDuprOpen(true)}
+            style={duprIdStyle}
+          />
+          {renderDropdown(duprOpen, duprSuggestions)}
+        </div>
       </div>
     );
   }
 
   return (
-    <div ref={wrapRef} style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' }}>
-      <input
-        value={name}
-        placeholder={placeholder}
-        onChange={e => { emit({ name: e.target.value }); search(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        style={inputStyle}
-      />
-      {dropdown}
-      <input
-        value={duprId}
-        placeholder="DUPR ID"
-        onChange={e => emit({ duprId: e.target.value })}
-        style={duprIdStyle}
-      />
+    <div ref={wrapRef} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          value={name}
+          placeholder={placeholder}
+          onChange={e => { emit({ name: e.target.value }); searchName(e.target.value); setNameOpen(true); }}
+          onFocus={() => setNameOpen(true)}
+          style={inputStyle}
+        />
+        {renderDropdown(nameOpen, nameSuggestions)}
+      </div>
+      <div style={{ position: 'relative' }}>
+        <input
+          value={duprId}
+          placeholder="DUPR ID"
+          onChange={e => { emit({ duprId: e.target.value }); searchDupr(e.target.value); setDuprOpen(true); }}
+          onFocus={() => setDuprOpen(true)}
+          style={duprIdStyle}
+        />
+        {renderDropdown(duprOpen, duprSuggestions)}
+      </div>
     </div>
   );
 }
