@@ -197,12 +197,10 @@ const SIDE_FALLBACK_COLOR = '#475569';
 const SIDE_FALLBACK_TEXT = '#ffffff';
 
 // Formats a single DoublesRR player's display name according to mode:
-//   'name'    — nickname if set, otherwise real name
-//   'players' — real name only
-//   'both'    — "nickname (name)" if nickname set, otherwise name
+//   'name' / 'players' — nickname if set, otherwise real name
+//   'both'             — "nickname (name)" if nickname set, otherwise name
 export function formatPlayerName(player, mode) {
   if (!player) return '';
-  if (mode === 'players') return player.name;
   if (mode === 'both') return player.nickname ? `${player.nickname} (${player.name})` : player.name;
   return player.nickname || player.name;
 }

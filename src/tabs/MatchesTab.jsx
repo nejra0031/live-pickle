@@ -259,7 +259,7 @@ export default function MatchesTab({
           if (mode === 'tpt') {
             const round = entry.round;
             const byeTeam = round.byeTeamId ? tptTeams[round.byeTeamId] : null;
-            const pName = id => tptPlayers[id]?.name ?? '?';
+            const pName = id => { const p = tptPlayers[id]; return p ? (p.nickname || p.name) : '?'; };
             const sideLabel = pids => pids.filter(Boolean).map(pName).join(' & ');
             return wrap(<>
               {round.matchups.map((matchup, mi) => {

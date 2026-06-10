@@ -15,7 +15,7 @@ export function useTeamById() {
 
 export function formatTeamLabel(team, mode) {
   if (!team) return '';
-  const playerNames = (team.players || []).map(p => p?.name).filter(Boolean).join(' / ');
+  const playerNames = (team.players || []).map(p => p?.nickname || p?.name).filter(Boolean).join(' / ');
   if (mode === 'players') return playerNames || team.name;
   if (mode === 'both') return playerNames ? `${team.name} (${playerNames})` : team.name;
   return team.name;
