@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { hasPermission } from '../roleConfig';
 import { ALL_TEAMS } from '../constants';
 import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
-import PlayerNameField from '../components/PlayerNameField';
 import useKnownPlayers from '../hooks/useKnownPlayers';
 import { useTeamById } from '../context/TeamRegistryContext';
 
@@ -40,6 +39,17 @@ function Acc({ title, open, onToggle, children, danger }) {
 
 function FL({ children }) {
   return <p style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 4, marginTop: 0 }}>{children}</p>;
+}
+
+// Nickname-only editor — legal name and DUPR ID are set during setup and
+// not editable from Tournament Settings.
+function NicknameField({ name, nickname, onChange }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <input value={nickname} placeholder={name || 'Nickname'} onChange={e => onChange(e.target.value)} style={fS} />
+      {name && <p style={{ margin: 0, padding: '1px 2px', fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>{name}</p>}
+    </div>
+  );
 }
 
 const selS = { ...iS, width: 'auto', background: '#1e293b' };
@@ -101,17 +111,17 @@ export default function TournamentSettingsModal({
 
   // Teams state — swiss / rr
   const teamById = useTeamById();
-  const emptyPair = () => [{ name: '', duprId: '' }, { name: '', duprId: '' }];
+  const emptyPair = () => [{ name: '', duprId: '', nickname: '' }, { name: '', duprId: '', nickname: '' }];
   const [localTeams, setLocalTeams] = useState(() =>
     (activeTeamIds || []).map(id => {
       const t = teamById(id);
-      const players = t?.players?.length === 2 ? t.players.map(p => ({ name: p.name || '', duprId: p.duprId || '' })) : emptyPair();
+      const players = t?.players?.length === 2 ? t.players.map(p => ({ name: p.name || '', duprId: p.duprId || '', nickname: p.nickname || '' })) : emptyPair();
       return { id, name: t?.name ?? id, color: t?.color ?? '#475569', text: t?.text ?? '#fff', players };
     })
   );
   const [addId, setAddId] = useState('');
   const [expandedPlayerId, setExpandedPlayerId] = useState(null);
-  const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
+  const { save: saveKnownPlayer } = useKnownPlayers();
 
   // Teams state — TPT
   const [localTPTTeams, setLocalTPTTeams] = useState(() =>
@@ -159,9 +169,9 @@ export default function TournamentSettingsModal({
       } else if (onManageTeamsSave) {
         const registry = localTeams.map(t => {
           const orig = (tournamentTeams || []).find(x => x.id === t.id);
-          const players = t.players.map(p => ({ name: p.name.trim(), duprId: p.duprId.trim() }));
+          const players = t.players.map(p => ({ name: p.name.trim(), duprId: p.duprId.trim(), nickname: (p.nickname || '').trim() }));
           const hasPlayers = players.some(p => p.name);
-          players.filter(p => p.name).forEach(p => saveKnownPlayer(p.name, p.duprId));
+          players.filter(p => p.name).forEach(p => saveKnownPlayer(p.name, p.duprId, p.nickname));
           return { id: t.id, name: t.name.trim() || t.id, color: orig?.color ?? t.color, text: orig?.text ?? t.text, ...(hasPlayers ? { players } : {}) };
         });
         onManageTeamsSave(registry, localTeams.map(t => t.id));
@@ -297,14 +307,13 @@ export default function TournamentSettingsModal({
                         </div>
                         {expandedPlayerId === t.id && (
                           <div className="rounded-lg p-2 flex flex-col gap-2" style={{ marginLeft: 20, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                            <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Players (for DUPR export)</p>
+                            <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Player nicknames</p>
                             {t.players.map((pl, slot) => (
-                              <PlayerNameField key={slot} name={pl.name} duprId={pl.duprId} knownPlayers={knownPlayers}
-                                onChange={val => setLocalTeams(p => p.map(x => {
+                              <NicknameField key={slot} name={pl.name} nickname={pl.nickname || ''}
+                                onChange={nickname => setLocalTeams(p => p.map(x => {
                                   if (x.id !== t.id) return x;
-                                  const players = [...x.players]; players[slot] = val; return { ...x, players };
-                                }))}
-                                placeholder={`Player ${slot + 1}`} inputStyle={fS} duprIdStyle={{ ...fS, fontSize: 11 }} />
+                                  const players = [...x.players]; players[slot] = { ...players[slot], nickname }; return { ...x, players };
+                                }))} />
                             ))}
                           </div>
                         )}
@@ -368,9 +377,8 @@ export default function TournamentSettingsModal({
                             {p.gender === 'female' ? '♀' : '♂'}
                           </span>
                           <div style={{ flex: 1 }}>
-                            <PlayerNameField name={p.name} duprId={p.duprId || ''} nickname={p.nickname || ''} knownPlayers={knownPlayers}
-                              onChange={val => setLocalTPTPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], name: val.name, duprId: val.duprId, nickname: val.nickname ?? prev[p.id].nickname } }))}
-                              inputStyle={fS} showFullName={false} />
+                            <NicknameField name={p.name} nickname={p.nickname || ''}
+                              onChange={nickname => setLocalTPTPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], nickname } }))} />
                           </div>
                         </div>
                       ))}
@@ -402,9 +410,8 @@ export default function TournamentSettingsModal({
                   <div key={p.id} className="rounded-xl p-3 flex items-center gap-2" style={{ border: `1px solid ${p.color || '#64748b'}44`, background: `${p.color || '#64748b'}18` }}>
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: p.color || '#64748b' }} />
                     <div style={{ flex: 1 }}>
-                      <PlayerNameField name={p.name} duprId={p.duprId || ''} nickname={p.nickname || ''} knownPlayers={knownPlayers}
-                        onChange={val => setLocalDRRPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], name: val.name, duprId: val.duprId, nickname: val.nickname ?? prev[p.id].nickname } }))}
-                        inputStyle={fS} showFullName={false} />
+                      <NicknameField name={p.name} nickname={p.nickname || ''}
+                        onChange={nickname => setLocalDRRPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], nickname } }))} />
                     </div>
                   </div>
                 ))}
