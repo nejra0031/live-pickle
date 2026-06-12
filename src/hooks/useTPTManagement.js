@@ -105,7 +105,11 @@ export function useTPTManagement({
   }, [closeModal, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUndoTPTResult = useCallback((schedRoundIdx, matchupIdx, gameIdx) => {
-    undoScheduledResult(roleRef, tptResultsRef, setTPTResults, 'tptResults', `${schedRoundIdx}_${matchupIdx}_${gameIdx}`, onFirebaseError);
+    undoScheduledResult({
+      roleRef, resultsRef: tptResultsRef, setResults: setTPTResults, firebasePath: 'tptResults',
+      key: `${schedRoundIdx}_${matchupIdx}_${gameIdx}`, onFirebaseError,
+      stateRef, setHistory, setRoundNum, roundCompletingRef: tptRoundCompletingRef,
+    });
   }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { handleStartTPT, handleTPTResult, handleUndoTPTResult, handleManageTPTTeamsSave };

@@ -128,7 +128,11 @@ export function useDoublesRRManagement({
   }, [closeModal, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUndoDoublesRRResult = useCallback((roundIdx, courtIdx) => {
-    undoScheduledResult(roleRef, doublesRRResultsRef, setDoublesRRResults, 'doublesRRResults', `${roundIdx}_${courtIdx}`, onFirebaseError);
+    undoScheduledResult({
+      roleRef, resultsRef: doublesRRResultsRef, setResults: setDoublesRRResults, firebasePath: 'doublesRRResults',
+      key: `${roundIdx}_${courtIdx}`, onFirebaseError,
+      stateRef, setHistory, setRoundNum, roundCompletingRef: doublesRRRoundCompletingRef,
+    });
   }, [roleRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { handleStartDoublesRR, handleDoublesRRResult, handleUndoDoublesRRResult, handleGenerateAdditionalDoublesRR, handleManageDoublesRRPlayersSave };

@@ -2,14 +2,33 @@ import { pushAtomicUpdate } from '../firebase';
 import { hasPermission } from '../roleConfig';
 
 // Removes a single result from a scheduled-format results map (TPT or DoublesRR)
-// and pushes a null tombstone to Firebase.
-export function undoScheduledResult(roleRef, resultsRef, setResults, firebasePath, key, onFirebaseError) {
+// and pushes a null tombstone to Firebase. If the round this result belongs to
+// had already auto-completed and been appended to history (only possible for
+// the final scheduled round, which stays the "current round" after completion),
+// that history entry is rolled back too — otherwise it would keep showing the
+// undone game's old score even after a corrected result is resubmitted.
+export function undoScheduledResult({ roleRef, resultsRef, setResults, firebasePath, key, onFirebaseError, stateRef, setHistory, setRoundNum, roundCompletingRef }) {
   if (!hasPermission(roleRef.current, 'canSubmitResults')) return;
   const newResults = { ...resultsRef.current };
   delete newResults[key];
   setResults(newResults);
   resultsRef.current = newResults;
-  pushAtomicUpdate({ [`${firebasePath}/${key}`]: null }, onFirebaseError);
+
+  const updates = { [`${firebasePath}/${key}`]: null };
+
+  const ri = Number(key.split('_')[0]);
+  const { history, roundNum } = stateRef.current;
+  if (history.length === ri + 1) {
+    const newHistory = history.slice(0, -1);
+    const newRoundNum = roundNum - 1;
+    setHistory(newHistory);
+    setRoundNum(newRoundNum);
+    if (roundCompletingRef) roundCompletingRef.current = false;
+    updates.history = newHistory;
+    updates.roundNum = newRoundNum;
+  }
+
+  pushAtomicUpdate(updates, onFirebaseError);
 }
 
 // Records a result for a scheduled-format round (TPT or DoublesRR).
