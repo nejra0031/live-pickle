@@ -1,9 +1,9 @@
-import { useContext, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { buildTPTStandings, formatTPTTeamLabel } from '../algorithms/threePlayerTeam';
 import { TeamRegistryContext } from '../context/TeamRegistryContext';
 import { ORDINAL } from '../constants';
 
-export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder, tptSubstitutions = {} }) {
+export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder, tptSubstitutions = {}, tournamentFinished = false }) {
   const { teamStandings, playerStandings, partnershipStandings } = useMemo(
     () => buildTPTStandings(tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder, tptSubstitutions),
     [tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder, tptSubstitutions]
@@ -11,6 +11,13 @@ export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSched
   const { teamNameDisplay } = useContext(TeamRegistryContext);
   const [openIds, setOpenIds] = useState(new Set());
   const toggle = id => setOpenIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+
+  // When the tournament finishes (podium shown on the Current round tab),
+  // expand every team so the full player/partnership breakdown is visible
+  // without needing to click each row.
+  useEffect(() => {
+    if (tournamentFinished) setOpenIds(new Set(teamStandings.map(t => t.id)));
+  }, [tournamentFinished]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (teamStandings.length === 0) {
     return <div className="text-center text-slate-400 py-8 text-sm">No results yet.</div>;

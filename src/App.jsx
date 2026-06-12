@@ -959,7 +959,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
                   doublesRRPlayers={doublesRRPlayers} doublesRRStandings={doublesRRStandings}
                   doublesRRTiebreakOrder={doublesRRTiebreakOrder} onDoublesRRTiebreakOrderChange={handleDoublesRRTiebreakOrderChange}
                   standingsTiebreakOrder={standingsTiebreakOrder}
-                  isAdmin={isAdmin}
+                  isAdmin={isAdmin} tournamentFinished={tournamentFinished}
                 />
               )}
               {activeTab === 'matches' && (
