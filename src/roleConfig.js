@@ -32,6 +32,7 @@ export const ROLES = [
       canDeleteHistoryGame: true,
       canFullEditHistory:   true,
       canExitRRWithOwnPin: true,
+      canExportDUPR:      true,
     },
   },
   {
@@ -65,6 +66,7 @@ export const ROLES = [
       canDeleteHistoryGame: false,
       canFullEditHistory:   false,
       canExitRRWithOwnPin: false,
+      canExportDUPR:      false,
     },
   },
 ];

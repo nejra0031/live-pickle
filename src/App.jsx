@@ -979,7 +979,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
                   onEditTPTGame={(ri, mi, gi) => openModal('editTPTGame', { ri, mi, gi })}
                   onEditTPTSubs={(ri, mi, gi) => openModal('editTPTSubs', { ri, mi, gi })}
                   onEditDoublesRRGame={(ri, ci) => openModal('editDoublesRRGame', { ri, ci })}
-                  onExportDUPR={() => openModal('exportDUPR')}
+                  onExportDUPR={hasPermission(role, 'canExportDUPR') ? () => openModal('exportDUPR') : undefined}
                   onRemoveGame={(ri, gameIdx) => { openModal('pin', { purpose: 'removeGame', removeGameTarget: { ri, gameIdx } }); }}
                   onRevertToRound={rn => { openModal('pin', { purpose: 'revertToRound', revertTarget: rn }); }}
                   onRevertToBeginning={() => { openModal('pin', { purpose: 'revertToBeginning' }); }}
