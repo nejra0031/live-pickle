@@ -344,13 +344,17 @@ export default function MatchesTab({
                   if (!teamA || !teamB) return null;
                   const gameDefs = getTPTGamesForMatchup(teamA, teamB);
                   const pName = id => { const p = tptPlayers[id]; return p ? (p.nickname || p.name) : '?'; };
-                  const sideLabel = (pids, subs = {}) => pids.filter(Boolean).map((pid, idx) => {
-                    const subPid = subs[pid];
-                    const el = subPid
-                      ? <span key={idx} style={{ fontStyle: 'italic' }} title={`Sub for ${pName(pid)}`}>{pName(subPid)}</span>
-                      : <span key={idx}>{pName(pid)}</span>;
-                    return idx === 0 ? el : <span key={`sep-${idx}`}>{' & '}{el}</span>;
-                  });
+                  const sideLabel = (pids, subs = {}) => (
+                    <span>
+                      {pids.filter(Boolean).map((pid, idx) => {
+                        const subPid = subs[pid];
+                        const el = subPid
+                          ? <span key={idx} style={{ fontStyle: 'italic' }} title={`Sub for ${pName(pid)}`}>{pName(subPid)}</span>
+                          : <span key={idx}>{pName(pid)}</span>;
+                        return idx === 0 ? el : <span key={`sep-${idx}`}>{' & '}{el}</span>;
+                      })}
+                    </span>
+                  );
                   const sideChip = (pids, team, won, subs = {}) => (
                     <span className="inline-flex items-center rounded-full font-bold"
                       style={{ background: team.color, color: team.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px', whiteSpace: 'nowrap', opacity: won ? 1 : 0.6 }}>

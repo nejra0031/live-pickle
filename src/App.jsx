@@ -259,11 +259,15 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
     if (s.tptTeams)    { setTPTTeams(s.tptTeams);    }
     if (s.players)     { setTPTPlayers(s.players);   }
     if (s.tptSchedule) { setTPTSchedule(s.tptSchedule); tptScheduleRef.current = s.tptSchedule; }
-    if (s.tptResults)  { setTPTResults(s.tptResults); tptResultsRef.current = s.tptResults; }
-    if (s.tptSubstitutions) { setTPTSubstitutions(s.tptSubstitutions); tptSubstitutionsRef.current = s.tptSubstitutions; }
+    // tptResults/tptSubstitutions/doublesRRResults are result maps that can shrink
+    // back to empty (e.g. reverting to an earlier round) — Firebase prunes empty
+    // objects, so an absent field must reset state rather than leave stale data
+    // from a later round in place.
+    setTPTResults(s.tptResults || {}); tptResultsRef.current = s.tptResults || {};
+    setTPTSubstitutions(s.tptSubstitutions || {}); tptSubstitutionsRef.current = s.tptSubstitutions || {};
     if (s.doublesRRPlayers)  { setDoublesRRPlayers(s.doublesRRPlayers); doublesRRPlayersRef.current = s.doublesRRPlayers; }
     if (s.doublesRRSchedule) { setDoublesRRSchedule(s.doublesRRSchedule); doublesRRScheduleRef.current = s.doublesRRSchedule; }
-    if (s.doublesRRResults)  { setDoublesRRResults(s.doublesRRResults); doublesRRResultsRef.current = s.doublesRRResults; }
+    setDoublesRRResults(s.doublesRRResults || {}); doublesRRResultsRef.current = s.doublesRRResults || {};
     setDoublesRRTiebreakOrder(s.doublesRRTiebreakOrder || DEFAULT_DOUBLES_RR_TIEBREAK_ORDER);
     historyLengthRef.current = s.history.length;
     if (s._tournamentId) tournamentIdRef.current = s._tournamentId;
