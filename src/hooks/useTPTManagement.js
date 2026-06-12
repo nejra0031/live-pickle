@@ -16,9 +16,9 @@ export function useTPTManagement({
   stateRef,
   // refs
   tournamentIdRef, lastSeenRoundNum, pendingRef, roleRef,
-  tptResultsRef, tptScheduleRef, tptRoundCompletingRef,
+  tptResultsRef, tptScheduleRef, tptRoundCompletingRef, tptSubstitutionsRef,
   // TPT state setters
-  setTPTTeams, setTPTPlayers, setTPTSchedule, setTPTResults,
+  setTPTTeams, setTPTPlayers, setTPTSchedule, setTPTResults, setTPTSubstitutions,
   // App state setters
   setTournamentTitle, setTournamentLocation, setTournamentStartTime, setTournamentDurationMins, setMaxPlayers,
   setRole, setCourtNumbers, setTimerDuration,
@@ -52,13 +52,14 @@ export function useTPTManagement({
     }, {
       _tournamentId: tid,
       tptTeams: tptTeamsData, players: playersData,
-      tptSchedule: schedule, tptResults: {},
+      tptSchedule: schedule, tptResults: {}, tptSubstitutions: {},
     });
     pushSnapshot(snap, onFirebaseError);
     if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: 'tpt', status: 'active', createdAt: Date.now(), playerCount: Object.keys(playersData).length, maxPlayers, location, startTime });
     setTPTTeams(tptTeamsData); setTPTPlayers(playersData);
     setTPTSchedule(schedule); tptScheduleRef.current = schedule;
     setTPTResults({}); tptResultsRef.current = {};
+    setTPTSubstitutions({}); tptSubstitutionsRef.current = {};
     tptRoundCompletingRef.current = false;
     applyTournamentStartState({
       tournamentMode: 'tpt', courts, durSecs,

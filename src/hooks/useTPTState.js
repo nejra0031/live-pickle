@@ -9,15 +9,18 @@ export function useTPTState() {
   const [tptPlayers,  setTPTPlayers]  = useState({});
   const [tptSchedule, setTPTSchedule] = useState([]);
   const [tptResults,  setTPTResults]  = useState({});
+  const [tptSubstitutions, setTPTSubstitutions] = useState({});
   const tptResultsRef         = useRef({});
   const tptScheduleRef        = useRef([]);
   const tptRoundCompletingRef = useRef(false);
+  const tptSubstitutionsRef   = useRef({});
 
   return {
     tptTeams, setTPTTeams,
     tptPlayers, setTPTPlayers,
     tptSchedule, setTPTSchedule,
     tptResults, setTPTResults,
-    tptResultsRef, tptScheduleRef, tptRoundCompletingRef,
+    tptSubstitutions, setTPTSubstitutions,
+    tptResultsRef, tptScheduleRef, tptRoundCompletingRef, tptSubstitutionsRef,
   };
 }

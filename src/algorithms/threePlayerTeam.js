@@ -62,7 +62,7 @@ export function getTPTGamesForMatchup(teamA, teamB) {
 // Returns { teamStandings, playerStandings }
 // teamStandings: [{ id, name, color, text, wins, losses, scoreDiff, played }] sorted by tiebreakOrder
 // playerStandings: { [teamId]: [{ id, name, gender, wins, losses, scoreDiff, played }] }
-export function buildTPTStandings(tptTeams, players, tptSchedule, tptResults, tiebreakOrder) {
+export function buildTPTStandings(tptTeams, players, tptSchedule, tptResults, tiebreakOrder, tptSubstitutions = {}) {
   const criteria = (tiebreakOrder && tiebreakOrder.length) ? tiebreakOrder : ['wins', 'scoreDiff'];
   const teamMap = {};
   const playerMap = {};
@@ -113,9 +113,14 @@ export function buildTPTStandings(tptTeams, players, tptSchedule, tptResults, ti
     const game = games[gi];
     if (!game) return;
 
+    const subs = tptSubstitutions[key] || {};
+    const applySub = pid => subs[pid] || pid;
+    const sideA = (game.sideA || []).map(applySub);
+    const sideB = (game.sideB || []).map(applySub);
+
     const winnerIsA = winnerTeamId === teamAId;
-    const winnerPids = winnerIsA ? game.sideA : game.sideB;
-    const loserPids  = winnerIsA ? game.sideB : game.sideA;
+    const winnerPids = winnerIsA ? sideA : sideB;
+    const loserPids  = winnerIsA ? sideB : sideA;
 
     winnerPids.forEach(pid => { if (playerMap[pid]) { playerMap[pid].wins++; playerMap[pid].scoreDiff += diff; playerMap[pid].played++; } });
     loserPids.forEach(pid =>  { if (playerMap[pid]) { playerMap[pid].losses++; playerMap[pid].scoreDiff -= diff; playerMap[pid].played++; } });

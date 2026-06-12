@@ -3,10 +3,10 @@ import { buildTPTStandings, formatTPTTeamLabel } from '../algorithms/threePlayer
 import { TeamRegistryContext } from '../context/TeamRegistryContext';
 import { ORDINAL } from '../constants';
 
-export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder }) {
+export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder, tptSubstitutions = {} }) {
   const { teamStandings, playerStandings, partnershipStandings } = useMemo(
-    () => buildTPTStandings(tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder),
-    [tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder]
+    () => buildTPTStandings(tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder, tptSubstitutions),
+    [tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder, tptSubstitutions]
   );
   const { teamNameDisplay } = useContext(TeamRegistryContext);
   const [openIds, setOpenIds] = useState(new Set());

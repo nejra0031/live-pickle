@@ -12,8 +12,8 @@ export default function MatchesTab({
   roundRobinStartSnapshot, roundRobinEndSnapshot,
   canEditScores, canDeleteGame, canFullEdit,
   backupRoundNums = new Set(), onAddGame, onEditGame, onRemoveGame, onRevertToRound, onRevertToBeginning, onEditCourtNumber,
-  onEditTPTGame, onEditDoublesRRGame, onExportDUPR,
-  tptTeams = {}, tptPlayers = {}, doublesRRPlayers = {},
+  onEditTPTGame, onEditTPTSubs, onEditDoublesRRGame, onExportDUPR,
+  tptTeams = {}, tptPlayers = {}, tptSubstitutions = {}, doublesRRPlayers = {},
 }) {
   const teamById = useTeamById();
   const teamLabel = useTeamLabel();
@@ -344,11 +344,17 @@ export default function MatchesTab({
                   if (!teamA || !teamB) return null;
                   const gameDefs = getTPTGamesForMatchup(teamA, teamB);
                   const pName = id => { const p = tptPlayers[id]; return p ? (p.nickname || p.name) : '?'; };
-                  const sideLabel = pids => pids.filter(Boolean).map(pName).join(' & ');
-                  const sideChip = (pids, team, won) => (
+                  const sideLabel = (pids, subs = {}) => pids.filter(Boolean).map((pid, idx) => {
+                    const subPid = subs[pid];
+                    const el = subPid
+                      ? <span key={idx} style={{ fontStyle: 'italic' }} title={`Sub for ${pName(pid)}`}>{pName(subPid)}</span>
+                      : <span key={idx}>{pName(pid)}</span>;
+                    return idx === 0 ? el : <span key={`sep-${idx}`}>{' & '}{el}</span>;
+                  });
+                  const sideChip = (pids, team, won, subs = {}) => (
                     <span className="inline-flex items-center rounded-full font-bold"
                       style={{ background: team.color, color: team.text, fontSize: 'clamp(11px,2.8vw,14px)', padding: '3px 10px', whiteSpace: 'nowrap', opacity: won ? 1 : 0.6 }}>
-                      {sideLabel(pids)}
+                      {sideLabel(pids, subs)}
                     </span>
                   );
                   return (
@@ -365,18 +371,23 @@ export default function MatchesTab({
                         const aWon = game.winnerTeamId === teamA.id;
                         const scoreA = aWon ? game.winnerScore : game.loserScore;
                         const scoreB = aWon ? game.loserScore : game.winnerScore;
+                        const subs = tptSubstitutions[`${ri}_${mi}_${gi}`] || {};
                         return (
                           <div key={gi} style={{ padding: 'clamp(3px,0.8vw,5px) 0', borderTop: gi > 0 ? '1px solid rgba(0,0,0,0.05)' : undefined }}>
                             <div className="flex items-center flex-wrap" style={{ gap: 'clamp(4px,1vw,8px)' }}>
                               <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: gi === 0 ? '#1d4ed8' : '#be185d', fontWeight: 700, minWidth: 'clamp(52px,12vw,72px)', flexShrink: 0 }}>{gameLabel}</span>
-                              {sideChip(def?.sideA || [], teamA, aWon)}
+                              {sideChip(def?.sideA || [], teamA, aWon, subs)}
                               <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{scoreA}</span>
                               <span style={{ color: '#94a3b8' }}>–</span>
                               <span style={{ fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)' }}>{scoreB}</span>
-                              {sideChip(def?.sideB || [], teamB, !aWon)}
+                              {sideChip(def?.sideB || [], teamB, !aWon, subs)}
                               {canEditScores && (
                                 <button onClick={() => onEditTPTGame?.(ri, mi, gi)}
                                   style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(2px,0.5vw,4px) clamp(5px,1.2vw,8px)', borderRadius: 8, background: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)', cursor: 'pointer' }}>✏️</button>
+                              )}
+                              {canEditScores && (
+                                <button onClick={() => onEditTPTSubs?.(ri, mi, gi)} title="Edit substitute players"
+                                  style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(2px,0.5vw,4px) clamp(5px,1.2vw,8px)', borderRadius: 8, background: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)', cursor: 'pointer' }}>🔁</button>
                               )}
                             </div>
                           </div>

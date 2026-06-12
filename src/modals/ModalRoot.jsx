@@ -11,6 +11,7 @@ import AddGameModal from './AddGameModal';
 import PresetMatchModal from './PresetMatchModal';
 import EditGameModal from './EditGameModal';
 import EditTPTGameModal from './EditTPTGameModal';
+import EditTPTSubsModal from './EditTPTSubsModal';
 import EditDoublesRRGameModal from './EditDoublesRRGameModal';
 import EditActiveCourtModal from './EditActiveCourtModal';
 import ExportDUPRModal from './ExportDUPRModal';
@@ -29,7 +30,7 @@ export default function ModalRoot({
   isAdmin, tournamentMode, activeTeamIds, tournamentTeams, pausedIds,
   courtNumbers, socialCourts, roundRobinCourts, ranked,
   round, liveAdditions, nextRoundPresets, history, pending,
-  tptTeams, tptPlayers, tournamentTitle,
+  tptTeams, tptPlayers, tptSubstitutions, tournamentTitle,
   doublesRRPlayers, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange,
   standingsTiebreakOrder, onStandingsTiebreakOrderChange,
   tournamentLocation, tournamentStartTime, tournamentDurationMins, maxPlayers, onTournamentInfoSave,
@@ -39,7 +40,7 @@ export default function ModalRoot({
   onTogglePause, onManageTeamsSave, onManageTPTTeamsSave, onManageCourtsSave,
   onManageDoublesRRPlayersSave,
   onStartRoundRobin, onChooseGenerateAdditionalGames, addGameData, onAddGameSave, onAddPreset, onAddLiveGame,
-  onEditSave, onEditActiveCourt, onEditLiveAddition, onEditTPTSave, onEditDoublesRRSave,
+  onEditSave, onEditActiveCourt, onEditLiveAddition, onEditTPTSave, onEditDoublesRRSave, onSetTPTSubstitution,
 }) {
   const pinPurpose = modal.open === 'pin' ? modal.data?.purpose : null;
   const pinTitle = pinPurpose === 'login' ? 'Login'
@@ -68,6 +69,7 @@ export default function ModalRoot({
 
   const editGameTarget     = modal.open === 'editGame'        ? modal.data : null;
   const editTPTGameTarget  = modal.open === 'editTPTGame'     ? modal.data : null;
+  const editTPTSubsTarget  = modal.open === 'editTPTSubs'     ? modal.data : null;
   const editDoublesRRGameTarget = modal.open === 'editDoublesRRGame' ? modal.data : null;
   const editActiveCourtIdx = modal.open === 'editActiveCourt' ? modal.data : null;
   const editLiveIdxVal     = modal.open === 'editLive'        ? modal.data : null;
@@ -142,6 +144,26 @@ export default function ModalRoot({
             teamAId={matchup.teamAId} teamBId={matchup.teamBId}
             currentResult={matchup.games?.[gi] || null}
             onSave={result => onEditTPTSave(ri, mi, gi, result)}
+            onClose={closeModal}
+          />
+        );
+      })()}
+      {editTPTSubsTarget && (() => {
+        const { ri, mi, gi } = editTPTSubsTarget;
+        const h = history[ri];
+        const matchup = h?.tptMatchups?.[mi];
+        const teamA = matchup && tptTeams[matchup.teamAId];
+        const teamB = matchup && tptTeams[matchup.teamBId];
+        if (!teamA || !teamB) return null;
+        const def = getTPTGamesForMatchup(teamA, teamB)[gi];
+        const gameLabel = `Round ${h.roundNum} · ${gi === 0 ? 'Males' : gi === 1 ? 'Mixed #1' : 'Mixed #2'}`;
+        const currentSubs = tptSubstitutions[`${ri}_${mi}_${gi}`] || {};
+        return (
+          <EditTPTSubsModal
+            gameLabel={gameLabel}
+            teamA={teamA} teamB={teamB} gameDef={def}
+            tptPlayers={tptPlayers} currentSubs={currentSubs}
+            onSave={subs => onSetTPTSubstitution(ri, mi, gi, subs)}
             onClose={closeModal}
           />
         );

@@ -146,7 +146,8 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
   const {
     tptTeams, setTPTTeams, tptPlayers, setTPTPlayers,
     tptSchedule, setTPTSchedule, tptResults, setTPTResults,
-    tptResultsRef, tptScheduleRef, tptRoundCompletingRef,
+    tptSubstitutions, setTPTSubstitutions,
+    tptResultsRef, tptScheduleRef, tptRoundCompletingRef, tptSubstitutionsRef,
   } = useTPTState();
 
   // ── Doubles RR state ──────────────────────────────────────────────────────
@@ -259,6 +260,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
     if (s.players)     { setTPTPlayers(s.players);   }
     if (s.tptSchedule) { setTPTSchedule(s.tptSchedule); tptScheduleRef.current = s.tptSchedule; }
     if (s.tptResults)  { setTPTResults(s.tptResults); tptResultsRef.current = s.tptResults; }
+    if (s.tptSubstitutions) { setTPTSubstitutions(s.tptSubstitutions); tptSubstitutionsRef.current = s.tptSubstitutions; }
     if (s.doublesRRPlayers)  { setDoublesRRPlayers(s.doublesRRPlayers); doublesRRPlayersRef.current = s.doublesRRPlayers; }
     if (s.doublesRRSchedule) { setDoublesRRSchedule(s.doublesRRSchedule); doublesRRScheduleRef.current = s.doublesRRSchedule; }
     if (s.doublesRRResults)  { setDoublesRRResults(s.doublesRRResults); doublesRRResultsRef.current = s.doublesRRResults; }
@@ -351,8 +353,8 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
 
   const tptTeamStandings = useMemo(() => {
     if (tournamentMode !== 'tpt' || Object.keys(tptTeams).length === 0) return [];
-    return buildTPTStandings(tptTeams, tptPlayers, tptSchedule, tptResults, standingsTiebreakOrder).teamStandings;
-  }, [tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults, standingsTiebreakOrder]);
+    return buildTPTStandings(tptTeams, tptPlayers, tptSchedule, tptResults, standingsTiebreakOrder, tptSubstitutions).teamStandings;
+  }, [tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults, standingsTiebreakOrder, tptSubstitutions]);
 
   const doublesRRStandings = useMemo(() => {
     if (tournamentMode !== 'doublesrr' || Object.keys(doublesRRPlayers).length === 0) return [];
@@ -416,8 +418,8 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
   const { handleStartTPT, handleTPTResult, handleUndoTPTResult, handleManageTPTTeamsSave } = useTPTManagement({
     stateRef: roundMgmtStateRef,
     tournamentIdRef, lastSeenRoundNum, pendingRef, roleRef,
-    tptResultsRef, tptScheduleRef, tptRoundCompletingRef,
-    setTPTTeams, setTPTPlayers, setTPTSchedule, setTPTResults,
+    tptResultsRef, tptScheduleRef, tptRoundCompletingRef, tptSubstitutionsRef,
+    setTPTTeams, setTPTPlayers, setTPTSchedule, setTPTResults, setTPTSubstitutions,
     setTournamentTitle, setTournamentLocation, setTournamentStartTime, setTournamentDurationMins, setMaxPlayers,
     setRole, setCourtNumbers, setTimerDuration,
     setHistory, setRoundNum, setActiveTeamIds, setStandings,
@@ -503,6 +505,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
     setActiveRoundExtras([]); setLiveAdditions([]); setNextRoundPresets([]);
     setTournamentFinished(false); setBreakMode(null); setCancelledRoundNums([]);
     setTPTResults({}); tptResultsRef.current = {}; tptRoundCompletingRef.current = false;
+    setTPTSubstitutions({}); tptSubstitutionsRef.current = {};
     setDoublesRRResults({}); doublesRRResultsRef.current = {}; doublesRRRoundCompletingRef.current = false;
     setRoundKey(k => k + 1); applyTimerState(false, null, s.timerDuration);
     closeModal(); setActiveTab('play');
@@ -531,8 +534,8 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
     setActiveRoundExtras([]); setLiveAdditions([]); setNextRoundPresets([]);
     setTournamentFinished(false); setBreakMode(null); setCancelledRoundNums([]); setSocialCourts([]);
     setTournamentTitle('Tournament'); setTournamentLocation(''); setTournamentStartTime(''); setTournamentDurationMins(0); setMaxPlayers(0);
-    setTPTTeams({}); setTPTPlayers({}); setTPTSchedule([]); setTPTResults({});
-    tptResultsRef.current = {}; tptScheduleRef.current = []; tptRoundCompletingRef.current = false;
+    setTPTTeams({}); setTPTPlayers({}); setTPTSchedule([]); setTPTResults({}); setTPTSubstitutions({});
+    tptResultsRef.current = {}; tptScheduleRef.current = []; tptRoundCompletingRef.current = false; tptSubstitutionsRef.current = {};
     setDoublesRRPlayers({}); setDoublesRRSchedule([]); setDoublesRRResults({});
     doublesRRPlayersRef.current = {}; doublesRRResultsRef.current = {}; doublesRRScheduleRef.current = []; doublesRRRoundCompletingRef.current = false;
     resetTimer(0);
@@ -675,6 +678,18 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
       gatedUpdate(['canEditHistoryScores', 'canFullEditHistory'], { history: nh });
       return nh;
     });
+    closeModal();
+  }, [roleRef, closeModal]);
+
+  const handleSetTPTSubstitution = useCallback((ri, mi, gi, subsMap) => {
+    const key = `${ri}_${mi}_${gi}`;
+    const hasSubs = subsMap && Object.keys(subsMap).length > 0;
+    const next = { ...tptSubstitutionsRef.current };
+    if (hasSubs) next[key] = subsMap;
+    else delete next[key];
+    setTPTSubstitutions(next);
+    tptSubstitutionsRef.current = next;
+    gatedUpdate(['canEditHistoryScores', 'canFullEditHistory'], { [`tptSubstitutions/${key}`]: hasSubs ? subsMap : null });
     closeModal();
   }, [roleRef, closeModal]);
 
@@ -836,7 +851,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
           activeTeamIds={activeTeamIds} tournamentTeams={tournamentTeams} pausedIds={pausedIds}
           courtNumbers={courtNumbers} socialCourts={socialCourts} roundRobinCourts={roundRobinCourts} ranked={ranked}
           round={round} liveAdditions={liveAdditions} nextRoundPresets={nextRoundPresets} history={history} pending={pending}
-          tptTeams={tptTeams} tptPlayers={tptPlayers} tournamentTitle={tournamentTitle}
+          tptTeams={tptTeams} tptPlayers={tptPlayers} tptSubstitutions={tptSubstitutions} tournamentTitle={tournamentTitle}
           doublesRRPlayers={doublesRRPlayers}
           doublesRRTiebreakOrder={doublesRRTiebreakOrder} onDoublesRRTiebreakOrderChange={handleDoublesRRTiebreakOrderChange}
           standingsTiebreakOrder={standingsTiebreakOrder} onStandingsTiebreakOrderChange={handleStandingsTiebreakOrderChange}
@@ -853,6 +868,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
           onAddPreset={handleAddPreset} onAddLiveGame={handleAddLiveGame}
           onEditSave={handleEditSave} onEditActiveCourt={handleEditActiveCourt} onEditLiveAddition={handleEditLiveAddition}
           onEditTPTSave={handleTPTHistoryEditSave}
+          onSetTPTSubstitution={handleSetTPTSubstitution}
           onEditDoublesRRSave={handleDoublesRRHistoryEditSave}
         />
 
@@ -935,7 +951,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
               {activeTab === 'standings' && (
                 <StandingsTab
                   ranked={ranked} pausedIds={pausedIds} tournamentMode={tournamentMode}
-                  tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults}
+                  tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults} tptSubstitutions={tptSubstitutions}
                   doublesRRPlayers={doublesRRPlayers} doublesRRStandings={doublesRRStandings}
                   doublesRRTiebreakOrder={doublesRRTiebreakOrder} onDoublesRRTiebreakOrderChange={handleDoublesRRTiebreakOrderChange}
                   standingsTiebreakOrder={standingsTiebreakOrder}
@@ -946,7 +962,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
                 <MatchesTab
                   history={history} activeTeamIds={activeTeamIds} cancelledRoundNums={cancelledRoundNums}
                   tournamentMode={tournamentMode} courtNumbers={courtNumbers}
-                  tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule}
+                  tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptSubstitutions={tptSubstitutions}
                   doublesRRPlayers={doublesRRPlayers} doublesRRSchedule={doublesRRSchedule}
                   roundRobinSchedule={roundRobinSchedule} roundRobinCourts={roundRobinCourts} roundRobinStartRoundNum={roundRobinStartRoundNum}
                   roundRobinStartSnapshot={roundRobinStartSnapshot} roundRobinEndSnapshot={roundRobinEndSnapshot}
@@ -957,6 +973,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
                   onAddGame={ri => openModal('addGame', { target: String(ri), defaultCourt: '' })}
                   onEditGame={(ri, gameIdx) => openModal('editGame', { ri, gameIdx })}
                   onEditTPTGame={(ri, mi, gi) => openModal('editTPTGame', { ri, mi, gi })}
+                  onEditTPTSubs={(ri, mi, gi) => openModal('editTPTSubs', { ri, mi, gi })}
                   onEditDoublesRRGame={(ri, ci) => openModal('editDoublesRRGame', { ri, ci })}
                   onExportDUPR={() => openModal('exportDUPR')}
                   onRemoveGame={(ri, gameIdx) => { openModal('pin', { purpose: 'removeGame', removeGameTarget: { ri, gameIdx } }); }}

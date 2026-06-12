@@ -4,14 +4,14 @@ import ThreePlayerStandingsTab from './ThreePlayerStandingsTab';
 import DoublesRRStandingsTab from './DoublesRRStandingsTab';
 
 export default function StandingsTab({
-  ranked, pausedIds, tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults,
+  ranked, pausedIds, tournamentMode, tptTeams, tptPlayers, tptSchedule, tptResults, tptSubstitutions,
   doublesRRPlayers, doublesRRStandings, doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange,
   standingsTiebreakOrder, isAdmin,
 }) {
   const teamLabel = useTeamLabel();
 
   if (tournamentMode === 'tpt') {
-    return <ThreePlayerStandingsTab tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults} tiebreakOrder={standingsTiebreakOrder} />;
+    return <ThreePlayerStandingsTab tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults} tiebreakOrder={standingsTiebreakOrder} tptSubstitutions={tptSubstitutions} />;
   }
 
   if (tournamentMode === 'doublesrr') {
