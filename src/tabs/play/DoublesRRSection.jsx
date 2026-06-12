@@ -56,7 +56,7 @@ export default function DoublesRRSection({
               winnerIds: r.winnerId.split('|'), loserIds: r.loserId.split('|'),
               winnerScore: r.winnerScore, loserScore: r.loserScore,
             })}
-            onUndo={pendingResult && isCurrentRound && onUndoDoublesRRResult ? () => onUndoDoublesRRResult(ri, ci) : undefined}
+            onUndo={pendingResult && isCurrentRound && canWrite && onUndoDoublesRRResult ? () => onUndoDoublesRRResult(ri, ci) : undefined}
           />
         ) : (
           <MatchupVsBox courtLabel={`Court ${courtLabel}`} teamA={sideA} teamB={sideB} compact />

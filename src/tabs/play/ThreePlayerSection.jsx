@@ -83,7 +83,7 @@ export default function ThreePlayerSection({
                   teams={[sideA, sideB]}
                   pendingResult={pendingResult}
                   onResult={r => onTPTResult(ri, mi, gi, { winnerTeamId: r.winnerId, loserTeamId: r.loserId, winnerScore: r.winnerScore, loserScore: r.loserScore })}
-                  onUndo={pendingResult && isCurrentRound && onUndoTPTResult ? () => onUndoTPTResult(ri, mi, gi) : undefined}
+                  onUndo={pendingResult && isCurrentRound && canWrite && onUndoTPTResult ? () => onUndoTPTResult(ri, mi, gi) : undefined}
                 />
               ) : (
                 <MatchupVsBox courtLabel={game.label} teamA={sideA} teamB={sideB} compact />
