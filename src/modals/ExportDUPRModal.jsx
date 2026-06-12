@@ -12,12 +12,12 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 const iS = { padding: '8px 10px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none', width: '100%' };
 const fieldS = { padding: '6px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none', width: '100%' };
 
-export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tptPlayers, doublesRRPlayers = {}, tournamentTitle, onClose }) {
+export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tptPlayers, tptSubstitutions = {}, doublesRRPlayers = {}, tournamentTitle, tournamentLocation, onClose }) {
   const teamById = useTeamById();
   const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
   const [eventName, setEventName] = useState(tournamentTitle || 'Tournament');
   const [date, setDate] = useState(todayStr());
-  const [location, setLocation] = useState('');
+  const [location, setLocation] = useState(tournamentLocation || '');
   const [scoreType, setScoreType] = useState(''); // no default — admin must choose SIDEOUT or RALLY
 
   // Players/teams that appear in the export but are missing a name or DUPR ID —
@@ -28,10 +28,10 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
 
   const incompleteTPTPlayers = useMemo(() => {
     if (tournamentMode !== 'tpt') return [];
-    return collectTPTPlayerIds({ history, tptTeams })
+    return collectTPTPlayerIds({ history, tptTeams, tptSubstitutions })
       .map(id => tptPlayers[id])
       .filter(p => p && playerNeedsInfo(p));
-  }, [tournamentMode, history, tptTeams, tptPlayers]);
+  }, [tournamentMode, history, tptTeams, tptPlayers, tptSubstitutions]);
 
   const incompleteDoublesRRPlayers = useMemo(() => {
     if (tournamentMode !== 'doublesrr') return [];
@@ -80,10 +80,10 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
 
   const rows = useMemo(
     () => buildDUPRRows({
-      history, tournamentMode, tptTeams, tptPlayers: effectiveTptPlayers,
+      history, tournamentMode, tptTeams, tptPlayers: effectiveTptPlayers, tptSubstitutions,
       doublesRRPlayers: effectiveDoublesRRPlayers, teamById: effectiveTeamById,
     }),
-    [history, tournamentMode, tptTeams, effectiveTptPlayers, effectiveDoublesRRPlayers, effectiveTeamById]
+    [history, tournamentMode, tptTeams, effectiveTptPlayers, tptSubstitutions, effectiveDoublesRRPlayers, effectiveTeamById]
   );
 
   // DUPR requires a name + DUPR ID for every player in a doubles match — rows

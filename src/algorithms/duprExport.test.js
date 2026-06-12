@@ -88,6 +88,23 @@ describe('buildDUPRRows — TPT mode', () => {
     expect(rows[1]).toMatchObject({ playerB2: '', playerB2DuprId: '' });
   });
 
+  it('exports the substitute player in place of the rostered player', () => {
+    const history = [{
+      roundNum: 1,
+      tptMatchups: [{
+        teamAId: 'teamA', teamBId: 'teamB',
+        games: [
+          { winnerTeamId: 'teamA', loserTeamId: 'teamB', winnerScore: 11, loserScore: 5 },
+        ],
+      }],
+    }];
+    // Game 0 is "males_doubles": sideA = [m1, m2]. Substitute m1 -> f1.
+    const tptSubstitutions = { '0_0_0': { m1: 'f1' } };
+    const rows = buildDUPRRows({ history, tournamentMode: 'tpt', tptTeams, tptPlayers, tptSubstitutions });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ playerA1: 'Jane', playerA1DuprId: 'GH78I9', playerA2: 'Sam', playerA2DuprId: 'DE45F6' });
+  });
+
   function buildDUPRRowsResult(history, tptTeams, tptPlayers) {
     const rows = buildDUPRRows({ history, tournamentMode: 'tpt', tptTeams, tptPlayers });
     return { rows };

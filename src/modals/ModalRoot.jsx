@@ -116,8 +116,8 @@ export default function ModalRoot({
       {modal.open === 'timerSettings' && <TimerSettingsModal currentMins={timerDefaultMins} onSave={onTimerSettingsSave} onClose={closeModal} />}
       {modal.open === 'exportDUPR' && (
         <ExportDUPRModal history={history} tournamentMode={tournamentMode} tptTeams={tptTeams} tptPlayers={tptPlayers}
-          doublesRRPlayers={doublesRRPlayers}
-          tournamentTitle={tournamentTitle} onClose={closeModal} />
+          tptSubstitutions={tptSubstitutions} doublesRRPlayers={doublesRRPlayers}
+          tournamentTitle={tournamentTitle} tournamentLocation={tournamentLocation} onClose={closeModal} />
       )}
       {modal.open === 'selectRRTeams' && <SelectRoundRobinTeamsModal rankedTeamIds={ranked.map(t => t.id)} tournamentCourts={courtNumbers} onConfirm={onStartRoundRobin} onClose={closeModal} />}
       {modal.open === 'generateAdditionalGames' && <GenerateAdditionalGamesModal onChoose={onChooseGenerateAdditionalGames} onClose={closeModal} />}
