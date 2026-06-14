@@ -5,11 +5,16 @@ import App from './App';
 import LandingPage from './LandingPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import { setActiveTournament } from './firebase';
+import { useAuth } from './hooks/useAuth';
+import { useMyClubs } from './hooks/useMyClubs';
 
 function Root() {
   // 'landing' | 'creating' | 'tournament'
   const [screen, setScreen] = useState('landing');
   const [activeContext, setActiveContext] = useState(null); // { clubId, tournamentId }
+
+  const { user, signIn, signOut } = useAuth();
+  const { ownedClubIds, createClub } = useMyClubs(user?.uid ?? null);
 
   function handleSelectTournament(clubId, tournamentId) {
     setActiveTournament(clubId, tournamentId);
@@ -18,6 +23,7 @@ function Root() {
   }
 
   function handleCreateTournament(clubId) {
+    if (!ownedClubIds.includes(clubId)) return;
     // Sentinel path until handleStart generates the real tournament ID
     setActiveTournament(clubId, '__creating__');
     setActiveContext({ clubId, tournamentId: null });
@@ -25,9 +31,9 @@ function Root() {
   }
 
   // Called by App after handleStart generates the tournament ID
-  function handleCreated(clubId, tournamentId) {
+  function handleCreated(clubId, tournamentId, role) {
     setActiveTournament(clubId, tournamentId);
-    setActiveContext({ clubId, tournamentId });
+    setActiveContext({ clubId, tournamentId, initialRole: role });
     setScreen('tournament');
   }
 
@@ -60,9 +66,16 @@ function Root() {
       <LandingPage
         onSelectTournament={handleSelectTournament}
         onCreateTournament={handleCreateTournament}
+        user={user}
+        onSignIn={signIn}
+        onSignOut={signOut}
+        ownedClubIds={ownedClubIds}
+        onCreateClub={createClub}
       />
     );
   }
+
+  const isOwner = activeContext ? ownedClubIds.includes(activeContext.clubId) : false;
 
   // key changes from null→tournamentId after handleCreated, which remounts App
   // so useFirebaseSync re-registers listeners against the correct path.
@@ -71,6 +84,11 @@ function Root() {
       key={activeContext?.tournamentId ?? 'new'}
       clubId={activeContext?.clubId}
       tournamentId={activeContext?.tournamentId ?? null}
+      initialRole={activeContext?.initialRole ?? null}
+      isOwner={isOwner}
+      user={user}
+      onSignIn={signIn}
+      onSignOut={signOut}
       onCreated={handleCreated}
       onBack={handleBack}
     />

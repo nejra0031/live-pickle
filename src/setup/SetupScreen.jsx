@@ -665,10 +665,10 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
         {!canStart && (
           <p className="text-amber-600 text-xs text-center">
             {format === 'trio'
-              ? (trioReadyTeams.length < 2 ? 'Need at least 2 complete teams.' : `Need at least ${trioMinCourts} court${trioMinCourts !== 1 ? 's' : ''}.`)
+              ? (trioReadyTeams.length !== 0 && trioReadyTeams.length < 2 ? 'Need at least 2 complete teams.' : `Need at least ${trioMinCourts} court${trioMinCourts !== 1 ? 's' : ''}.`)
               : format === 'doublesrr'
-              ? (!doublesRRCountValid ? 'Player count is unsupported — see above.' : courts.length < 1 ? 'Need at least 1 court.' : '')
-              : (allTeamIds.length < 3 ? 'Need at least 3 teams.' : courts.length < 1 ? 'Need at least 1 court.' : '')}
+              ? (doublesRRNamedPlayers.length !== 0 && !doublesRRCountValid ? 'Player count is unsupported — see above.' : 'Need at least 1 court.')
+              : (allTeamIds.length !== 0 && allTeamIds.length < 3 ? 'Need at least 3 teams.' : 'Need at least 1 court.')}
           </p>
         )}
 

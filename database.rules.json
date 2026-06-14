@@ -1,0 +1,30 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": true,
+    "clubOwners": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "clubs": {
+      "$clubId": {
+        "ownerUids": {
+          ".read": true,
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && (!root.child('clubs/'+$clubId+'/ownerUids').exists() || root.child('clubs/'+$clubId+'/ownerUids/'+auth.uid).exists())"
+          }
+        },
+        "tournaments": {
+          "$tid": {
+            "config": {
+              "adminPins":   { ".read": true, ".write": "auth != null && root.child('clubs/'+$clubId+'/ownerUids/'+auth.uid).val() === true" },
+              "refereePins": { ".read": true, ".write": "auth != null && root.child('clubs/'+$clubId+'/ownerUids/'+auth.uid).val() === true" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

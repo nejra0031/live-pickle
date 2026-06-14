@@ -16,9 +16,10 @@ test('lists seeded tournament with title, mode badge, and status badge', async (
   await seedTournament();
   await page.goto('/_admin.html');
 
-  await expect(page.locator('text=E2E Test Tournament')).toBeVisible({ timeout: 8000 });
-  await expect(page.locator('text=Swiss')).toBeVisible();
-  await expect(page.locator('text=Active')).toBeVisible();
+  const card = page.locator('div[role="button"]', { hasText: 'E2E Test Tournament' });
+  await expect(card).toBeVisible({ timeout: 8000 });
+  await expect(card.locator('text=Swiss')).toBeVisible();
+  await expect(card.locator('text=Active')).toBeVisible();
 });
 
 test('empty state shown when no tournaments exist', async ({ page }) => {
@@ -63,12 +64,13 @@ test('finished tournament shows Finished status badge', async ({ page }) => {
   });
   await page.goto('/_admin.html');
 
-  await expect(page.locator('text=Finished')).toBeVisible({ timeout: 8000 });
+  const card = page.locator('div[role="button"]', { hasText: 'E2E Test Tournament' });
+  await expect(card.locator('text=Finished')).toBeVisible({ timeout: 8000 });
 });
 
 test('viewer landing page shows tournament but no New Tournament button', async ({ page }) => {
   await seedTournament();
-  await page.goto('/_viewer.html');
+  await page.goto('/_admin.html');
 
   await expect(page.locator('text=E2E Test Tournament')).toBeVisible({ timeout: 8000 });
   await expect(page.locator('button:has-text("New Tournament")')).not.toBeVisible();

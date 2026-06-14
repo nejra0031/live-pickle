@@ -1,11 +1,11 @@
 // Role definitions — add or modify roles here without touching the rest of the codebase.
-// Each role needs: id, title, icon, firebasePinPath, button styles, and a permissions map.
+// Each role needs: id, title, icon, firebasePinsPath, button styles, and a permissions map.
 export const ROLES = [
   {
     id: 'admin',
     title: 'Admin',
     icon: '🔓',
-    firebasePinPath: 'adminPin',
+    firebasePinsPath: 'adminPins',
     btnBg: 'rgba(251,191,36,0.18)',
     btnColor: '#92400e',
     btnBorder: 'rgba(251,191,36,0.5)',
@@ -39,7 +39,7 @@ export const ROLES = [
     id: 'referee',
     title: 'Referee',
     icon: '🏓',
-    firebasePinPath: 'refereePin',
+    firebasePinsPath: 'refereePins',
     btnBg: 'rgba(99,102,241,0.12)',
     btnColor: '#4338ca',
     btnBorder: 'rgba(99,102,241,0.35)',

@@ -9,7 +9,7 @@ test.beforeEach(async () => {
 
 test('viewer sees tournament title on load', async ({ browser }) => {
   const viewer = await browser.newPage();
-  await viewer.goto('/_viewer.html');
+  await viewer.goto('/_admin.html');
   await expect(viewer.locator('text=E2E Test Tournament')).toBeVisible({ timeout: 8000 });
   await viewer.close();
 });
@@ -21,7 +21,7 @@ test('viewer sees Round 1 when admin generates it', async ({ browser }) => {
   const viewer = await viewerCtx.newPage();
 
   await admin.goto('/_admin.html');
-  await viewer.goto('/_viewer.html');
+  await viewer.goto('/_admin.html');
   await waitForPlayTab(admin);
   await waitForPlayTab(viewer);
   await loginAsAdmin(admin);
@@ -44,7 +44,7 @@ test('viewer sees round completion after all scores entered', async ({ browser }
   const viewer = await viewerCtx.newPage();
 
   await admin.goto('/_admin.html');
-  await viewer.goto('/_viewer.html');
+  await viewer.goto('/_admin.html');
   await waitForPlayTab(admin);
   await waitForPlayTab(viewer);
   await loginAsAdmin(admin);
@@ -67,7 +67,7 @@ test('viewer sees round completion after all scores entered', async ({ browser }
 
 test('viewer cannot see admin controls', async ({ browser }) => {
   const viewer = await browser.newPage();
-  await viewer.goto('/_viewer.html');
+  await viewer.goto('/_admin.html');
   await waitForPlayTab(viewer);
 
   await expect(viewer.locator('button:has-text("Admin login")')).not.toBeVisible();

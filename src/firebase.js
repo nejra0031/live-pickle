@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set, update, onValue, off, push, get, onDisconnect, remove } from 'firebase/database';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as authSignOut, onAuthStateChanged } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey:            'AIzaSyBWcUvEUzlvUb0CwM_GsjLY0AmiYHa8GhA',
@@ -13,7 +14,19 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
+export const auth = getAuth(app);
 export { ref, set, update, onValue, off, push, get, onDisconnect, remove };
+
+// ── Authentication ──────────────────────────────────────────────────────
+export function signInWithGoogle() {
+  return signInWithPopup(auth, new GoogleAuthProvider());
+}
+export function signOutUser() {
+  return authSignOut(auth);
+}
+export function subscribeAuth(callback) {
+  return onAuthStateChanged(auth, callback);
+}
 
 // ── Active tournament context ──────────────────────────────────────────────
 const TEST_MODE = import.meta.env.VITE_TEST_MODE === 'true';
@@ -55,12 +68,17 @@ export const tournamentRef     = () => ref(db, activePaths().tournament);
 export const pendingResultsRef = () => ref(db, activePaths().tournament + '/pendingResults');
 export const presenceRef       = () => ref(db, activePaths().presence);
 
-// PINs live at the global config/ node in both modes.
-// Per-tournament PINs can be wired up once a PIN-setup flow exists.
-export const rolePinRef = (leaf) => {
-  if (TEST_MODE) return ref(db, `config/${leaf}_test`);
-  return ref(db, `config/${leaf}`);
-};
+// Per-tournament PIN config: config/{adminPins|refereePins}/{pinId} = {id, hash, label, createdAt}.
+export const tournamentPinsRef = (roleKeyPlural) => ref(db, activePaths().config + '/' + roleKeyPlural);
+
+export async function addTournamentPin(roleKeyPlural, { hash, label }) {
+  const r = push(tournamentPinsRef(roleKeyPlural));
+  await set(r, { id: r.key, hash, label, createdAt: Date.now() });
+}
+
+export function revokeTournamentPin(roleKeyPlural, pinId) {
+  return remove(ref(db, activePaths().config + '/' + roleKeyPlural + '/' + pinId));
+}
 
 // ── Club and user path helpers ─────────────────────────────────────────────
 export const clubInfoRef        = (clubId) => ref(db, `clubs/${clubId}/info`);
@@ -93,6 +111,44 @@ export async function ensureClubsIndexBootstrapped() {
     await set(clubInfoRef(DEFAULT_CLUB_ID), info);
   }
   await set(clubIndexEntryRef(DEFAULT_CLUB_ID), info);
+}
+
+// ── Club ownership (Google-auth) ────────────────────────────────────────
+// clubOwners/{uid}/{clubId}: forward index — clubs this Google user owns.
+// clubs/{clubId}/ownerUids/{uid}: reverse index — used by isOwner checks and
+// by database.rules.json to gate writes to PIN config.
+export const clubOwnedClubsRef = (uid)          => ref(db, `clubOwners/${uid}`);
+export const clubOwnerEntryRef = (clubId, uid)  => ref(db, `clubOwners/${uid}/${clubId}`);
+export const clubOwnersRef     = (clubId)       => ref(db, `clubs/${clubId}/ownerUids`);
+export const clubOwnerRef      = (clubId, uid)  => ref(db, `clubs/${clubId}/ownerUids/${uid}`);
+
+function slugifyClubName(name) {
+  return (name || 'club')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'club';
+}
+
+// Creates a new club owned by `uid` (self-serve), returning the new clubId.
+export async function createClub(name, uid) {
+  const idxSnap = await get(clubsIndexRef());
+  const idx = idxSnap.val() ?? {};
+  const base = slugifyClubName(name);
+  let clubId = base, n = 2;
+  while (idx[clubId]) clubId = `${base}-${n++}`;
+
+  const info = { name: (name || '').trim() || base, imageUrl: null };
+  await set(clubIndexEntryRef(clubId), info);
+  await set(clubInfoRef(clubId), info);
+  await set(clubOwnerRef(clubId, uid), true);
+  await set(clubOwnerEntryRef(clubId, uid), true);
+  return clubId;
+}
+
+export async function fetchOwnedClubIds(uid) {
+  const snap = await get(clubOwnedClubsRef(uid));
+  return Object.keys(snap.val() ?? {});
 }
 
 export function writeTournamentMeta(clubId, tid, meta) {

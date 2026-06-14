@@ -180,7 +180,7 @@ function FilterControls({ enabledModes, onToggleMode, hideFull, onToggleHideFull
   );
 }
 
-function ClubSection({ clubId, clubInfo, upcoming, finished, hasAnyTournaments, viewerOnly, onCreateTournament, onSelectTournament, onDelete, idToSlug }) {
+function ClubSection({ clubId, clubInfo, upcoming, finished, hasAnyTournaments, isOwned, onCreateTournament, onSelectTournament, onDelete, idToSlug }) {
   function handleCardClick(t) {
     const slug = idToSlug[t.id] || t.id;
     history.pushState({ clubId, tournamentId: t.id }, '', `#${clubId}/${slug}`);
@@ -197,7 +197,7 @@ function ClubSection({ clubId, clubInfo, upcoming, finished, hasAnyTournaments, 
         <div style={{ fontSize: 18, fontWeight: 900, color: '#0f4c75', letterSpacing: '-0.3px', flex: 1 }}>
           {clubInfo?.name ?? clubId}
         </div>
-        {!viewerOnly && (
+        {isOwned && (
           <button onClick={onCreateTournament} style={{ fontSize: 13, padding: '6px 16px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none', boxShadow: '0 2px 6px rgba(15,76,117,0.3)' }}>
             + New Tournament
           </button>
@@ -208,7 +208,7 @@ function ClubSection({ clubId, clubInfo, upcoming, finished, hasAnyTournaments, 
         <div style={{ textAlign: 'center', padding: '48px 24px', color: '#94a3b8' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🎾</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: '#64748b', marginBottom: 8 }}>No tournaments yet</div>
-          {!viewerOnly && (
+          {isOwned && (
             <div style={{ fontSize: 14 }}>Click <strong>+ New Tournament</strong> to get started</div>
           )}
         </div>
@@ -251,7 +251,51 @@ function ClubSection({ clubId, clubInfo, upcoming, finished, hasAnyTournaments, 
   );
 }
 
-export default function LandingPage({ onSelectTournament, onCreateTournament, viewerOnly = false }) {
+function NewClubForm({ onCreateClub }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true); setError('');
+    try {
+      await onCreateClub(name.trim());
+      setName(''); setOpen(false);
+    } catch {
+      setError('Failed to create club');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} style={{ fontSize: 13, padding: '6px 16px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)' }}>
+        + New Club
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={handleCreate} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Club name"
+        style={{ fontSize: 13, padding: '6px 12px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.12)', outline: 'none' }} />
+      <button type="submit" disabled={saving || !name.trim()} style={{ fontSize: 13, padding: '6px 16px', borderRadius: 10, fontWeight: 700, cursor: name.trim() ? 'pointer' : 'default', background: name.trim() ? 'linear-gradient(90deg,#0f4c75,#1a6fa8)' : 'rgba(0,0,0,0.06)', color: name.trim() ? '#fff' : '#94a3b8', border: 'none' }}>
+        {saving ? 'Creating…' : 'Create'}
+      </button>
+      <button type="button" onClick={() => { setOpen(false); setName(''); setError(''); }}
+        style={{ fontSize: 13, padding: '6px 16px', borderRadius: 10, fontWeight: 600, cursor: 'pointer', background: 'rgba(0,0,0,0.04)', color: '#64748b', border: '1px solid rgba(0,0,0,0.08)' }}>
+        Cancel
+      </button>
+      {error && <span style={{ color: '#dc2626', fontSize: 12 }}>{error}</span>}
+    </form>
+  );
+}
+
+export default function LandingPage({ onSelectTournament, onCreateTournament, user, onSignIn, onSignOut, ownedClubIds = [], onCreateClub }) {
   const { clubs, loading, error, refresh, deleteTournament } = useAllClubs();
 
   // Per-club visibility toggle. Default: all visible.
@@ -323,9 +367,23 @@ export default function LandingPage({ onSelectTournament, onCreateTournament, vi
               <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Tournament Directory</div>
             </div>
           </div>
-          <button onClick={refresh} title="Refresh" style={{ fontSize: 13, padding: '6px 12px', borderRadius: 10, fontWeight: 600, cursor: 'pointer', background: 'rgba(0,0,0,0.04)', color: '#64748b', border: '1px solid rgba(0,0,0,0.08)' }}>
-            ↻ Refresh
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={refresh} title="Refresh" style={{ fontSize: 13, padding: '6px 12px', borderRadius: 10, fontWeight: 600, cursor: 'pointer', background: 'rgba(0,0,0,0.04)', color: '#64748b', border: '1px solid rgba(0,0,0,0.08)' }}>
+              ↻ Refresh
+            </button>
+            {user ? (
+              <button onClick={onSignOut} title={user.email} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '6px 12px', borderRadius: 10, fontWeight: 600, cursor: 'pointer', background: 'rgba(0,0,0,0.04)', color: '#64748b', border: '1px solid rgba(0,0,0,0.08)' }}>
+                {user.photoURL
+                  ? <img src={user.photoURL} alt="" style={{ width: 20, height: 20, borderRadius: '50%' }} />
+                  : '👤'}
+                Sign out
+              </button>
+            ) : (
+              <button onClick={onSignIn} style={{ fontSize: 13, padding: '6px 12px', borderRadius: 10, fontWeight: 600, cursor: 'pointer', background: 'rgba(0,0,0,0.04)', color: '#64748b', border: '1px solid rgba(0,0,0,0.08)' }}>
+                Sign in with Google
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -348,6 +406,12 @@ export default function LandingPage({ onSelectTournament, onCreateTournament, vi
 
         {!loading && !error && (
           <>
+            {user && (
+              <div style={{ marginBottom: 16 }}>
+                <NewClubForm onCreateClub={onCreateClub} />
+              </div>
+            )}
+
             {clubs.length > 1 && (
               <ClubTogglesRow clubs={clubs} hiddenClubs={hiddenClubs} onToggle={toggleClub} />
             )}
@@ -379,10 +443,10 @@ export default function LandingPage({ onSelectTournament, onCreateTournament, vi
                     upcoming={upcoming}
                     finished={finished}
                     hasAnyTournaments={tournaments.length > 0}
-                    viewerOnly={viewerOnly}
+                    isOwned={ownedClubIds.includes(clubId)}
                     onCreateTournament={() => onCreateTournament(clubId)}
                     onSelectTournament={onSelectTournament}
-                    onDelete={!viewerOnly ? (tid) => deleteTournament(clubId, tid) : null}
+                    onDelete={ownedClubIds.includes(clubId) ? (tid) => deleteTournament(clubId, tid) : null}
                     idToSlug={slugMaps[clubId]?.idToSlug ?? {}}
                   />
                 );

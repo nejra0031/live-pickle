@@ -1,9 +1,5 @@
 import { useState } from 'react';
-
-const sha256hex = async str => {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-};
+import { sha256hex } from '../utils/pin';
 
 // checkPin: sync (hashHex: string) => role | null — null means no match
 // If checkPin is null, pins are still loading

@@ -24,6 +24,7 @@ export default function ModalRoot({
   modal, openModal, closeModal,
   // pin
   pins, pinsLoaded, pinsLoadError, role, onPinSuccess,
+  isOwner, onAddPin, onRevokePin,
   // confirm / break / timer
   doRevertToRound, doRevertToBeginning, onBreakStart, onConfirmRemoveGame, timerDefaultMins, onTimerSettingsSave,
   // shared tournament state
@@ -56,12 +57,12 @@ export default function ModalRoot({
     if (!pinPurpose) return null;
     if (pinPurpose === 'login') {
       if (ROLES.some(r => !pinsLoaded[r.id])) return null;
-      return (hash) => { for (const r of ROLES) { if (pins[r.id] && hash === pins[r.id]) return r.id; } return null; };
+      return (hash) => { for (const r of ROLES) { if (pins[r.id]?.some(p => p.hash === hash)) return r.id; } return null; };
     }
     const selfAuth  = pinPurpose === 'exitRR' && hasPermission(role, 'canExitRRWithOwnPin');
     const pinRoleId = selfAuth ? role : 'admin';
     if (!pinsLoaded[pinRoleId]) return null;
-    return (hash) => (pins[pinRoleId] && hash === pins[pinRoleId]) ? pinRoleId : null;
+    return (hash) => pins[pinRoleId]?.some(p => p.hash === hash) ? pinRoleId : null;
   })();
   const pinLoadError = pinPurpose === 'login'
     ? ROLES.some(r => pinsLoadError[r.id])
@@ -91,6 +92,7 @@ export default function ModalRoot({
       {modal.open === 'tournamentSettings' && (
         <TournamentSettingsModal
           role={role}
+          isOwner={isOwner} pins={pins} onAddPin={onAddPin} onRevokePin={onRevokePin}
           tournamentTitle={tournamentTitle} tournamentLocation={tournamentLocation}
           tournamentStartTime={tournamentStartTime} tournamentDurationMins={tournamentDurationMins} maxPlayers={maxPlayers}
           tournamentMode={tournamentMode}

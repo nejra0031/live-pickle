@@ -31,7 +31,8 @@ export default function AppHeader({
   headerRef, headerHidden, onShowHeader, onHideHeader,
   tournamentTitle, tournamentLocation, tournamentStartTime, tournamentDurationMins,
   firebaseConnected, phase, role, presence, online,
-  viewerOnly, onLoginToggle, activeTab, onTabChange,
+  user, onSignIn, onSignOut, isOwner,
+  onLoginToggle, activeTab, onTabChange,
   onBack,
 }) {
   return (
@@ -42,6 +43,13 @@ export default function AppHeader({
 
       <div ref={headerRef} style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 40, background: '#fff', borderBottom: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: headerHidden ? 'none' : undefined }}>
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 clamp(12px,3vw,20px)' }}>
+          {onBack && (
+            <div className="flex items-center" style={{ paddingTop: 6 }}>
+              <button onClick={onBack} style={{ fontSize: 'clamp(10px,2.5vw,12px)', padding: '4px 10px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', background: 'rgba(0,0,0,0.04)', color: '#64748b', border: '1px solid rgba(0,0,0,0.08)' }}>
+                ← Tournaments
+              </button>
+            </div>
+          )}
           <div className="flex items-center gap-3 py-3">
             <img src={ballIcon} alt="pickleball" style={{ width: 'clamp(36px,7vw,52px)', height: 'clamp(36px,7vw,52px)', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
             <div className="flex-1 min-w-0">
@@ -59,10 +67,24 @@ export default function AppHeader({
                 {!online && <span style={{ fontSize: 'clamp(9px,2vw,11px)', color: '#dc2626', fontWeight: 700 }}>● Offline</span>}
               </div>
             </div>
-            {!viewerOnly && (
-              <button onClick={onLoginToggle}
-                style={{ flexShrink: 0, fontSize: 'clamp(10px,2.5vw,13px)', padding: '6px 10px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: ROLE_MAP[role]?.btnBg ?? 'rgba(0,0,0,0.06)', color: ROLE_MAP[role]?.btnColor ?? '#64748b', border: `1px solid ${ROLE_MAP[role]?.btnBorder ?? 'rgba(0,0,0,0.12)'}` }}>
-                {role ? `${ROLE_MAP[role]?.icon ?? ''} ${ROLE_MAP[role]?.title ?? role}` : '🔒 Login'}
+            {isOwner && (
+              <span style={{ flexShrink: 0, alignSelf: 'center', fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, padding: '2px 6px', borderRadius: 6, background: 'rgba(15,76,117,0.08)', color: '#0f4c75' }}>Owner</span>
+            )}
+            <button onClick={onLoginToggle}
+              style={{ flexShrink: 0, fontSize: 'clamp(10px,2.5vw,13px)', padding: '6px 10px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: ROLE_MAP[role]?.btnBg ?? 'rgba(0,0,0,0.06)', color: ROLE_MAP[role]?.btnColor ?? '#64748b', border: `1px solid ${ROLE_MAP[role]?.btnBorder ?? 'rgba(0,0,0,0.12)'}` }}>
+              {role ? `${ROLE_MAP[role]?.icon ?? ''} ${ROLE_MAP[role]?.title ?? role}` : '🔒 Login'}
+            </button>
+            {user ? (
+              <button onClick={onSignOut} title={`Signed in as ${user.email} · Sign out`}
+                style={{ flexShrink: 0, padding: 0, borderRadius: '50%', cursor: 'pointer', border: 'none', background: 'transparent', lineHeight: 0 }}>
+                {user.photoURL
+                  ? <img src={user.photoURL} alt="" style={{ width: 24, height: 24, borderRadius: '50%' }} />
+                  : <span style={{ fontSize: 18 }}>👤</span>}
+              </button>
+            ) : (
+              <button onClick={onSignIn} title="Sign in with Google"
+                style={{ flexShrink: 0, fontSize: 'clamp(10px,2.5vw,13px)', padding: '6px 8px', borderRadius: 10, fontWeight: 600, cursor: 'pointer', background: 'rgba(0,0,0,0.04)', color: '#64748b', border: '1px solid rgba(0,0,0,0.08)' }}>
+                Sign in
               </button>
             )}
             <button onClick={onHideHeader} title="Hide header"

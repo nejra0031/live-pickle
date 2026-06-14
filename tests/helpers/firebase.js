@@ -26,10 +26,18 @@ const fbSet    = (path, data) => fbReq(path, 'PUT', data);
 const fbDelete = (path)       => fbReq(path, 'DELETE');
 const fbGet    = (path)       => fbReq(path, 'GET');
 
+// Per-tournament PIN config lives under clubs/{club}/tournaments/{id}/config/adminPins/{pinId}.
+// Re-seeded by seedTournament()/seedTPTTournament() since clearE2EData() wipes it each test.
+async function seedAdminPin() {
+  await fbSet(`${E2E_BASE}/config/adminPins/e2e_admin_pin`, {
+    id: 'e2e_admin_pin', hash: TEST_PIN_HASH, label: 'E2E', createdAt: Date.now(),
+  });
+}
+
 async function seedTournament(overrides = {}) {
   const base = {
     phase: 'play',
-    _tournamentId: 'test-tournament-001',
+    _tournamentId: E2E_TOURNAMENT_ID,
     activeTeamIds: ['t1', 't2', 't3', 't4'],
     courtNumbers: ['1', '2'],
     teamRegistry: [
@@ -76,13 +84,14 @@ async function seedTournament(overrides = {}) {
     createdAt: base.savedAt,
     teamCount: (base.activeTeamIds || []).length,
   });
+  await seedAdminPin();
 }
 
 // Minimal 3-Player Team (TPT) tournament: 2 teams, 1 scheduled round, 1 matchup.
 async function seedTPTTournament(overrides = {}) {
   const base = {
     phase: 'play',
-    _tournamentId: 'test-tpt-001',
+    _tournamentId: E2E_TOURNAMENT_ID,
     tournamentMode: 'tpt',
     tournamentTitle: 'E2E TPT Tournament',
     courtNumbers: ['1'],
@@ -128,6 +137,7 @@ async function seedTPTTournament(overrides = {}) {
     createdAt: base.savedAt,
     teamCount: 0,
   });
+  await seedAdminPin();
 }
 
 async function clearE2EData() {

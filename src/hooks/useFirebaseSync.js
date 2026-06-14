@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import {
   db, ref as fbRef,
   set as fbSet, update as fbUpdate,
-  onValue, off, push, get, onDisconnect, remove,
-  fetchBackupIndex, tournamentRef, pendingResultsRef, rolePinRef, presenceRef,
+  onValue, off, push, onDisconnect, remove,
+  fetchBackupIndex, tournamentRef, pendingResultsRef, tournamentPinsRef, presenceRef,
   isOwnToken,
 } from '../firebase';
 import { ROLES } from '../roleConfig';
@@ -48,20 +48,23 @@ export function useFirebaseSync({
   onTournamentSwapRef.current = onTournamentSwap;
   onFirebaseErrorRef.current  = onFirebaseError;
 
-  // Load PINs on mount
+  // Live per-tournament PIN subscriptions — one listener per role on
+  // config/{adminPins|refereePins}. pins[r.id] is an array of {id,hash,label,createdAt}
+  // (empty array if none configured — pinless tournaments are valid).
   useEffect(() => {
-    ROLES.forEach(r => {
-      get(rolePinRef(r.firebasePinPath))
-        .then(snap => {
-          const val = snap.val();
-          setPins(prev => ({ ...prev, [r.id]: val ? String(val) : null }));
-          setPinsLoaded(prev => ({ ...prev, [r.id]: true }));
-        })
-        .catch(() => {
-          setPinsLoaded(prev => ({ ...prev, [r.id]: true }));
-          setPinsLoadError(prev => ({ ...prev, [r.id]: true }));
-        });
+    const subs = ROLES.map(r => {
+      const pinsRef = tournamentPinsRef(r.firebasePinsPath);
+      onValue(pinsRef, snap => {
+        const val = snap.val() || {};
+        setPins(prev => ({ ...prev, [r.id]: Object.values(val) }));
+        setPinsLoaded(prev => ({ ...prev, [r.id]: true }));
+      }, () => {
+        setPinsLoaded(prev => ({ ...prev, [r.id]: true }));
+        setPinsLoadError(prev => ({ ...prev, [r.id]: true }));
+      });
+      return pinsRef;
     });
+    return () => subs.forEach(off);
   }, []);
 
   // Load backup index on mount
@@ -77,9 +80,15 @@ export function useFirebaseSync({
     const r = tournamentRef();
     onValue(r, snap => {
       const data = snap.val();
-      if (!initialLoadDone.current) initialLoadDone.current = true;
+      const isInitialLoad = !initialLoadDone.current;
+      if (isInitialLoad) initialLoadDone.current = true;
       if (!data) { onSnapshotRef.current(null); return; }
-      if (data._writeToken && isOwnToken(data._writeToken)) return;
+      // Echo suppression only applies to writes *this listener* issued after
+      // it loaded — write tokens are tracked in a module-level Map that
+      // outlives a remount, so a fresh listener's first callback must never
+      // be skipped even if it happens to carry a token from a just-finished
+      // write by the instance it's replacing (e.g. tournament creation).
+      if (!isInitialLoad && data._writeToken && isOwnToken(data._writeToken)) return;
       if (data.phase !== 'play') { onSnapshotRef.current({ phase: 'waiting' }); return; }
       const validationError = validateSnapshot(data);
       if (validationError) {

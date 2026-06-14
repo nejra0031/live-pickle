@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { hasPermission } from '../roleConfig';
+import { ROLES, hasPermission } from '../roleConfig';
 import { ALL_TEAMS } from '../constants';
 import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
 import PlayerNameField from '../components/PlayerNameField';
@@ -55,6 +55,35 @@ function NicknameField({ name, nickname, onChange }) {
   );
 }
 
+function AddPinForm({ roleId, onAddPin }) {
+  const [label, setLabel] = useState('');
+  const [pinDigits, setPinDigits] = useState('');
+  const [saving, setSaving] = useState(false);
+  const ready = label.trim() && pinDigits.trim() && !saving;
+
+  const handleAdd = async () => {
+    if (!ready) return;
+    setSaving(true);
+    try {
+      await onAddPin(roleId, label.trim(), pinDigits.trim());
+      setLabel(''); setPinDigits('');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex gap-2 items-start">
+      <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Label (e.g. Front desk)" style={{ flex: 1, ...fS }} />
+      <input value={pinDigits} onChange={e => setPinDigits(e.target.value.replace(/\D/g, ''))} placeholder="PIN" inputMode="numeric" style={{ width: 70, ...fS }} />
+      <button onClick={handleAdd} disabled={!ready}
+        style={{ padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13, flexShrink: 0, cursor: ready ? 'pointer' : 'not-allowed', background: ready ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)', color: ready ? '#a5b4fc' : '#475569', border: '1px solid rgba(99,102,241,0.3)' }}>
+        + Add
+      </button>
+    </div>
+  );
+}
+
 const selS = { ...iS, width: 'auto', background: '#1e293b' };
 
 function StartTimePicker({ startTime, setStartTime }) {
@@ -93,6 +122,7 @@ export default function TournamentSettingsModal({
   onSaveInfo, onManageTeamsSave, onManageTPTTeamsSave, onManageDoublesRRPlayersSave, onManageCourtsSave,
   onReset,
   onManageMembers,
+  isOwner, pins, onAddPin, onRevokePin,
   onClose,
 }) {
   const canEditEventInfo = hasPermission(role, 'canEditEventInfo');
@@ -530,6 +560,35 @@ export default function TournamentSettingsModal({
                 + Add court
               </button>
               {!courtsValid && <p style={{ fontSize: 12, color: '#fbbf24', marginTop: 6 }}>Court names must be unique and non-empty.</p>}
+            </Acc>
+          )}
+
+          {/* ── Access PINs ── */}
+          {isOwner && (
+            <Acc title="Access PINs" open={sec.pins} onToggle={() => toggle('pins')}>
+              <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
+                Create PINs that let admins and referees access this tournament without a Google login. Add as many as you like and revoke any of them at any time.
+              </p>
+              {ROLES.map(r => (
+                <div key={r.id} style={{ marginBottom: 16 }}>
+                  <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">{r.title} PINs</p>
+                  <div className="flex flex-col gap-2" style={{ marginBottom: 8 }}>
+                    {(pins?.[r.id] || []).length === 0 && (
+                      <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>No PINs configured.</p>
+                    )}
+                    {(pins?.[r.id] || []).map(p => (
+                      <div key={p.id} className="flex items-center gap-2">
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{p.label || 'Unnamed'}</span>
+                        <button onClick={() => onRevokePin(r.id, p.id)}
+                          style={{ padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'rgba(220,38,38,0.12)', color: '#f87171', border: '1px solid rgba(220,38,38,0.25)' }}>
+                          Revoke
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <AddPinForm roleId={r.id} onAddPin={onAddPin} />
+                </div>
+              ))}
             </Acc>
           )}
 

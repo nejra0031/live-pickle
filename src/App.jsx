@@ -2,8 +2,9 @@ import { useState, useEffect, useRef, useReducer, useCallback, useMemo } from 'r
 import { TeamRegistryContext } from './context/TeamRegistryContext';
 import { setModuleRegistry } from './constants';
 import { courtKey } from './constants';
-import { db, ref, set as fbSet, update as fbUpdate, onValue, off, get, pushSnapshot, pushAtomicUpdate, fetchBackup, clearBackups, tournamentRef, setActiveTournament, writeTournamentMeta } from './firebase';
-import { hasPermission } from './roleConfig';
+import { db, ref, set as fbSet, update as fbUpdate, onValue, off, pushSnapshot, pushAtomicUpdate, fetchBackup, clearBackups, tournamentRef, setActiveTournament, writeTournamentMeta, addTournamentPin, revokeTournamentPin } from './firebase';
+import { hasPermission, ROLE_MAP } from './roleConfig';
+import { sha256hex } from './utils/pin';
 import { normaliseSnapshot } from './normalise';
 import { mkStandings, rerank, rebuildStandings, DEFAULT_STANDINGS_TIEBREAK_ORDER } from './algorithms/standings';
 import { buildSnapshot, snapshotToState } from './snapshot';
@@ -81,7 +82,7 @@ function tournamentReducer(state, action) {
   return state;
 }
 
-export default function App({ viewerOnly = false, clubId = null, tournamentId = null, onCreated = null, onBack = null }) {
+export default function App({ clubId = null, tournamentId = null, initialRole = null, isOwner = false, user = null, onSignIn = null, onSignOut = null, onCreated = null, onBack = null }) {
   const online = useOnline();
 
   // ── Phase & identity ──────────────────────────────────────────────────────
@@ -172,10 +173,11 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
   const [activeTab, setActiveTab] = useState('play');
   useEffect(() => { if (activeTab === 'timer') setActiveTab('play'); }, [activeTab]);
 
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState(initialRole);
   const roleRef = useRef(null);
-  useEffect(() => { roleRef.current = role; }, [role]);
-  const isAdmin = hasPermission(role, 'canResetTournament');
+  const effectiveRole = role ?? (isOwner ? 'admin' : null);
+  useEffect(() => { roleRef.current = effectiveRole; }, [effectiveRole]);
+  const isAdmin = hasPermission(effectiveRole, 'canResetTournament');
 
   const [multiAdminDismissed, setMultiAdminDismissed] = useState(false);
   const prevOtherAdminCountRef = useRef(0);
@@ -295,7 +297,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
 
   // ── Firebase sync hook ────────────────────────────────────────────────────
   const { firebaseConnected, presence, pins, pinsLoaded, pinsLoadError, backupRoundNums, setBackupRoundNums } = useFirebaseSync({
-    role,
+    role: effectiveRole,
     roleRef,
     tournamentIdRef,
     onSnapshot:       updateAllStates,
@@ -404,7 +406,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
     // Route all subsequent Firebase calls to the new tournament's path before writing
     if (clubId) setActiveTournament(clubId, tid);
     pushSnapshot(snap, setFirebaseError); setRole('admin');
-    onCreated?.(clubId, tid);
+    onCreated?.(clubId, tid, 'admin');
     const playerCount = allTeams.reduce((n, t) => n + (t.players?.length || 1), 0);
     if (clubId) writeTournamentMeta(clubId, tid, { id: tid, title: resolvedTitle, mode: isRR ? 'roundrobin' : 'swiss', status: 'active', createdAt: Date.now(), playerCount, maxPlayers: mp, location, startTime });
     setMaxPlayers(mp);
@@ -599,6 +601,23 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
     }
     closeModal();
   }, [modal.data, round, courtNumbers, pendingRef, roleRef, doReset, doRegenerateRound, doCancelRound, doExitRoundRobin, openModal, closeModal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // PIN management — owner-only (not role-permission-gated): adds/revokes
+  // per-tournament admin/referee PINs under config/{adminPins|refereePins}.
+  const handleAddPin = useCallback(async (roleId, label, pinDigits) => {
+    if (!isOwner) return;
+    const r = ROLE_MAP[roleId];
+    if (!r) return;
+    const hash = await sha256hex(pinDigits);
+    await addTournamentPin(r.firebasePinsPath, { hash, label });
+  }, [isOwner]);
+
+  const handleRevokePin = useCallback((roleId, pinId) => {
+    if (!isOwner) return;
+    const r = ROLE_MAP[roleId];
+    if (!r) return;
+    revokeTournamentPin(r.firebasePinsPath, pinId);
+  }, [isOwner]);
 
   const handleManageTeamsSave = useCallback((newRegistry, newActiveIds) => {
     setTournamentTeams(newRegistry); setModuleRegistry(newRegistry); setActiveTeamIds(newActiveIds);
@@ -854,7 +873,8 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
 
         <ModalRoot
           modal={modal} openModal={openModal} closeModal={closeModal}
-          pins={pins} pinsLoaded={pinsLoaded} pinsLoadError={pinsLoadError} role={role} onPinSuccess={handlePinSuccess}
+          pins={pins} pinsLoaded={pinsLoaded} pinsLoadError={pinsLoadError} role={effectiveRole} onPinSuccess={handlePinSuccess}
+          isOwner={isOwner} onAddPin={handleAddPin} onRevokePin={handleRevokePin}
           doRevertToRound={doRevertToRound} doRevertToBeginning={doRevertToBeginning} onBreakStart={handleBreakStart} onConfirmRemoveGame={handleConfirmRemoveGame}
           timerDefaultMins={timerDefaultMins} onTimerSettingsSave={handleTimerSettingsSave}
           isAdmin={isAdmin} tournamentMode={tournamentMode}
@@ -888,7 +908,8 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
           tournamentTitle={tournamentTitle}
           tournamentLocation={tournamentLocation} tournamentStartTime={tournamentStartTime} tournamentDurationMins={tournamentDurationMins}
           firebaseConnected={firebaseConnected}
-          phase={phase} role={role} presence={presence} online={online} viewerOnly={viewerOnly}
+          phase={phase} role={effectiveRole} presence={presence} online={online}
+          user={user} onSignIn={onSignIn} onSignOut={onSignOut} isOwner={isOwner}
           onLoginToggle={() => { if (role) setRole(null); else openModal('pin', { purpose: 'login' }); }}
           activeTab={activeTab} onTabChange={setActiveTab}
           onBack={onBack}
@@ -927,7 +948,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
                   onDoublesRRResult={handleDoublesRRResult} onUndoDoublesRRResult={handleUndoDoublesRRResult}
                   roundRobinSchedule={roundRobinSchedule} roundRobinCourts={roundRobinCourts} roundRobinStartRoundNum={roundRobinStartRoundNum}
                   courtNumbers={courtNumbers} socialCourts={socialCourts} liveAdditions={liveAdditions}
-                  pending={pending} role={role} finalRound={finalRound} pausedIds={pausedIds}
+                  pending={pending} role={effectiveRole} finalRound={finalRound} pausedIds={pausedIds}
                   targetRounds={targetRounds}
                   setFinalRound={v => { setFinalRound(v); gatedUpdate('canSetFinalRound', { finalRound: v }); }}
                   history={history}
@@ -976,16 +997,16 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
                   doublesRRPlayers={doublesRRPlayers} doublesRRSchedule={doublesRRSchedule}
                   roundRobinSchedule={roundRobinSchedule} roundRobinCourts={roundRobinCourts} roundRobinStartRoundNum={roundRobinStartRoundNum}
                   roundRobinStartSnapshot={roundRobinStartSnapshot} roundRobinEndSnapshot={roundRobinEndSnapshot}
-                  canEditScores={hasPermission(role, 'canEditHistoryScores') || hasPermission(role, 'canFullEditHistory')}
-                  canDeleteGame={hasPermission(role, 'canDeleteHistoryGame')}
-                  canFullEdit={hasPermission(role, 'canFullEditHistory')}
+                  canEditScores={hasPermission(effectiveRole, 'canEditHistoryScores') || hasPermission(effectiveRole, 'canFullEditHistory')}
+                  canDeleteGame={hasPermission(effectiveRole, 'canDeleteHistoryGame')}
+                  canFullEdit={hasPermission(effectiveRole, 'canFullEditHistory')}
                   backupRoundNums={backupRoundNums}
                   onAddGame={ri => openModal('addGame', { target: String(ri), defaultCourt: '' })}
                   onEditGame={(ri, gameIdx) => openModal('editGame', { ri, gameIdx })}
                   onEditTPTGame={(ri, mi, gi) => openModal('editTPTGame', { ri, mi, gi })}
                   onEditTPTSubs={(ri, mi, gi) => openModal('editTPTSubs', { ri, mi, gi })}
                   onEditDoublesRRGame={(ri, ci) => openModal('editDoublesRRGame', { ri, ci })}
-                  onExportDUPR={hasPermission(role, 'canExportDUPR') ? () => openModal('exportDUPR') : undefined}
+                  onExportDUPR={hasPermission(effectiveRole, 'canExportDUPR') ? () => openModal('exportDUPR') : undefined}
                   onRemoveGame={(ri, gameIdx) => { openModal('pin', { purpose: 'removeGame', removeGameTarget: { ri, gameIdx } }); }}
                   onRevertToRound={rn => { openModal('pin', { purpose: 'revertToRound', revertTarget: rn }); }}
                   onRevertToBeginning={() => { openModal('pin', { purpose: 'revertToBeginning' }); }}

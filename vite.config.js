@@ -9,8 +9,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const renameOutputHtml = () => ({
   name: 'rename-output-html',
   closeBundle() {
-    renameSync('docs/_viewer.html', 'docs/index.html');
-    renameSync('docs/_admin.html', 'docs/adm.html');
+    renameSync('docs/_admin.html', 'docs/index.html');
   },
 });
 
@@ -25,7 +24,6 @@ export default defineConfig(({ command }) => ({
     rollupOptions: {
       input: {
         main: resolve(__dirname, '_admin.html'),
-        viewer: resolve(__dirname, '_viewer.html'),
       },
     },
   },
