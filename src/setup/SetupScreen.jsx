@@ -350,11 +350,16 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
     ? generateDoublesRRSchedule(doublesRRNamedPlayers.map(p => p.id), courts.length)
     : [];
 
+  const rosterEmpty =
+    format === 'trio'      ? trioReadyTeams.length === 0 :
+    format === 'doublesrr' ? doublesRRNamedPlayers.length === 0 :
+    allTeamIds.length === 0;
+
   const canStart =
-    format === 'singles'      ? (allTeamIds.length >= 3 && courts.length >= 1) :
-    format === 'fixedpartner' ? (allTeamIds.length >= 3 && courts.length >= 1) :
-    format === 'trio'         ? (trioReadyTeams.length >= 2 && courts.length >= trioMinCourts) :
-    format === 'doublesrr'    ? (doublesRRCountValid && courts.length >= 1) :
+    format === 'singles'      ? ((allTeamIds.length === 0 || allTeamIds.length >= 3) && courts.length >= 1) :
+    format === 'fixedpartner' ? ((allTeamIds.length === 0 || allTeamIds.length >= 3) && courts.length >= 1) :
+    format === 'trio'         ? ((trioReadyTeams.length === 0 || trioReadyTeams.length >= 2) && courts.length >= trioMinCourts) :
+    format === 'doublesrr'    ? ((doublesRRNamedPlayers.length === 0 || doublesRRCountValid) && courts.length >= 1) :
     false;
 
   const handleStart = () => {
@@ -664,6 +669,12 @@ export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
               : format === 'doublesrr'
               ? (!doublesRRCountValid ? 'Player count is unsupported — see above.' : courts.length < 1 ? 'Need at least 1 court.' : '')
               : (allTeamIds.length < 3 ? 'Need at least 3 teams.' : courts.length < 1 ? 'Need at least 1 court.' : '')}
+          </p>
+        )}
+
+        {canStart && rosterEmpty && (
+          <p className="text-slate-500 text-xs text-center">
+            Starting with no {format === 'doublesrr' ? 'players' : 'teams'} — add them in ⚙️ Tournament Settings after the tournament is created.
           </p>
         )}
 

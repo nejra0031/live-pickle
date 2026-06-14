@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { pushSnapshot, pushAtomicUpdate, setActiveTournament, writeTournamentMeta } from '../firebase';
 import { buildSnapshot } from '../snapshot';
 import { hasPermission } from '../roleConfig';
-import { generateDoublesRRSchedule, countScheduleOpponentPairs } from '../algorithms/doublesRR';
+import { generateDoublesRRSchedule, countScheduleOpponentPairs, isValidDoublesRRPlayerCount } from '../algorithms/doublesRR';
 import { applyTournamentStartState } from './tournamentStartHelpers';
 import { undoScheduledResult, submitScheduledResult } from './scheduledResultHelpers';
 
@@ -123,7 +123,15 @@ export function useDoublesRRManagement({
 
   const handleManageDoublesRRPlayersSave = useCallback((newPlayers) => {
     setDoublesRRPlayers(newPlayers); doublesRRPlayersRef.current = newPlayers; closeModal();
-    pushAtomicUpdate({ doublesRRPlayers: newPlayers }, onFirebaseError);
+    const upd = { doublesRRPlayers: newPlayers };
+    if (stateRef.current.history.length === 0) {
+      const playerIds = Object.keys(newPlayers);
+      const courts = stateRef.current.courtNumbers || [];
+      const schedule = isValidDoublesRRPlayerCount(playerIds.length) ? generateDoublesRRSchedule(playerIds, courts.length) : [];
+      setDoublesRRSchedule(schedule); doublesRRScheduleRef.current = schedule;
+      upd.doublesRRSchedule = schedule;
+    }
+    pushAtomicUpdate(upd, onFirebaseError);
     if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { playerCount: Object.keys(newPlayers).length });
   }, [closeModal, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 

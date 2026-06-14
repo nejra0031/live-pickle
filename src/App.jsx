@@ -604,9 +604,15 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
     setTournamentTeams(newRegistry); setModuleRegistry(newRegistry); setActiveTeamIds(newActiveIds);
     const ns = rebuildStandings(newActiveIds, history);
     setStandings(ns); closeModal();
-    gatedUpdate('canEditTeams', { teamRegistry: newRegistry, activeTeamIds: newActiveIds });
+    const upd = { teamRegistry: newRegistry, activeTeamIds: newActiveIds };
+    if (tournamentMode === 'roundrobin' && history.length === 0) {
+      const schedule = generateRoundRobinSchedule(newActiveIds, courtNumbers.length);
+      setRoundRobinSchedule(schedule);
+      upd.roundRobinSchedule = schedule;
+    }
+    gatedUpdate('canEditTeams', upd);
     if (clubId && tournamentIdRef.current) writeTournamentMeta(clubId, tournamentIdRef.current, { playerCount: newRegistry.reduce((n, t) => n + (t.players?.length || 1), 0) });
-  }, [history, closeModal, roleRef, clubId]);
+  }, [history, closeModal, roleRef, clubId, tournamentMode, courtNumbers, setRoundRobinSchedule]);
 
   const handleTeamNameDisplayChange = useCallback(mode => {
     setTeamNameDisplay(mode);
@@ -914,7 +920,7 @@ export default function App({ viewerOnly = false, clubId = null, tournamentId = 
               {activeTab === 'play' && (
                 <PlayTab
                   tournamentFinished={tournamentFinished} breakMode={activeTab === 'play' ? breakMode : null}
-                  round={round} roundNum={roundNum} tournamentMode={tournamentMode}
+                  round={round} roundNum={roundNum} tournamentMode={tournamentMode} activeTeamIds={activeTeamIds}
                   tptTeams={tptTeams} tptPlayers={tptPlayers} tptSchedule={tptSchedule} tptResults={tptResults}
                   onTPTResult={handleTPTResult} onUndoTPTResult={handleUndoTPTResult}
                   doublesRRPlayers={doublesRRPlayers} doublesRRSchedule={doublesRRSchedule} doublesRRResults={doublesRRResults}

@@ -100,7 +100,13 @@ export default function PlayerNameField({
           <input
             value={nickname}
             placeholder="Name"
-            onChange={e => { emit({ nickname: e.target.value }); searchName(e.target.value); setNameOpen(true); }}
+            onChange={e => {
+              const val = e.target.value;
+              // New players have no DUPR-sourced legal name yet — keep `name` and
+              // `nickname` in sync until a future DUPR lookup diverges them.
+              emit((!name || name === nickname) ? { name: val, nickname: val } : { nickname: val });
+              searchName(val); setNameOpen(true);
+            }}
             onFocus={() => setNameOpen(true)}
             style={inputStyle}
           />

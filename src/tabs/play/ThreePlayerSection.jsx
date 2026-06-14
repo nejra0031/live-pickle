@@ -106,16 +106,26 @@ export default function ThreePlayerSection({
           onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} />
       )}
 
-      <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(4px,1vw,8px)', background: 'rgba(15,76,117,0.05)', border: '1px solid rgba(15,76,117,0.18)' }}>
-        <p className="font-bold" style={{ color: '#0f4c75', fontSize: 'clamp(13px,3.5vw,17px)' }}>
-          3-Player Team Tournament
-        </p>
-        <p style={{ color: '#64748b', fontSize: 'clamp(10px,2.5vw,13px)' }}>
-          {allDone
-            ? `All ${totalRounds} rounds complete · ${gamesComplete} games played`
-            : `Round ${currentRoundIdx + 1} of ${totalRounds} · ${gamesComplete}/${totalGames} games complete`}
-        </p>
-      </div>
+      {tptSchedule.length === 0 ? (
+        <div className="rounded-2xl flex flex-col items-center text-center" style={{ padding: 'clamp(16px,4vw,24px)', gap: 8, background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)' }}>
+          <p style={{ fontWeight: 800, color: '#0f4c75', margin: 0 }}>No schedule yet</p>
+          <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
+            {isAdmin ? 'Add at least 2 teams in Tournament Settings to generate the tournament schedule.' : 'Waiting for the organizer to add teams.'}
+          </p>
+          {isAdmin && <button onClick={onTournamentSettings} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>⚙️ Tournament Settings</button>}
+        </div>
+      ) : (
+        <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(4px,1vw,8px)', background: 'rgba(15,76,117,0.05)', border: '1px solid rgba(15,76,117,0.18)' }}>
+          <p className="font-bold" style={{ color: '#0f4c75', fontSize: 'clamp(13px,3.5vw,17px)' }}>
+            3-Player Team Tournament
+          </p>
+          <p style={{ color: '#64748b', fontSize: 'clamp(10px,2.5vw,13px)' }}>
+            {allDone
+              ? `All ${totalRounds} rounds complete · ${gamesComplete} games played`
+              : `Round ${currentRoundIdx + 1} of ${totalRounds} · ${gamesComplete}/${totalGames} games complete`}
+          </p>
+        </div>
+      )}
 
       {/* Active round only — no browsing other rounds here (see Matches tab) */}
       {viewedRound && (

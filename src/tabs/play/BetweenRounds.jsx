@@ -7,13 +7,15 @@ const settingsBtnStyle = { width: '100%', padding: 'clamp(8px,2vw,12px)', border
 
 export default function BetweenRounds({
   isAdmin, isReferee, role, roundNum, finalRound, setFinalRound, targetRounds,
-  nextRoundPresets, breakMode, socialCourts,
+  nextRoundPresets, breakMode, socialCourts, activeTeamIds,
   onGenerateRound, onSelectRRTeams, onPresetMatch, onBreakStart, onBreakEnd,
   onFinishTournament, onTournamentSettings,
 }) {
   const teamById = useTeamById();
   const nextRN     = roundNum === 0 ? 1 : roundNum + 1;
   const isAutoFinal = targetRounds > 0 && nextRN === targetRounds && !finalRound;
+  const notEnoughTeams = roundNum === 0 && (activeTeamIds?.length ?? 0) < 2;
+  const hintStyle = { fontSize: 'clamp(11px,2.5vw,13px)', fontWeight: 700, color: '#92400e', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 12, padding: 'clamp(10px,2.5vw,13px)', textAlign: 'center', margin: 0 };
 
   return (
     <div className="flex flex-col gap-4">
@@ -67,9 +69,13 @@ export default function BetweenRounds({
             </div>
           )}
 
-          <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: (finalRound || isAutoFinal) ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
-            {roundNum === 0 ? (isAutoFinal ? '🏁 Generate Final Round →' : 'Generate Round 1 →') : (finalRound || isAutoFinal) ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
-          </button>
+          {notEnoughTeams ? (
+            <p style={hintStyle}>Add at least 2 teams in ⚙️ Tournament Settings to generate Round 1.</p>
+          ) : (
+            <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: (finalRound || isAutoFinal) ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
+              {roundNum === 0 ? (isAutoFinal ? '🏁 Generate Final Round →' : 'Generate Round 1 →') : (finalRound || isAutoFinal) ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
+            </button>
+          )}
           <button onClick={onTournamentSettings} style={settingsBtnStyle}>⚙️ Tournament Settings</button>
         </div>
 
@@ -82,9 +88,13 @@ export default function BetweenRounds({
             </button>
           )}
           {hasPermission(role, 'canGenerateRound') && !(targetRounds > 0 && roundNum >= targetRounds) && (
-            <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: (finalRound || isAutoFinal) ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
-              {roundNum === 0 ? (isAutoFinal ? '🏁 Generate Final Round →' : 'Generate Round 1 →') : (finalRound || isAutoFinal) ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
-            </button>
+            notEnoughTeams ? (
+              <p style={hintStyle}>Waiting for the admin to add teams in Tournament Settings.</p>
+            ) : (
+              <button onClick={onGenerateRound} style={{ width: '100%', padding: 'clamp(10px,2.5vw,13px)', borderRadius: 12, fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', cursor: 'pointer', background: (finalRound || isAutoFinal) ? 'linear-gradient(90deg,#d97706,#f59e0b)' : 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none' }}>
+                {roundNum === 0 ? (isAutoFinal ? '🏁 Generate Final Round →' : 'Generate Round 1 →') : (finalRound || isAutoFinal) ? '🏁 Generate Final Round →' : `Generate Round ${roundNum + 1} →`}
+              </button>
+            )
           )}
           <button onClick={onTournamentSettings} style={settingsBtnStyle}>⚙️ Tournament Settings</button>
         </div>

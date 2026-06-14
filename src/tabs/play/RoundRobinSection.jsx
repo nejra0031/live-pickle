@@ -36,12 +36,22 @@ export default function RoundRobinSection({
           canControlTimer={hasPermission(role, 'canEditTimer')}
           onToggle={onTimerToggle} onRestart={onTimerRestart} onOpenSettings={onTimerSettings} />
       )}
-      <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(4px,1vw,8px)', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.25)' }}>
-        <p className="font-bold" style={{ color: '#4338ca', fontSize: 'clamp(13px,3.5vw,17px)' }}>🔁 Round Robin</p>
-        <p style={{ color: '#64748b', fontSize: 'clamp(10px,2.5vw,13px)' }}>
-          {roundRobinSchedule.length} round{roundRobinSchedule.length !== 1 ? 's' : ''} · {roundRobinSchedule.reduce((a, r) => a + r.length, 0)} total matches · Courts: {rrCourts.join(', ')}. {completedCount}/{roundRobinSchedule.length} round{roundRobinSchedule.length !== 1 ? 's' : ''} complete.
-        </p>
-      </div>
+      {roundRobinSchedule.length === 0 ? (
+        <div className="rounded-2xl flex flex-col items-center text-center" style={{ padding: 'clamp(16px,4vw,24px)', gap: 8, background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)' }}>
+          <p style={{ fontWeight: 800, color: '#0f4c75', margin: 0 }}>No schedule yet</p>
+          <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
+            {isAdmin ? 'Add at least 2 teams in Tournament Settings to generate the round robin schedule.' : 'Waiting for the organizer to add teams.'}
+          </p>
+          {isAdmin && <button onClick={onTournamentSettings} style={{ padding: 'clamp(8px,2vw,12px)', borderRadius: 12, fontWeight: 700, fontSize: 'clamp(12px,3vw,15px)', cursor: 'pointer', background: 'rgba(99,102,241,0.08)', color: '#4338ca', border: '1px solid rgba(99,102,241,0.25)' }}>⚙️ Tournament Settings</button>}
+        </div>
+      ) : (
+        <div className="rounded-2xl flex flex-col" style={{ padding: 'clamp(10px,2.5vw,16px)', gap: 'clamp(4px,1vw,8px)', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.25)' }}>
+          <p className="font-bold" style={{ color: '#4338ca', fontSize: 'clamp(13px,3.5vw,17px)' }}>🔁 Round Robin</p>
+          <p style={{ color: '#64748b', fontSize: 'clamp(10px,2.5vw,13px)' }}>
+            {roundRobinSchedule.length} round{roundRobinSchedule.length !== 1 ? 's' : ''} · {roundRobinSchedule.reduce((a, r) => a + r.length, 0)} total matches · Courts: {rrCourts.join(', ')}. {completedCount}/{roundRobinSchedule.length} round{roundRobinSchedule.length !== 1 ? 's' : ''} complete.
+          </p>
+        </div>
+      )}
 
       {schedRound && (() => {
         const labelNum = (roundRobinStartRoundNum || 1) + srIdx;

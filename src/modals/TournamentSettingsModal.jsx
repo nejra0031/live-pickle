@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { hasPermission } from '../roleConfig';
 import { ALL_TEAMS } from '../constants';
 import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
+import PlayerNameField from '../components/PlayerNameField';
 import useKnownPlayers from '../hooks/useKnownPlayers';
 import { useTeamById } from '../context/TeamRegistryContext';
 
 const iS = { padding: '8px 10px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none', width: '100%' };
 const fS = { flex: 1, padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none' };
+const uid = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+const playerKey = n => n.trim().toLowerCase();
 
 const DISPLAY_MODE_OPTIONS = [
   { value: 'name', label: 'Team name' },
@@ -121,7 +124,7 @@ export default function TournamentSettingsModal({
   );
   const [addId, setAddId] = useState('');
   const [expandedPlayerId, setExpandedPlayerId] = useState(null);
-  const { save: saveKnownPlayer } = useKnownPlayers();
+  const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
 
   // Teams state — TPT
   const [localTPTTeams, setLocalTPTTeams] = useState(() =>
@@ -130,11 +133,13 @@ export default function TournamentSettingsModal({
   const [localTPTPlayers, setLocalTPTPlayers] = useState(() =>
     tptPlayers ? Object.fromEntries(Object.entries(tptPlayers).map(([id, p]) => [id, { duprId: '', nickname: '', ...p }])) : {}
   );
+  const [addTPTId, setAddTPTId] = useState('');
 
   // Teams state — DoublesRR
   const [localDRRPlayers, setLocalDRRPlayers] = useState(() =>
     doublesRRPlayers ? Object.fromEntries(Object.entries(doublesRRPlayers).map(([id, p]) => [id, { duprId: '', nickname: '', ...p }])) : {}
   );
+  const [newDRRDraft, setNewDRRDraft] = useState({ name: '', duprId: '', nickname: '' });
 
   // Courts state
   const [localCourts, setLocalCourts] = useState(() => (courtNumbers || []).map(c => String(c)));
@@ -146,6 +151,11 @@ export default function TournamentSettingsModal({
   // Derived
   const usedIds = new Set(localTeams.map(t => t.id));
   const available = ALL_TEAMS.filter(t => !usedIds.has(t.id));
+  const addedPlayerKeys = new Set(localTeams.flatMap(t => t.players.map(p => p.name)).map(playerKey).filter(Boolean));
+  const usedTPTIds = new Set(localTPTTeams.map(t => t.id));
+  const availableTPT = ALL_TEAMS.filter(t => !usedTPTIds.has(t.id));
+  const addedTPTPlayerKeys = new Set(Object.values(localTPTPlayers).map(p => p.name).map(playerKey).filter(Boolean));
+  const drrExcludeKeys = new Set(Object.values(localDRRPlayers).map(p => p.name).map(playerKey).filter(Boolean));
   const courtsValid = localCourts.length >= 1 && localCourts.every(v => v.trim() !== '') && new Set(localCourts.map(v => v.trim())).size === localCourts.length;
   const rrCourtCount = tournamentMode === 'roundrobin' ? (roundRobinCourts?.length ?? 0) : 0;
   const rrWarning = rrCourtCount > 0 && localCourts.filter((_, i) => !localSocial[i]).length < rrCourtCount;
@@ -307,13 +317,23 @@ export default function TournamentSettingsModal({
                         </div>
                         {expandedPlayerId === t.id && (
                           <div className="rounded-lg p-2 flex flex-col gap-2" style={{ marginLeft: 20, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                            <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Player nicknames</p>
+                            <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Players</p>
                             {t.players.map((pl, slot) => (
-                              <NicknameField key={slot} name={pl.name} nickname={pl.nickname || ''}
-                                onChange={nickname => setLocalTeams(p => p.map(x => {
-                                  if (x.id !== t.id) return x;
-                                  const players = [...x.players]; players[slot] = { ...players[slot], nickname }; return { ...x, players };
-                                }))} />
+                              pl.name.trim() ? (
+                                <NicknameField key={slot} name={pl.name} nickname={pl.nickname || ''}
+                                  onChange={nickname => setLocalTeams(p => p.map(x => {
+                                    if (x.id !== t.id) return x;
+                                    const players = [...x.players]; players[slot] = { ...players[slot], nickname }; return { ...x, players };
+                                  }))} />
+                              ) : (
+                                <PlayerNameField key={slot} name={pl.name} duprId={pl.duprId} nickname={pl.nickname || ''}
+                                  knownPlayers={knownPlayers} excludeKeys={addedPlayerKeys}
+                                  onChange={val => setLocalTeams(p => p.map(x => {
+                                    if (x.id !== t.id) return x;
+                                    const players = [...x.players]; players[slot] = val; return { ...x, players };
+                                  }))}
+                                  inputStyle={fS} />
+                              )
                             ))}
                           </div>
                         )}
@@ -377,8 +397,15 @@ export default function TournamentSettingsModal({
                             {p.gender === 'female' ? '♀' : '♂'}
                           </span>
                           <div style={{ flex: 1 }}>
-                            <NicknameField name={p.name} nickname={p.nickname || ''}
-                              onChange={nickname => setLocalTPTPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], nickname } }))} />
+                            {p.name.trim() ? (
+                              <NicknameField name={p.name} nickname={p.nickname || ''}
+                                onChange={nickname => setLocalTPTPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], nickname } }))} />
+                            ) : (
+                              <PlayerNameField name={p.name} duprId={p.duprId} nickname={p.nickname || ''}
+                                knownPlayers={knownPlayers} excludeKeys={addedTPTPlayerKeys}
+                                onChange={val => setLocalTPTPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], ...val } }))}
+                                inputStyle={fS} />
+                            )}
                           </div>
                         </div>
                       ))}
@@ -386,6 +413,32 @@ export default function TournamentSettingsModal({
                   );
                 })}
               </div>
+              {availableTPT.length > 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Add a team</p>
+                  <div className="flex gap-2">
+                    <select value={addTPTId} onChange={e => setAddTPTId(e.target.value)} style={{ flex: 1, ...fS }}>
+                      <option value="">— choose colour —</option>
+                      {availableTPT.map(t => <option key={t.id} value={t.id} style={{ background: '#1e293b' }}>{t.name}</option>)}
+                    </select>
+                    <button onClick={() => {
+                      const base = ALL_TEAMS.find(t => t.id === addTPTId); if (!base) return;
+                      const m1 = uid(), m2 = uid(), f = uid();
+                      setLocalTPTTeams(p => [...p, { id: base.id, name: base.name, color: base.color, text: base.text, maleIds: [m1, m2], femaleId: f }]);
+                      setLocalTPTPlayers(p => ({ ...p,
+                        [m1]: { id: m1, name: '', duprId: '', nickname: '', gender: 'male' },
+                        [m2]: { id: m2, name: '', duprId: '', nickname: '', gender: 'male' },
+                        [f]: { id: f, name: '', duprId: '', nickname: '', gender: 'female' },
+                      }));
+                      setAddTPTId('');
+                    }} disabled={!addTPTId}
+                      style={{ padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13, flexShrink: 0, cursor: addTPTId ? 'pointer' : 'not-allowed', background: addTPTId ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)', color: addTPTId ? '#a5b4fc' : '#475569', border: '1px solid rgba(99,102,241,0.3)' }}>
+                      + Add
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>New teams join the schedule when you save.</p>
+                </div>
+              )}
             </Acc>
           )}
 
@@ -415,6 +468,28 @@ export default function TournamentSettingsModal({
                     </div>
                   </div>
                 ))}
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Add a player</p>
+                <div className="flex gap-2 items-start">
+                  <div style={{ flex: 1 }}>
+                    <PlayerNameField name={newDRRDraft.name} duprId={newDRRDraft.duprId} nickname={newDRRDraft.nickname}
+                      knownPlayers={knownPlayers} excludeKeys={drrExcludeKeys}
+                      onChange={setNewDRRDraft}
+                      inputStyle={fS} />
+                  </div>
+                  <button onClick={() => {
+                    const name = newDRRDraft.name.trim(); if (!name) return;
+                    const id = uid();
+                    const pal = ALL_TEAMS[Object.keys(localDRRPlayers).length % ALL_TEAMS.length];
+                    setLocalDRRPlayers(p => ({ ...p, [id]: { id, name, duprId: newDRRDraft.duprId.trim(), nickname: newDRRDraft.nickname.trim(), color: pal.color, text: pal.text } }));
+                    setNewDRRDraft({ name: '', duprId: '', nickname: '' });
+                  }} disabled={!newDRRDraft.name.trim()}
+                    style={{ padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13, flexShrink: 0, cursor: newDRRDraft.name.trim() ? 'pointer' : 'not-allowed', background: newDRRDraft.name.trim() ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)', color: newDRRDraft.name.trim() ? '#a5b4fc' : '#475569', border: '1px solid rgba(99,102,241,0.3)' }}>
+                    + Add
+                  </button>
+                </div>
+                <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>New players join the schedule when you save (requires a valid player count — see Play tab).</p>
               </div>
             </Acc>
           )}
