@@ -69,6 +69,32 @@ export const tournamentMetaRef  = (clubId, tid) => ref(db, `clubs/${clubId}/tour
 export const usersRef           = () => ref(db, 'users');
 export const userRef            = (uid) => ref(db, `users/${uid}`);
 
+// ── Clubs registry (root-level index of all clubs) ──────────────────────────
+const CLUBS_INDEX_PATH = TEST_MODE ? 'clubsIndex_test' : 'clubsIndex';
+
+export const clubsIndexRef     = () => ref(db, CLUBS_INDEX_PATH);
+export const clubIndexEntryRef = (clubId) => ref(db, `${CLUBS_INDEX_PATH}/${clubId}`);
+
+export const DEFAULT_CLUB_INFO = { name: 'BLUE', imageUrl: null };
+
+// Registers DEFAULT_CLUB_ID in clubsIndex if it isn't there yet — covers both
+// a brand-new DB (seeds clubs/{id}/info too) and migrating the existing
+// 'blue' club into the new index on first load, regardless of what else is
+// already in clubsIndex.
+export async function ensureClubsIndexBootstrapped() {
+  const idxSnap = await get(clubsIndexRef());
+  const idx = idxSnap.val() ?? {};
+  if (idx[DEFAULT_CLUB_ID]) return;
+
+  const infoSnap = await get(clubInfoRef(DEFAULT_CLUB_ID));
+  let info = infoSnap.val();
+  if (!info) {
+    info = DEFAULT_CLUB_INFO;
+    await set(clubInfoRef(DEFAULT_CLUB_ID), info);
+  }
+  await set(clubIndexEntryRef(DEFAULT_CLUB_ID), info);
+}
+
 export function writeTournamentMeta(clubId, tid, meta) {
   return update(ref(db, `clubs/${clubId}/tournaments/${tid}/meta`), meta)
     .catch(err => console.error('writeTournamentMeta failed', err));

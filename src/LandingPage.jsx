@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import ballIcon from '/ball.png';
-import { DEFAULT_CLUB_ID } from './firebase';
-import { useClubs } from './hooks/useClubs';
-
-const CLUB_ID = DEFAULT_CLUB_ID;
+import { useAllClubs } from './hooks/useAllClubs';
+import { TOURNAMENT_MODES, splitAndSortTournaments, applyLandingFilters } from './landingFilters';
 
 function toSlug(title) {
   return (title || 'tournament')
@@ -142,55 +140,197 @@ function TournamentCard({ t, onClick, onDelete }) {
   );
 }
 
-export default function LandingPage({ onSelectTournament, onCreateTournament, viewerOnly = false }) {
-  const { clubInfo, tournaments, loading, error, refresh, deleteTournament } = useClubs(CLUB_ID);
+function ClubTogglesRow({ clubs, hiddenClubs, onToggle }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+      {clubs.map(({ clubId, clubInfo }) => {
+        const active = !hiddenClubs.has(clubId);
+        return (
+          <button key={clubId} onClick={() => onToggle(clubId)}
+            style={{
+              fontSize: 13, fontWeight: 700, padding: '6px 14px', borderRadius: 999, cursor: 'pointer',
+              background: active ? 'rgba(15,76,117,0.08)' : 'transparent',
+              color: active ? '#0f4c75' : '#94a3b8',
+              border: active ? '1px solid rgba(15,76,117,0.2)' : '1px solid rgba(0,0,0,0.08)',
+            }}>
+            {clubInfo?.name ?? clubId}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
-  const { idToSlug, slugToId } = useMemo(() => buildSlugMap(tournaments), [tournaments]);
+function FilterControls({ enabledModes, onToggleMode, hideFull, onToggleHideFull }) {
+  const labelStyle = { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#475569', cursor: 'pointer' };
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', marginBottom: 16, padding: '10px 14px', background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 12 }}>
+      <span style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Filters</span>
+      {TOURNAMENT_MODES.map(mode => (
+        <label key={mode} style={labelStyle}>
+          <input type="checkbox" checked={enabledModes.has(mode)} onChange={() => onToggleMode(mode)} />
+          {MODE_LABELS[mode]}
+        </label>
+      ))}
+      <label style={labelStyle}>
+        <input type="checkbox" checked={hideFull} onChange={onToggleHideFull} />
+        Hide full tournaments
+      </label>
+    </div>
+  );
+}
+
+function ClubSection({ clubId, clubInfo, upcoming, finished, hasAnyTournaments, viewerOnly, onCreateTournament, onSelectTournament, onDelete, idToSlug }) {
+  function handleCardClick(t) {
+    const slug = idToSlug[t.id] || t.id;
+    history.pushState({ clubId, tournamentId: t.id }, '', `#${clubId}/${slug}`);
+    onSelectTournament(clubId, t.id);
+  }
+
+  const noneVisible = upcoming.length === 0 && finished.length === 0;
+
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <img src={clubInfo?.imageUrl || ballIcon} alt={`${clubInfo?.name ?? clubId} logo`}
+          style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }} />
+        <div style={{ fontSize: 18, fontWeight: 900, color: '#0f4c75', letterSpacing: '-0.3px', flex: 1 }}>
+          {clubInfo?.name ?? clubId}
+        </div>
+        {!viewerOnly && (
+          <button onClick={onCreateTournament} style={{ fontSize: 13, padding: '6px 16px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none', boxShadow: '0 2px 6px rgba(15,76,117,0.3)' }}>
+            + New Tournament
+          </button>
+        )}
+      </div>
+
+      {!hasAnyTournaments ? (
+        <div style={{ textAlign: 'center', padding: '48px 24px', color: '#94a3b8' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🎾</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: '#64748b', marginBottom: 8 }}>No tournaments yet</div>
+          {!viewerOnly && (
+            <div style={{ fontSize: 14 }}>Click <strong>+ New Tournament</strong> to get started</div>
+          )}
+        </div>
+      ) : noneVisible ? (
+        <div style={{ textAlign: 'center', padding: '32px 24px', color: '#94a3b8', fontSize: 14 }}>
+          No tournaments match the current filters
+        </div>
+      ) : (
+        <>
+          <div style={{ marginBottom: finished.length > 0 ? 16 : 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
+              Upcoming
+            </div>
+            {upcoming.length === 0 ? (
+              <div style={{ color: '#94a3b8', fontSize: 13, padding: '4px 0' }}>No upcoming tournaments</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {upcoming.map(t => (
+                  <TournamentCard key={t.id} t={t} onClick={() => handleCardClick(t)} onDelete={onDelete} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {finished.length > 0 && (
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
+                Finished
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {finished.map(t => (
+                  <TournamentCard key={t.id} t={t} onClick={() => handleCardClick(t)} onDelete={onDelete} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function LandingPage({ onSelectTournament, onCreateTournament, viewerOnly = false }) {
+  const { clubs, loading, error, refresh, deleteTournament } = useAllClubs();
+
+  // Per-club visibility toggle. Default: all visible.
+  const [hiddenClubs, setHiddenClubs] = useState(new Set());
+
+  // Global filters. Default: all tournament types shown, full tournaments shown.
+  const [enabledModes, setEnabledModes] = useState(new Set(TOURNAMENT_MODES));
+  const [hideFull, setHideFull] = useState(false);
 
   // Refresh whenever the landing page mounts (e.g. after creating a tournament)
   useEffect(() => { refresh(); }, []);
 
-  // Auto-navigate to tournament from URL hash on initial load
+  // Per-club slug maps, built over every club regardless of visibility/filters
+  // so deep links keep working even for a club the user has toggled off.
+  const slugMaps = useMemo(() => Object.fromEntries(
+    clubs.map(({ clubId, tournaments }) => [clubId, buildSlugMap(tournaments)])
+  ), [clubs]);
+
+  // Auto-navigate to a tournament from the URL hash on initial load.
+  // Hash format is `#{clubId}/{slug}`; a bare `#{slug}` (pre-multi-club links)
+  // falls back to searching every club's slug map.
   useEffect(() => {
     if (loading) return;
     const hash = window.location.hash.slice(1);
     if (!hash) return;
-    const id = slugToId[hash];
-    if (id) onSelectTournament(CLUB_ID, id);
-  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const slashIdx = hash.indexOf('/');
+    if (slashIdx > 0) {
+      const clubId = hash.slice(0, slashIdx);
+      const slug = hash.slice(slashIdx + 1);
+      const id = slugMaps[clubId]?.slugToId?.[slug];
+      if (id) { onSelectTournament(clubId, id); return; }
+    }
+
+    for (const { clubId } of clubs) {
+      const id = slugMaps[clubId]?.slugToId?.[hash];
+      if (id) { onSelectTournament(clubId, id); return; }
+    }
+  }, [loading, clubs, slugMaps]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function toggleClub(clubId) {
+    setHiddenClubs(prev => {
+      const next = new Set(prev);
+      if (next.has(clubId)) next.delete(clubId); else next.add(clubId);
+      return next;
+    });
+  }
+
+  function toggleMode(mode) {
+    setEnabledModes(prev => {
+      const next = new Set(prev);
+      if (next.has(mode)) next.delete(mode); else next.add(mode);
+      return next;
+    });
+  }
+
+  const visibleClubs = clubs.filter(c => !hiddenClubs.has(c.clubId));
+  const hasAnyTournamentsAnywhere = clubs.some(c => c.tournaments.length > 0);
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
-      {/* Club header */}
+      {/* App header */}
       <div style={{ background: '#fff', borderBottom: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-        <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px clamp(12px,3vw,20px)' }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px clamp(12px,3vw,20px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <img src={ballIcon} alt="club logo" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }} />
+            <img src={ballIcon} alt="Live Pickle" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }} />
             <div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#0f4c75', letterSpacing: '-0.5px' }}>
-                {clubInfo?.name ?? 'BLUE'}
-              </div>
-              <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Pickleball Club</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#0f4c75', letterSpacing: '-0.5px' }}>Live Pickle</div>
+              <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Tournament Directory</div>
             </div>
           </div>
+          <button onClick={refresh} title="Refresh" style={{ fontSize: 13, padding: '6px 12px', borderRadius: 10, fontWeight: 600, cursor: 'pointer', background: 'rgba(0,0,0,0.04)', color: '#64748b', border: '1px solid rgba(0,0,0,0.08)' }}>
+            ↻ Refresh
+          </button>
         </div>
       </div>
 
       {/* Content */}
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px clamp(12px,3vw,20px)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>Tournaments</h2>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={refresh} title="Refresh" style={{ fontSize: 13, padding: '6px 12px', borderRadius: 10, fontWeight: 600, cursor: 'pointer', background: 'rgba(0,0,0,0.04)', color: '#64748b', border: '1px solid rgba(0,0,0,0.08)' }}>
-              ↻ Refresh
-            </button>
-            {!viewerOnly && (
-              <button onClick={() => onCreateTournament(CLUB_ID)} style={{ fontSize: 13, padding: '6px 16px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none', boxShadow: '0 2px 6px rgba(15,76,117,0.3)' }}>
-                + New Tournament
-              </button>
-            )}
-          </div>
-        </div>
 
         {loading && (
           <div style={{ textAlign: 'center', padding: '48px 0', color: '#94a3b8', fontSize: 15 }}>
@@ -206,31 +346,49 @@ export default function LandingPage({ onSelectTournament, onCreateTournament, vi
           </div>
         )}
 
-        {!loading && !error && tournaments.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '64px 24px', color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🎾</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: '#64748b', marginBottom: 8 }}>No tournaments yet</div>
-            {!viewerOnly && (
-              <div style={{ fontSize: 14 }}>Click <strong>+ New Tournament</strong> to get started</div>
+        {!loading && !error && (
+          <>
+            {clubs.length > 1 && (
+              <ClubTogglesRow clubs={clubs} hiddenClubs={hiddenClubs} onToggle={toggleClub} />
             )}
-          </div>
-        )}
 
-        {!loading && !error && tournaments.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {tournaments.map(t => (
-              <TournamentCard
-                key={t.id}
-                t={t}
-                onClick={() => {
-                  const slug = idToSlug[t.id] || t.id;
-                  history.pushState({ clubId: CLUB_ID, tournamentId: t.id }, '', `#${slug}`);
-                  onSelectTournament(CLUB_ID, t.id);
-                }}
-                onDelete={!viewerOnly ? deleteTournament : null}
+            {hasAnyTournamentsAnywhere && (
+              <FilterControls
+                enabledModes={enabledModes}
+                onToggleMode={toggleMode}
+                hideFull={hideFull}
+                onToggleHideFull={() => setHideFull(v => !v)}
               />
-            ))}
-          </div>
+            )}
+
+            {visibleClubs.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px 24px', color: '#94a3b8', fontSize: 14 }}>
+                All clubs hidden — click a club above to show it
+              </div>
+            ) : (
+              visibleClubs.map(({ clubId, clubInfo, tournaments }) => {
+                const { upcoming, finished } = applyLandingFilters(
+                  splitAndSortTournaments(tournaments),
+                  { enabledModes, hideFull }
+                );
+                return (
+                  <ClubSection
+                    key={clubId}
+                    clubId={clubId}
+                    clubInfo={clubInfo}
+                    upcoming={upcoming}
+                    finished={finished}
+                    hasAnyTournaments={tournaments.length > 0}
+                    viewerOnly={viewerOnly}
+                    onCreateTournament={() => onCreateTournament(clubId)}
+                    onSelectTournament={onSelectTournament}
+                    onDelete={!viewerOnly ? (tid) => deleteTournament(clubId, tid) : null}
+                    idToSlug={slugMaps[clubId]?.idToSlug ?? {}}
+                  />
+                );
+              })
+            )}
+          </>
         )}
       </div>
     </div>

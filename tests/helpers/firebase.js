@@ -132,6 +132,7 @@ async function seedTPTTournament(overrides = {}) {
 
 async function clearE2EData() {
   await fbDelete(`clubs/${E2E_CLUB_ID}`).catch(() => {});
+  await fbDelete('clubsIndex_test').catch(() => {});
 }
 
 module.exports = {
