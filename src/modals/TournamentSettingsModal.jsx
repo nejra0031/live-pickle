@@ -44,13 +44,18 @@ function FL({ children }) {
   return <p style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 4, marginTop: 0 }}>{children}</p>;
 }
 
-// Nickname-only editor — legal name and DUPR ID are set during setup and
-// not editable from Tournament Settings.
+// Nickname + full-name editor — DUPR ID is set during setup and not editable
+// from Tournament Settings.
 function NicknameField({ name, nickname, onChange }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <input value={nickname} placeholder={name || 'Nickname'} onChange={e => onChange(e.target.value)} style={fS} />
-      {name && <p style={{ margin: 0, padding: '1px 2px', fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>{name}</p>}
+      <input value={nickname} placeholder={name || 'Nickname'} onChange={e => onChange({ nickname: e.target.value })} style={fS} />
+      <input
+        value={name || ''}
+        placeholder="Full name"
+        onChange={e => onChange({ name: e.target.value })}
+        style={{ padding: '4px 8px', borderRadius: 6, fontSize: 11, fontStyle: 'italic', fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', outline: 'none' }}
+      />
     </div>
   );
 }
@@ -493,7 +498,7 @@ export default function TournamentSettingsModal({
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: p.color || '#64748b' }} />
                     <div style={{ flex: 1 }}>
                       <NicknameField name={p.name} nickname={p.nickname || ''}
-                        onChange={nickname => setLocalDRRPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], nickname } }))} />
+                        onChange={updates => setLocalDRRPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], ...updates } }))} />
                     </div>
                   </div>
                 ))}

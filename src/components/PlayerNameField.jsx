@@ -9,7 +9,7 @@ import useDebounce from '../hooks/useDebounce';
 //
 //   Full (nickname prop provided): three fields shown in display-first order:
 //     1. Nickname input  — the name shown in the game UI (placeholder "Name")
-//     2. Full name text  — full legal name (read-only label, only shown when set via autocomplete)
+//     2. Full name input — full legal name, editable
 //     3. DUPR ID input
 //
 // The "Name"/nickname input only suggests matches against known players' name/nickname;
@@ -21,9 +21,9 @@ import useDebounce from '../hooks/useDebounce';
 //
 // onChange always emits { name, duprId } and, when in full mode, also { nickname }.
 //
-// showFullName (default true, full mode only): when true the full legal name is
-// shown as static read-only text below the nickname field; when false it is
-// hidden entirely. Has no effect in basic mode.
+// showFullName (default true, full mode only): when true the full-name input is
+// shown below the nickname field; when false it is hidden entirely. Has no
+// effect in basic mode.
 export default function PlayerNameField({
   name, duprId, nickname, onChange,
   knownPlayers = [], excludeKeys, placeholder = 'Name', inputStyle = {}, duprIdStyle = inputStyle,
@@ -66,7 +66,9 @@ export default function PlayerNameField({
   }, []);
 
   const pick = (p) => {
-    onChange({ name: p.name, duprId: p.duprID || '', nickname: p.nickname || '' });
+    // Fall back to the full name when the known player has no nickname, so the
+    // primary "Name" field doesn't end up showing blank after picking.
+    onChange({ name: p.name, duprId: p.duprID || '', nickname: p.nickname || p.name || '' });
     setNameOpen(false); setNameSuggestions([]);
     setDuprOpen(false); setDuprSuggestions([]);
   };
@@ -112,8 +114,13 @@ export default function PlayerNameField({
           />
           {renderDropdown(nameOpen, nameSuggestions)}
         </div>
-        {showFullName && name && (
-          <p style={{ margin: 0, padding: '1px 2px', fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>{name}</p>
+        {showFullName && (
+          <input
+            value={name}
+            placeholder="Full name"
+            onChange={e => emit({ name: e.target.value })}
+            style={{ padding: '4px 8px', borderRadius: 6, fontSize: 11, fontStyle: 'italic', fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', outline: 'none' }}
+          />
         )}
         <div style={{ position: 'relative' }}>
           <input
