@@ -55,7 +55,7 @@ function NicknameField({ name, nickname, onChange }) {
   );
 }
 
-function AddPinForm({ roleId, onAddPin }) {
+function AddPinForm({ roleId, onAddPin, onAdded }) {
   const [label, setLabel] = useState('');
   const [pinDigits, setPinDigits] = useState('');
   const [saving, setSaving] = useState(false);
@@ -65,7 +65,8 @@ function AddPinForm({ roleId, onAddPin }) {
     if (!ready) return;
     setSaving(true);
     try {
-      await onAddPin(roleId, label.trim(), pinDigits.trim());
+      const id = await onAddPin(roleId, label.trim(), pinDigits.trim());
+      if (id) onAdded?.(id, pinDigits.trim());
       setLabel(''); setPinDigits('');
     } finally {
       setSaving(false);
@@ -74,7 +75,7 @@ function AddPinForm({ roleId, onAddPin }) {
 
   return (
     <div className="flex gap-2 items-start">
-      <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Label (e.g. Front desk)" style={{ flex: 1, ...fS }} />
+      <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Label / Name" style={{ flex: 1, ...fS }} />
       <input value={pinDigits} onChange={e => setPinDigits(e.target.value.replace(/\D/g, ''))} placeholder="PIN" inputMode="numeric" style={{ width: 70, ...fS }} />
       <button onClick={handleAdd} disabled={!ready}
         style={{ padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13, flexShrink: 0, cursor: ready ? 'pointer' : 'not-allowed', background: ready ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)', color: ready ? '#a5b4fc' : '#475569', border: '1px solid rgba(99,102,241,0.3)' }}>
@@ -122,7 +123,6 @@ export default function TournamentSettingsModal({
   courtNumbers, socialCourts, roundRobinCourts,
   onSaveInfo, onManageTeamsSave, onManageTPTTeamsSave, onManageDoublesRRPlayersSave, onManageCourtsSave,
   onReset,
-  onManageMembers,
   isOwner, pins, onAddPin, onRevokePin,
   onClose,
 }) {
@@ -136,6 +136,10 @@ export default function TournamentSettingsModal({
   const [sec, setSec] = useState({});
   const toggle = k => setSec(p => ({ ...p, [k]: !p[k] }));
 
+  // PINs created during this modal session — shown next to their label as a
+  // one-time confirmation, since only the hash is persisted (see CLAUDE.md).
+  const [sessionPins, setSessionPins] = useState({});
+
   // Event info state
   const [title, setTitle] = useState(tournamentTitle || '');
   const [location, setLocation] = useState(tournamentLocation || '');
@@ -145,11 +149,11 @@ export default function TournamentSettingsModal({
 
   // Teams state — swiss / rr
   const teamById = useTeamById();
-  const emptyPair = () => [{ name: '', duprId: '', nickname: '', hadName: false }, { name: '', duprId: '', nickname: '', hadName: false }];
+  const emptyPair = () => [{ name: '', duprId: '', nickname: '' }, { name: '', duprId: '', nickname: '' }];
   const [localTeams, setLocalTeams] = useState(() =>
     (activeTeamIds || []).map(id => {
       const t = teamById(id);
-      const players = t?.players?.length === 2 ? t.players.map(p => ({ name: p.name || '', duprId: p.duprId || '', nickname: p.nickname || '', hadName: !!(p.name || '').trim() })) : emptyPair();
+      const players = t?.players?.length === 2 ? t.players.map(p => ({ name: p.name || '', duprId: p.duprId || '', nickname: p.nickname || '' })) : emptyPair();
       return { id, name: t?.name ?? id, color: t?.color ?? '#475569', text: t?.text ?? '#fff', players };
     })
   );
@@ -162,7 +166,7 @@ export default function TournamentSettingsModal({
     tptTeams ? Object.values(tptTeams).map(t => ({ ...t })) : []
   );
   const [localTPTPlayers, setLocalTPTPlayers] = useState(() =>
-    tptPlayers ? Object.fromEntries(Object.entries(tptPlayers).map(([id, p]) => [id, { duprId: '', nickname: '', ...p, hadName: !!(p.name || '').trim() }])) : {}
+    tptPlayers ? Object.fromEntries(Object.entries(tptPlayers).map(([id, p]) => [id, { duprId: '', nickname: '', ...p }])) : {}
   );
   const [addTPTId, setAddTPTId] = useState('');
 
@@ -198,10 +202,7 @@ export default function TournamentSettingsModal({
       if (tournamentMode === 'tpt' && onManageTPTTeamsSave) {
         const newTeams = Object.fromEntries(localTPTTeams.map(t => [t.id, { ...t, name: t.name.trim() || t.id }]));
         const newPlayers = Object.fromEntries(
-          Object.entries(localTPTPlayers).map(([id, p]) => {
-            const { hadName, ...rest } = p;
-            return [id, { ...rest, name: rest.name.trim() || id, duprId: (rest.duprId || '').trim(), nickname: (rest.nickname || '').trim() }];
-          })
+          Object.entries(localTPTPlayers).map(([id, p]) => [id, { ...p, name: p.name.trim() || id, duprId: (p.duprId || '').trim(), nickname: (p.nickname || '').trim() }])
         );
         Object.values(newPlayers).forEach(p => saveKnownPlayer(p.name, p.duprId, p.nickname));
         onManageTPTTeamsSave(newTeams, newPlayers);
@@ -360,21 +361,13 @@ export default function TournamentSettingsModal({
                           <div className="rounded-lg p-2 flex flex-col gap-2" style={{ marginLeft: 20, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                             <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Players</p>
                             {t.players.map((pl, slot) => (
-                              pl.hadName ? (
-                                <NicknameField key={slot} name={pl.name} nickname={pl.nickname || ''}
-                                  onChange={nickname => setLocalTeams(p => p.map(x => {
-                                    if (x.id !== t.id) return x;
-                                    const players = [...x.players]; players[slot] = { ...players[slot], nickname }; return { ...x, players };
-                                  }))} />
-                              ) : (
-                                <PlayerNameField key={slot} name={pl.name} duprId={pl.duprId} nickname={pl.nickname || ''}
-                                  knownPlayers={knownPlayers} excludeKeys={addedPlayerKeys}
-                                  onChange={val => setLocalTeams(p => p.map(x => {
-                                    if (x.id !== t.id) return x;
-                                    const players = [...x.players]; players[slot] = val; return { ...x, players };
-                                  }))}
-                                  inputStyle={fS} />
-                              )
+                              <PlayerNameField key={slot} name={pl.name} duprId={pl.duprId} nickname={pl.nickname || ''}
+                                knownPlayers={knownPlayers} excludeKeys={addedPlayerKeys}
+                                onChange={val => setLocalTeams(p => p.map(x => {
+                                  if (x.id !== t.id) return x;
+                                  const players = [...x.players]; players[slot] = val; return { ...x, players };
+                                }))}
+                                inputStyle={fS} />
                             ))}
                           </div>
                         )}
@@ -438,15 +431,10 @@ export default function TournamentSettingsModal({
                             {p.gender === 'female' ? '♀' : '♂'}
                           </span>
                           <div style={{ flex: 1 }}>
-                            {p.hadName ? (
-                              <NicknameField name={p.name} nickname={p.nickname || ''}
-                                onChange={nickname => setLocalTPTPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], nickname } }))} />
-                            ) : (
-                              <PlayerNameField name={p.name} duprId={p.duprId} nickname={p.nickname || ''}
-                                knownPlayers={knownPlayers} excludeKeys={addedTPTPlayerKeys}
-                                onChange={val => setLocalTPTPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], ...val } }))}
-                                inputStyle={fS} />
-                            )}
+                            <PlayerNameField name={p.name} duprId={p.duprId} nickname={p.nickname || ''}
+                              knownPlayers={knownPlayers} excludeKeys={addedTPTPlayerKeys}
+                              onChange={val => setLocalTPTPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], ...val } }))}
+                              inputStyle={fS} />
                           </div>
                         </div>
                       ))}
@@ -467,9 +455,9 @@ export default function TournamentSettingsModal({
                       const m1 = uid(), m2 = uid(), f = uid();
                       setLocalTPTTeams(p => [...p, { id: base.id, name: base.name, color: base.color, text: base.text, maleIds: [m1, m2], femaleId: f }]);
                       setLocalTPTPlayers(p => ({ ...p,
-                        [m1]: { id: m1, name: '', duprId: '', nickname: '', gender: 'male', hadName: false },
-                        [m2]: { id: m2, name: '', duprId: '', nickname: '', gender: 'male', hadName: false },
-                        [f]: { id: f, name: '', duprId: '', nickname: '', gender: 'female', hadName: false },
+                        [m1]: { id: m1, name: '', duprId: '', nickname: '', gender: 'male' },
+                        [m2]: { id: m2, name: '', duprId: '', nickname: '', gender: 'male' },
+                        [f]: { id: f, name: '', duprId: '', nickname: '', gender: 'female' },
                       }));
                       setAddTPTId('');
                     }} disabled={!addTPTId}
@@ -589,7 +577,10 @@ export default function TournamentSettingsModal({
                     )}
                     {(pins?.[r.id] || []).map(p => (
                       <div key={p.id} className="flex items-center gap-2">
-                        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{p.label || 'Unnamed'}</span>
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>
+                          {p.label || 'Unnamed'}
+                          {sessionPins[p.id] && <span style={{ color: '#a5b4fc', fontWeight: 800 }}> · {sessionPins[p.id]}</span>}
+                        </span>
                         <button onClick={() => onRevokePin(r.id, p.id)}
                           style={{ padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'rgba(220,38,38,0.12)', color: '#f87171', border: '1px solid rgba(220,38,38,0.25)' }}>
                           Revoke
@@ -597,20 +588,9 @@ export default function TournamentSettingsModal({
                       </div>
                     ))}
                   </div>
-                  <AddPinForm roleId={r.id} onAddPin={onAddPin} />
+                  <AddPinForm roleId={r.id} onAddPin={onAddPin} onAdded={(id, digits) => setSessionPins(prev => ({ ...prev, [id]: digits }))} />
                 </div>
               ))}
-            </Acc>
-          )}
-
-          {/* ── Club members ── */}
-          {onManageMembers && canResetTournament && (
-            <Acc title="Club members" open={sec.members} onToggle={() => toggle('members')}>
-              <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>View and add members to this club.</p>
-              <button onClick={onManageMembers}
-                style={{ padding: '8px 16px', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>
-                Manage members…
-              </button>
             </Acc>
           )}
 

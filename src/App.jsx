@@ -609,7 +609,7 @@ export default function App({ clubId = null, tournamentId = null, initialRole = 
     const r = ROLE_MAP[roleId];
     if (!r) return;
     const hash = await sha256hex(pinDigits);
-    await addTournamentPin(r.firebasePinsPath, { hash, label });
+    return addTournamentPin(r.firebasePinsPath, { hash, label });
   }, [isOwner]);
 
   const handleRevokePin = useCallback((roleId, pinId) => {
@@ -810,7 +810,7 @@ export default function App({ clubId = null, tournamentId = null, initialRole = 
     setBreakMode(null); setTournamentFinished(true);
     gatedUpdate('canFinishTournament', { tournamentFinished: true, timerRunning: false, timerStartedAt: null, timerPausedSecsLeft: s, breakMode: null });
     if (clubId) {
-      const top3 = effectiveRankedRef.current.slice(0, 3).map(t => ({ name: t.name, color: t.color || '#0f4c75', text: t.text || '#fff' }));
+      const top3 = effectiveRankedRef.current.slice(0, 3).map(t => ({ name: t.name, color: t.color || '#0f4c75', text: t.text || '#fff', wins: t.wins, losses: t.losses, scoreDiff: t.scoreDiff }));
       writeTournamentMeta(clubId, tournamentIdRef.current, { status: 'finished', top3 });
     }
   }, [computeSecsLeft, applyTimerState, roleRef, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -888,7 +888,6 @@ export default function App({ clubId = null, tournamentId = null, initialRole = 
           tournamentLocation={tournamentLocation} tournamentStartTime={tournamentStartTime} tournamentDurationMins={tournamentDurationMins} maxPlayers={maxPlayers}
           onTournamentInfoSave={handleTournamentInfoSave}
           teamNameDisplay={teamNameDisplay} onTeamNameDisplayChange={handleTeamNameDisplayChange}
-          clubId={clubId}
           onTogglePause={handleTogglePause} onManageTeamsSave={handleManageTeamsSave}
           onManageTPTTeamsSave={handleManageTPTTeamsSave} onManageCourtsSave={handleManageCourtsSave}
           onManageDoublesRRPlayersSave={handleManageDoublesRRPlayersSave}

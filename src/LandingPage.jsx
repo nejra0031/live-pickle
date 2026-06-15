@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import ballIcon from '/ball.png';
 import { useAllClubs } from './hooks/useAllClubs';
 import { TOURNAMENT_MODES, splitAndSortTournaments, applyLandingFilters } from './landingFilters';
+import ClubMembersPanel from './components/ClubMembersPanel';
 
 function toSlug(title) {
   return (title || 'tournament')
@@ -22,6 +23,30 @@ function buildSlugMap(tournaments) {
     slugToId[slug] = t.id;
   });
   return { idToSlug, slugToId };
+}
+
+// Landing-page filter state persisted across sessions in localStorage.
+const LS_KEYS = {
+  hiddenClubs: 'livepickle:hiddenClubs',
+  enabledModes: 'livepickle:enabledModes',
+  hideFull: 'livepickle:hideFull',
+};
+
+function readStoredJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw != null ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStoredJSON(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // localStorage unavailable (e.g. private browsing) — filters just won't persist
+  }
 }
 
 const MODE_LABELS = {
@@ -101,18 +126,15 @@ function TournamentCard({ t, onClick, onDelete }) {
                 Cancel
               </button>
             </div>
-          ) : (
+          ) : onDelete ? (
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center', marginTop: 8 }}>
-              <div style={{ color: '#0f4c75', fontWeight: 700, fontSize: 13 }}>Open →</div>
-              {onDelete && (
-                <button onClick={e => { e.stopPropagation(); setConfirming(true); }}
-                  title="Delete tournament"
-                  style={{ fontSize: 13, lineHeight: 1, padding: '3px 7px', borderRadius: 7, fontWeight: 700, cursor: 'pointer', background: 'rgba(220,38,38,0.08)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.15)' }}>
-                  ×
-                </button>
-              )}
+              <button onClick={e => { e.stopPropagation(); setConfirming(true); }}
+                title="Delete tournament"
+                style={{ fontSize: 13, lineHeight: 1, padding: '3px 7px', borderRadius: 7, fontWeight: 700, cursor: 'pointer', background: 'rgba(220,38,38,0.08)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.15)' }}>
+                ×
+              </button>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -122,15 +144,25 @@ function TournamentCard({ t, onClick, onDelete }) {
           {[t.top3[1], t.top3[0], t.top3[2]].map((entry, i) => {
             if (!entry) return <div key={i} style={{ flex: '1 1 0' }} />;
             const medals = ['🥈', '🥇', '🥉'];
+            const positions = [2, 1, 3];
             const barH   = [22, 30, 16];
             const barBg  = i === 1 ? 'linear-gradient(180deg,#fbbf24,#d97706)' : i === 0 ? 'linear-gradient(180deg,#cbd5e1,#94a3b8)' : 'linear-gradient(180deg,#f59e42,#b45309)';
+            const hasStats = entry.wins != null && entry.losses != null && entry.scoreDiff != null;
+            const diffStr = hasStats ? (entry.scoreDiff > 0 ? `+${entry.scoreDiff}` : `${entry.scoreDiff}`) : null;
             return (
               <div key={i} style={{ flex: '1 1 0', maxWidth: 110, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                 <span style={{ fontSize: 14 }}>{medals[i]}</span>
                 <span style={{ background: entry.color, color: entry.text, fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 6, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', textAlign: 'center' }}>
                   {entry.name}
                 </span>
-                <div style={{ width: '100%', height: barH[i], borderRadius: '4px 4px 0 0', background: barBg }} />
+                {hasStats && (
+                  <span style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8' }}>
+                    {entry.wins}W · {entry.losses}L · {diffStr}
+                  </span>
+                )}
+                <div style={{ width: '100%', height: barH[i], borderRadius: '4px 4px 0 0', background: barBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: 800 }}>
+                  {positions[i]}
+                </div>
               </div>
             );
           })}
@@ -180,7 +212,7 @@ function FilterControls({ enabledModes, onToggleMode, hideFull, onToggleHideFull
   );
 }
 
-function ClubSection({ clubId, clubInfo, upcoming, finished, hasAnyTournaments, isOwned, onCreateTournament, onSelectTournament, onDelete, idToSlug }) {
+function ClubSection({ clubId, clubInfo, upcoming, finished, hasAnyTournaments, isOwned, onCreateTournament, onSelectTournament, onDelete, onManageMembers, idToSlug }) {
   function handleCardClick(t) {
     const slug = idToSlug[t.id] || t.id;
     history.pushState({ clubId, tournamentId: t.id }, '', `#${clubId}/${slug}`);
@@ -197,6 +229,11 @@ function ClubSection({ clubId, clubInfo, upcoming, finished, hasAnyTournaments, 
         <div style={{ fontSize: 18, fontWeight: 900, color: '#0f4c75', letterSpacing: '-0.3px', flex: 1 }}>
           {clubInfo?.name ?? clubId}
         </div>
+        {isOwned && (
+          <button onClick={onManageMembers} style={{ fontSize: 13, padding: '6px 16px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: 'rgba(15,76,117,0.08)', color: '#0f4c75', border: '1px solid rgba(15,76,117,0.2)' }}>
+            Club members
+          </button>
+        )}
         {isOwned && (
           <button onClick={onCreateTournament} style={{ fontSize: 13, padding: '6px 16px', borderRadius: 10, fontWeight: 700, cursor: 'pointer', background: 'linear-gradient(90deg,#0f4c75,#1a6fa8)', color: '#fff', border: 'none', boxShadow: '0 2px 6px rgba(15,76,117,0.3)' }}>
             + New Tournament
@@ -298,12 +335,24 @@ function NewClubForm({ onCreateClub }) {
 export default function LandingPage({ onSelectTournament, onCreateTournament, user, onSignIn, onSignOut, ownedClubIds = [], onCreateClub }) {
   const { clubs, loading, error, refresh, deleteTournament } = useAllClubs();
 
-  // Per-club visibility toggle. Default: all visible.
-  const [hiddenClubs, setHiddenClubs] = useState(new Set());
+  // Per-club visibility toggle. Default: all visible. Persisted in localStorage.
+  const [hiddenClubs, setHiddenClubs] = useState(() => new Set(readStoredJSON(LS_KEYS.hiddenClubs, [])));
+
+  // Club whose members panel is open, if any.
+  const [membersClubId, setMembersClubId] = useState(null);
 
   // Global filters. Default: all tournament types shown, full tournaments shown.
-  const [enabledModes, setEnabledModes] = useState(new Set(TOURNAMENT_MODES));
-  const [hideFull, setHideFull] = useState(false);
+  // Persisted in localStorage.
+  const [enabledModes, setEnabledModes] = useState(() => {
+    const stored = readStoredJSON(LS_KEYS.enabledModes, null);
+    return new Set(Array.isArray(stored) ? stored.filter(m => TOURNAMENT_MODES.includes(m)) : TOURNAMENT_MODES);
+  });
+  const [hideFull, setHideFull] = useState(() => readStoredJSON(LS_KEYS.hideFull, false));
+
+  // Persist filter changes for next session.
+  useEffect(() => { writeStoredJSON(LS_KEYS.hiddenClubs, [...hiddenClubs]); }, [hiddenClubs]);
+  useEffect(() => { writeStoredJSON(LS_KEYS.enabledModes, [...enabledModes]); }, [enabledModes]);
+  useEffect(() => { writeStoredJSON(LS_KEYS.hideFull, hideFull); }, [hideFull]);
 
   // Refresh whenever the landing page mounts (e.g. after creating a tournament)
   useEffect(() => { refresh(); }, []);
@@ -447,6 +496,7 @@ export default function LandingPage({ onSelectTournament, onCreateTournament, us
                     onCreateTournament={() => onCreateTournament(clubId)}
                     onSelectTournament={onSelectTournament}
                     onDelete={ownedClubIds.includes(clubId) ? (tid) => deleteTournament(clubId, tid) : null}
+                    onManageMembers={() => setMembersClubId(clubId)}
                     idToSlug={slugMaps[clubId]?.idToSlug ?? {}}
                   />
                 );
@@ -455,6 +505,10 @@ export default function LandingPage({ onSelectTournament, onCreateTournament, us
           </>
         )}
       </div>
+
+      {membersClubId && (
+        <ClubMembersPanel clubId={membersClubId} onClose={() => setMembersClubId(null)} />
+      )}
     </div>
   );
 }

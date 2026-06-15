@@ -16,7 +16,6 @@ import EditDoublesRRGameModal from './EditDoublesRRGameModal';
 import EditActiveCourtModal from './EditActiveCourtModal';
 import ExportDUPRModal from './ExportDUPRModal';
 import TournamentSettingsModal from './TournamentSettingsModal';
-import ClubMembersPanel from '../components/ClubMembersPanel';
 
 // Renders whichever modal `modal.open` selects, plus the PIN-purpose title/check
 // derivation. All actions are passed in as handlers — no business logic lives here.
@@ -36,7 +35,6 @@ export default function ModalRoot({
   standingsTiebreakOrder, onStandingsTiebreakOrderChange,
   tournamentLocation, tournamentStartTime, tournamentDurationMins, maxPlayers, onTournamentInfoSave,
   teamNameDisplay, onTeamNameDisplayChange,
-  clubId,
   // handlers
   onTogglePause, onManageTeamsSave, onManageTPTTeamsSave, onManageCourtsSave,
   onManageDoublesRRPlayersSave,
@@ -108,12 +106,8 @@ export default function ModalRoot({
           onManageTeamsSave={onManageTeamsSave} onManageTPTTeamsSave={onManageTPTTeamsSave}
           onManageDoublesRRPlayersSave={onManageDoublesRRPlayersSave} onManageCourtsSave={onManageCourtsSave}
           onReset={() => { closeModal(); openModal('pin', { purpose: 'reset' }); }}
-          onManageMembers={clubId ? () => { closeModal(); openModal('clubMembers'); } : null}
           onClose={closeModal}
         />
-      )}
-      {modal.open === 'clubMembers' && clubId && (
-        <ClubMembersPanel clubId={clubId} onClose={closeModal} />
       )}
       {modal.open === 'break' && <BreakModal onStart={onBreakStart} onClose={closeModal} />}
       {modal.open === 'timerSettings' && <TimerSettingsModal currentMins={timerDefaultMins} onSave={onTimerSettingsSave} onClose={closeModal} />}
@@ -137,8 +131,16 @@ export default function ModalRoot({
         if (!teamA || !teamB) return null;
         const def = getTPTGamesForMatchup(teamA, teamB)[gi];
         const pName = id => tptPlayers[id]?.name ?? '?';
-        const sideALabel = (def?.sideA || []).filter(Boolean).map(pName).join(' & ');
-        const sideBLabel = (def?.sideB || []).filter(Boolean).map(pName).join(' & ');
+        const subs = tptSubstitutions[`${ri}_${mi}_${gi}`] || {};
+        const sideLabel = pids => (pids || []).filter(Boolean).map((pid, idx) => {
+          const subPid = subs[pid];
+          const el = subPid
+            ? <span key={idx} style={{ fontStyle: 'italic' }} title={`Sub for ${pName(pid)}`}>{pName(subPid)}</span>
+            : <span key={idx}>{pName(pid)}</span>;
+          return idx === 0 ? el : <span key={`sep-${idx}`}>{' & '}{el}</span>;
+        });
+        const sideALabel = sideLabel(def?.sideA);
+        const sideBLabel = sideLabel(def?.sideB);
         const gameLabel = `Round ${h.roundNum} · ${gi === 0 ? 'Males' : gi === 1 ? 'Mixed #1' : 'Mixed #2'}`;
         return (
           <EditTPTGameModal

@@ -74,6 +74,7 @@ export const tournamentPinsRef = (roleKeyPlural) => ref(db, activePaths().config
 export async function addTournamentPin(roleKeyPlural, { hash, label }) {
   const r = push(tournamentPinsRef(roleKeyPlural));
   await set(r, { id: r.key, hash, label, createdAt: Date.now() });
+  return r.key;
 }
 
 export function revokeTournamentPin(roleKeyPlural, pinId) {
