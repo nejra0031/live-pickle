@@ -106,7 +106,9 @@ export default function BetweenRounds({
             {roundNum === 0 ? 'Waiting for Round 1…' : 'Waiting for next round…'}
           </p>
           <p className="text-slate-500" style={{ fontSize: 'clamp(11px,2.5vw,14px)', margin: 0 }}>
-            {roundNum === 0 ? 'The organizer will start the tournament shortly.' : 'The organizer is setting up the next round.'}
+            {notEnoughTeams
+              ? 'Waiting for the organizer to add teams in Tournament Settings.'
+              : roundNum === 0 ? 'The organizer will start the tournament shortly.' : 'The organizer is setting up the next round.'}
           </p>
         </div>
       )}
