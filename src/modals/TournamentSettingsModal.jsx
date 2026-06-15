@@ -118,6 +118,7 @@ export default function TournamentSettingsModal({
   activeTeamIds, tournamentTeams, pausedIds, onTogglePause, teamNameDisplay, onTeamNameDisplayChange,
   tptTeams, tptPlayers,
   doublesRRPlayers,
+  history,
   courtNumbers, socialCourts, roundRobinCourts,
   onSaveInfo, onManageTeamsSave, onManageTPTTeamsSave, onManageDoublesRRPlayersSave, onManageCourtsSave,
   onReset,
@@ -144,11 +145,11 @@ export default function TournamentSettingsModal({
 
   // Teams state — swiss / rr
   const teamById = useTeamById();
-  const emptyPair = () => [{ name: '', duprId: '', nickname: '' }, { name: '', duprId: '', nickname: '' }];
+  const emptyPair = () => [{ name: '', duprId: '', nickname: '', hadName: false }, { name: '', duprId: '', nickname: '', hadName: false }];
   const [localTeams, setLocalTeams] = useState(() =>
     (activeTeamIds || []).map(id => {
       const t = teamById(id);
-      const players = t?.players?.length === 2 ? t.players.map(p => ({ name: p.name || '', duprId: p.duprId || '', nickname: p.nickname || '' })) : emptyPair();
+      const players = t?.players?.length === 2 ? t.players.map(p => ({ name: p.name || '', duprId: p.duprId || '', nickname: p.nickname || '', hadName: !!(p.name || '').trim() })) : emptyPair();
       return { id, name: t?.name ?? id, color: t?.color ?? '#475569', text: t?.text ?? '#fff', players };
     })
   );
@@ -161,7 +162,7 @@ export default function TournamentSettingsModal({
     tptTeams ? Object.values(tptTeams).map(t => ({ ...t })) : []
   );
   const [localTPTPlayers, setLocalTPTPlayers] = useState(() =>
-    tptPlayers ? Object.fromEntries(Object.entries(tptPlayers).map(([id, p]) => [id, { duprId: '', nickname: '', ...p }])) : {}
+    tptPlayers ? Object.fromEntries(Object.entries(tptPlayers).map(([id, p]) => [id, { duprId: '', nickname: '', ...p, hadName: !!(p.name || '').trim() }])) : {}
   );
   const [addTPTId, setAddTPTId] = useState('');
 
@@ -179,6 +180,7 @@ export default function TournamentSettingsModal({
   const [resetConfirm, setResetConfirm] = useState(false);
 
   // Derived
+  const playedTeamIds = new Set((history || []).flatMap(r => (r.games || []).flatMap(g => [g.winnerId, g.loserId])));
   const usedIds = new Set(localTeams.map(t => t.id));
   const available = ALL_TEAMS.filter(t => !usedIds.has(t.id));
   const addedPlayerKeys = new Set(localTeams.flatMap(t => t.players.map(p => p.name)).map(playerKey).filter(Boolean));
@@ -196,7 +198,10 @@ export default function TournamentSettingsModal({
       if (tournamentMode === 'tpt' && onManageTPTTeamsSave) {
         const newTeams = Object.fromEntries(localTPTTeams.map(t => [t.id, { ...t, name: t.name.trim() || t.id }]));
         const newPlayers = Object.fromEntries(
-          Object.entries(localTPTPlayers).map(([id, p]) => [id, { ...p, name: p.name.trim() || id, duprId: (p.duprId || '').trim(), nickname: (p.nickname || '').trim() }])
+          Object.entries(localTPTPlayers).map(([id, p]) => {
+            const { hadName, ...rest } = p;
+            return [id, { ...rest, name: rest.name.trim() || id, duprId: (rest.duprId || '').trim(), nickname: (rest.nickname || '').trim() }];
+          })
         );
         Object.values(newPlayers).forEach(p => saveKnownPlayer(p.name, p.duprId, p.nickname));
         onManageTPTTeamsSave(newTeams, newPlayers);
@@ -342,14 +347,20 @@ export default function TournamentSettingsModal({
                             style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0, background: filled > 0 ? 'rgba(99,102,241,0.18)' : 'rgba(255,255,255,0.06)', color: filled > 0 ? '#a5b4fc' : '#94a3b8', border: '1px solid rgba(99,102,241,0.25)' }}>
                             {expandedPlayerId === t.id ? '▲' : '▼'} 👤{filled > 0 ? ` ${filled}/2` : ''}
                           </button>
-                          <button onClick={() => setLocalTeams(p => p.filter(x => x.id !== t.id))} disabled={localTeams.length <= 2}
-                            style={{ padding: '3px 7px', borderRadius: 6, fontSize: 12, fontWeight: 700, flexShrink: 0, cursor: localTeams.length <= 2 ? 'not-allowed' : 'pointer', background: 'rgba(220,38,38,0.12)', color: localTeams.length <= 2 ? '#475569' : '#f87171', border: '1px solid rgba(220,38,38,0.25)' }}>×</button>
+                          {(() => {
+                            const removeDisabled = localTeams.length <= 2 && playedTeamIds.has(t.id);
+                            return (
+                              <button onClick={() => setLocalTeams(p => p.filter(x => x.id !== t.id))} disabled={removeDisabled}
+                                title={removeDisabled ? 'Cannot remove: below 2 teams and this team has already played a game' : undefined}
+                                style={{ padding: '3px 7px', borderRadius: 6, fontSize: 12, fontWeight: 700, flexShrink: 0, cursor: removeDisabled ? 'not-allowed' : 'pointer', background: 'rgba(220,38,38,0.12)', color: removeDisabled ? '#475569' : '#f87171', border: '1px solid rgba(220,38,38,0.25)' }}>×</button>
+                            );
+                          })()}
                         </div>
                         {expandedPlayerId === t.id && (
                           <div className="rounded-lg p-2 flex flex-col gap-2" style={{ marginLeft: 20, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                             <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Players</p>
                             {t.players.map((pl, slot) => (
-                              pl.name.trim() ? (
+                              pl.hadName ? (
                                 <NicknameField key={slot} name={pl.name} nickname={pl.nickname || ''}
                                   onChange={nickname => setLocalTeams(p => p.map(x => {
                                     if (x.id !== t.id) return x;
@@ -427,7 +438,7 @@ export default function TournamentSettingsModal({
                             {p.gender === 'female' ? '♀' : '♂'}
                           </span>
                           <div style={{ flex: 1 }}>
-                            {p.name.trim() ? (
+                            {p.hadName ? (
                               <NicknameField name={p.name} nickname={p.nickname || ''}
                                 onChange={nickname => setLocalTPTPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], nickname } }))} />
                             ) : (
@@ -456,9 +467,9 @@ export default function TournamentSettingsModal({
                       const m1 = uid(), m2 = uid(), f = uid();
                       setLocalTPTTeams(p => [...p, { id: base.id, name: base.name, color: base.color, text: base.text, maleIds: [m1, m2], femaleId: f }]);
                       setLocalTPTPlayers(p => ({ ...p,
-                        [m1]: { id: m1, name: '', duprId: '', nickname: '', gender: 'male' },
-                        [m2]: { id: m2, name: '', duprId: '', nickname: '', gender: 'male' },
-                        [f]: { id: f, name: '', duprId: '', nickname: '', gender: 'female' },
+                        [m1]: { id: m1, name: '', duprId: '', nickname: '', gender: 'male', hadName: false },
+                        [m2]: { id: m2, name: '', duprId: '', nickname: '', gender: 'male', hadName: false },
+                        [f]: { id: f, name: '', duprId: '', nickname: '', gender: 'female', hadName: false },
                       }));
                       setAddTPTId('');
                     }} disabled={!addTPTId}

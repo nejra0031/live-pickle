@@ -102,6 +102,7 @@ export default function ModalRoot({
           onTogglePause={onTogglePause} teamNameDisplay={teamNameDisplay} onTeamNameDisplayChange={onTeamNameDisplayChange}
           tptTeams={tptTeams} tptPlayers={tptPlayers}
           doublesRRPlayers={doublesRRPlayers}
+          history={history}
           courtNumbers={courtNumbers} socialCourts={socialCourts} roundRobinCourts={roundRobinCourts}
           onSaveInfo={onTournamentInfoSave}
           onManageTeamsSave={onManageTeamsSave} onManageTPTTeamsSave={onManageTPTTeamsSave}
