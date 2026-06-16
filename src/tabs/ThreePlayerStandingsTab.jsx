@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { buildTPTStandings, formatTPTTeamLabel } from '../algorithms/threePlayerTeam';
 import { TeamRegistryContext } from '../context/TeamRegistryContext';
+import { playerDisplayName } from '../utils/nameDisplay';
 import { ORDINAL } from '../constants';
 
 export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder, tptSubstitutions = {}, tournamentFinished = false }) {
@@ -76,7 +77,7 @@ export default function ThreePlayerStandingsTab({ tptTeams, tptPlayers, tptSched
                 <div style={{ background: partBg, borderTop: '1px solid rgba(0,0,0,0.05)', padding: `clamp(4px,1vw,6px) ${pad} clamp(8px,2vw,12px)` }}>
                   {partnerships.map((p, pi) => {
                     const pd = p.scoreDiff;
-                    const names = p.playerIds.map(id => { const pl = tptPlayers[id]; return pl ? (pl.nickname || pl.name) : id; }).join(' & ');
+                    const names = p.playerIds.map(id => { const pl = tptPlayers[id]; return pl ? playerDisplayName(pl) : id; }).join(' & ');
                     const icon = p.type === 'males' ? '♂♂' : '♂♀';
                     const iconColor = p.type === 'males' ? '#1d4ed8' : '#7c3aed';
                     return (

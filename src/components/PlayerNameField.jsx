@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import useDebounce from '../hooks/useDebounce';
 
+const fieldLabelStyle = { fontSize: 10, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 2px' };
+
 // Player name inputs with autocomplete from a cross-tournament known-players registry.
 //
 // Two modes depending on whether a `nickname` prop is supplied:
@@ -98,39 +100,45 @@ export default function PlayerNameField({
     return (
       <div ref={wrapRef} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {/* Primary: display name (nickname) */}
-        <div style={{ position: 'relative' }}>
-          <input
-            value={nickname}
-            placeholder="Name"
-            onChange={e => {
-              const val = e.target.value;
-              // New players have no DUPR-sourced legal name yet — keep `name` and
-              // `nickname` in sync until a future DUPR lookup diverges them.
-              emit((!name || name === nickname) ? { name: val, nickname: val } : { nickname: val });
-              searchName(val); setNameOpen(true);
-            }}
-            onFocus={() => setNameOpen(true)}
-            style={inputStyle}
-          />
-          {renderDropdown(nameOpen, nameSuggestions)}
+        <div>
+          <p style={fieldLabelStyle}>Nickname</p>
+          <div style={{ position: 'relative' }}>
+            <input
+              value={nickname}
+              placeholder="Name"
+              onChange={e => {
+                emit({ nickname: e.target.value });
+                searchName(e.target.value); setNameOpen(true);
+              }}
+              onFocus={() => setNameOpen(true)}
+              style={inputStyle}
+            />
+            {renderDropdown(nameOpen, nameSuggestions)}
+          </div>
         </div>
         {showFullName && (
-          <input
-            value={name}
-            placeholder="Full name"
-            onChange={e => emit({ name: e.target.value })}
-            style={{ padding: '4px 8px', borderRadius: 6, fontSize: 11, fontStyle: 'italic', fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', outline: 'none' }}
-          />
+          <div>
+            <p style={fieldLabelStyle}>Full name (DUPR)</p>
+            <input
+              value={name}
+              placeholder="Full name"
+              onChange={e => emit({ name: e.target.value })}
+              style={{ padding: '4px 8px', borderRadius: 6, fontSize: 11, fontStyle: 'italic', fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', outline: 'none', width: '100%' }}
+            />
+          </div>
         )}
-        <div style={{ position: 'relative' }}>
-          <input
-            value={duprId}
-            placeholder="DUPR ID"
-            onChange={e => { emit({ duprId: e.target.value }); searchDupr(e.target.value); setDuprOpen(true); }}
-            onFocus={() => setDuprOpen(true)}
-            style={duprIdStyle}
-          />
-          {renderDropdown(duprOpen, duprSuggestions)}
+        <div>
+          <p style={fieldLabelStyle}>DUPR ID</p>
+          <div style={{ position: 'relative' }}>
+            <input
+              value={duprId}
+              placeholder="DUPR ID"
+              onChange={e => { emit({ duprId: e.target.value }); searchDupr(e.target.value); setDuprOpen(true); }}
+              onFocus={() => setDuprOpen(true)}
+              style={duprIdStyle}
+            />
+            {renderDropdown(duprOpen, duprSuggestions)}
+          </div>
         </div>
       </div>
     );

@@ -1,5 +1,6 @@
 import { generateRoundRobinSchedule } from './roundRobin';
 import { pairKey, greedyAdjacentSwapPair } from './pairingUtils';
+import { playerDisplayName } from '../utils/nameDisplay';
 
 // Score how good a candidate set of court oppositions is — lower is better.
 // Mirrors scoreCourtPairings in pairing.js, but counts INDIVIDUAL opponent-pair
@@ -202,7 +203,7 @@ const SIDE_FALLBACK_TEXT = '#ffffff';
 export function formatPlayerName(player, mode) {
   if (!player) return '';
   if (mode === 'both') return player.nickname ? `${player.nickname} (${player.name})` : player.name;
-  return player.nickname || player.name;
+  return playerDisplayName(player);
 }
 
 // Builds the chip-display data for a Doubles RR "side" (a synthetic, rotating

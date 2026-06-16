@@ -1,16 +1,17 @@
 import { useState } from 'react';
+import { playerDisplayName } from '../utils/nameDisplay';
 
 // Lets an admin/referee record that a different player actually played one of
 // the 4 roster slots in a TPT game (e.g. two players swapped courts mid-round).
 // Team-level results and rosters are untouched — only player/partnership credit
 // is remapped via the returned subsMap.
 export default function EditTPTSubsModal({ gameLabel, teamA, teamB, gameDef, tptPlayers, currentSubs = {}, onSave, onClose }) {
-  const pName = id => { const p = tptPlayers[id]; return p ? (p.nickname || p.name) : '?'; };
+  const pName = id => { const p = tptPlayers[id]; return p ? playerDisplayName(p) : '?'; };
 
   const [subs, setSubs] = useState(() => ({ ...currentSubs }));
 
   const sortedPlayers = Object.entries(tptPlayers)
-    .map(([id, p]) => ({ id, label: p.nickname || p.name }))
+    .map(([id, p]) => ({ id, label: playerDisplayName(p) }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   const row = (pid) => (

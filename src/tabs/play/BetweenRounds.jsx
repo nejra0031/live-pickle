@@ -1,4 +1,4 @@
-import { useTeamById } from '../../context/TeamRegistryContext';
+import { useTeamById, useTeamLabel } from '../../context/TeamRegistryContext';
 import { ROLE_MAP, hasPermission } from '../../roleConfig';
 import BreakBanner from './BreakBanner';
 import SocialCourts from './SocialCourts';
@@ -12,6 +12,7 @@ export default function BetweenRounds({
   onFinishTournament, onTournamentSettings,
 }) {
   const teamById = useTeamById();
+  const teamLabel = useTeamLabel();
   const nextRN     = roundNum === 0 ? 1 : roundNum + 1;
   const isAutoFinal = targetRounds > 0 && nextRN === targetRounds && !finalRound;
   const notEnoughTeams = roundNum === 0 && (activeTeamIds?.length ?? 0) < 2;
@@ -59,9 +60,9 @@ export default function BetweenRounds({
                   return (
                     <div key={pi} className="flex items-center" style={{ gap: 'clamp(4px,1vw,8px)', fontSize: 'clamp(11px,2.5vw,13px)' }}>
                       <span style={{ color: '#94a3b8', minWidth: 50 }}>Court {p.courtNumber}</span>
-                      <span style={{ color: t1?.color, fontWeight: 700 }}>{t1?.name}</span>
+                      <span style={{ color: t1?.color, fontWeight: 700 }}>{t1 ? teamLabel(p.teamId1) : ''}</span>
                       <span style={{ color: '#cbd5e1' }}>vs</span>
-                      <span style={{ color: t2?.color, fontWeight: 700 }}>{t2?.name}</span>
+                      <span style={{ color: t2?.color, fontWeight: 700 }}>{t2 ? teamLabel(p.teamId2) : ''}</span>
                     </div>
                   );
                 })}

@@ -1,9 +1,10 @@
 import React, { createContext, useContext } from 'react';
 import { ALL_TEAMS } from '../constants';
+import { playerDisplayName } from '../utils/nameDisplay';
 
 export const TeamRegistryContext = createContext({ registry: [], teamNameDisplay: 'name' });
 
-export function useRegistry() {
+function useRegistry() {
   return useContext(TeamRegistryContext).registry;
 }
 
@@ -13,9 +14,9 @@ export function useTeamById() {
   return (id) => registry.find(t => t.id === id) || ALL_TEAMS.find(t => t.id === id);
 }
 
-export function formatTeamLabel(team, mode) {
+function formatTeamLabel(team, mode) {
   if (!team) return '';
-  const playerNames = (team.players || []).map(p => p?.nickname || p?.name).filter(Boolean).join(' / ');
+  const playerNames = (team.players || []).map(playerDisplayName).filter(Boolean).join(' & ');
   if (mode === 'players') return playerNames || team.name;
   if (mode === 'both') return playerNames ? `${team.name} (${playerNames})` : team.name;
   return team.name;

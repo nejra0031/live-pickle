@@ -1,6 +1,10 @@
 import { ROLES, hasPermission } from '../roleConfig';
 import { courtKey } from '../constants';
 import { getTPTGamesForMatchup } from '../algorithms/threePlayerTeam';
+import { buildSidePresentation } from '../algorithms/doublesRR';
+import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
+import { playerDisplayName } from '../utils/nameDisplay';
+import { toArr } from '../normalise';
 import PinModal from './PinModal';
 import ConfirmModal from './ConfirmModal';
 import BreakModal from './BreakModal';
@@ -10,9 +14,7 @@ import GenerateAdditionalGamesModal from './GenerateAdditionalGamesModal';
 import AddGameModal from './AddGameModal';
 import PresetMatchModal from './PresetMatchModal';
 import EditGameModal from './EditGameModal';
-import EditTPTGameModal from './EditTPTGameModal';
 import EditTPTSubsModal from './EditTPTSubsModal';
-import EditDoublesRRGameModal from './EditDoublesRRGameModal';
 import EditActiveCourtModal from './EditActiveCourtModal';
 import ExportDUPRModal from './ExportDUPRModal';
 import TournamentSettingsModal from './TournamentSettingsModal';
@@ -41,6 +43,9 @@ export default function ModalRoot({
   onStartRoundRobin, onChooseGenerateAdditionalGames, addGameData, onAddGameSave, onAddPreset, onAddLiveGame,
   onEditSave, onEditActiveCourt, onEditLiveAddition, onEditTPTSave, onEditDoublesRRSave, onSetTPTSubstitution,
 }) {
+  const teamById = useTeamById();
+  const teamLabel = useTeamLabel();
+
   const pinPurpose = modal.open === 'pin' ? modal.data?.purpose : null;
   const pinTitle = pinPurpose === 'login' ? 'Login'
     : pinPurpose === 'reset' ? 'PIN required to reset'
@@ -121,7 +126,40 @@ export default function ModalRoot({
       {modal.open === 'addGame' && addGameData && <AddGameModal allTeamIds={activeTeamIds} defaultCourt={addGameData.defaultCourt} courtNumbers={courtNumbers} usedCourtNumbers={addGameData.usedCourts} usedTeamIds={addGameData.usedTeams} label={addGameData.label} onSave={g => onAddGameSave(addGameData.target, g)} onClose={closeModal} />}
       {modal.open === 'presetMatch' && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={nextRoundPresets.flatMap(p => [p.teamId1, p.teamId2])} usedCourtNumbers={nextRoundPresets.map(p => String(p.courtNumber))} onSave={onAddPreset} onClose={closeModal} />}
       {modal.open === 'liveAddGame' && <PresetMatchModal allTeamIds={activeTeamIds} courtNumbers={courtNumbers} usedTeamIds={[...(round?.courts.flatMap(p => p.map(t => t.id)) || []), ...liveAdditions.flatMap(la => [la.teamId1, la.teamId2])]} usedCourtNumbers={[...(round?.courts.map((_, i) => String(courtNumbers[i] ?? i + 1)) || []), ...liveAdditions.map(la => String(la.courtNumber))]} onSave={onAddLiveGame} onClose={closeModal} />}
-      {editGameTarget && history[editGameTarget.ri] && <EditGameModal game={history[editGameTarget.ri].games[editGameTarget.gameIdx]} roundEntry={history[editGameTarget.ri]} allTeamIds={activeTeamIds} label={`Round ${history[editGameTarget.ri].roundNum} · Court ${history[editGameTarget.ri].games[editGameTarget.gameIdx].courtNumber}`} scoreOnly={hasPermission(role, 'canEditHistoryScores') && !hasPermission(role, 'canFullEditHistory')} onSave={d => onEditSave(editGameTarget.ri, editGameTarget.gameIdx, d)} onClose={closeModal} />}
+      {editGameTarget && history[editGameTarget.ri] && (() => {
+        const roundEntry = history[editGameTarget.ri];
+        const game = roundEntry.games[editGameTarget.gameIdx];
+        const scoreOnly = hasPermission(role, 'canEditHistoryScores') && !hasPermission(role, 'canFullEditHistory');
+        const teamA = teamById(game.winnerId), teamB = teamById(game.loserId);
+        const sideA = { id: game.winnerId, label: teamLabel(game.winnerId), color: teamA?.color, text: teamA?.text };
+        const sideB = { id: game.loserId, label: teamLabel(game.loserId), color: teamB?.color, text: teamB?.text };
+        // Teams already playing this round in OTHER games — locked when recomputing the bye list.
+        const lockedIds = new Set(
+          roundEntry.games.flatMap(g => [g.winnerId, g.loserId])
+            .filter(id => id !== game.winnerId && id !== game.loserId)
+        );
+        return (
+          <EditGameModal
+            label={`Round ${roundEntry.roundNum} · Court ${game.courtNumber}`}
+            sideA={sideA} sideB={sideB}
+            scoreA0={game.winnerScore} scoreB0={game.loserScore}
+            courtNum0={scoreOnly ? undefined : String(game.courtNumber ?? '')}
+            teamPicker={scoreOnly ? undefined : { allTeamIds: activeTeamIds, getTeam: teamById, formatLabel: teamLabel }}
+            onSave={d => {
+              const teamAId = d.teamAId ?? sideA.id, teamBId = d.teamBId ?? sideB.id;
+              const winnerId = d.aWins ? teamAId : teamBId, loserId = d.aWins ? teamBId : teamAId;
+              const playingAfter = new Set([...lockedIds, teamAId, teamBId]);
+              const pausedInRound = new Set(toArr(roundEntry.paused || []));
+              const newBye = activeTeamIds.filter(id => !playingAfter.has(id) && !pausedInRound.has(id));
+              onEditSave(editGameTarget.ri, editGameTarget.gameIdx, {
+                game: { winnerId, loserId, winnerScore: Math.max(d.scoreA, d.scoreB), loserScore: Math.min(d.scoreA, d.scoreB), courtNumber: String(d.courtNum ?? game.courtNumber ?? '') },
+                newBye,
+              });
+            }}
+            onClose={closeModal}
+          />
+        );
+      })()}
       {editTPTGameTarget && (() => {
         const { ri, mi, gi } = editTPTGameTarget;
         const h = history[ri];
@@ -130,7 +168,7 @@ export default function ModalRoot({
         const teamB = matchup && tptTeams[matchup.teamBId];
         if (!teamA || !teamB) return null;
         const def = getTPTGamesForMatchup(teamA, teamB)[gi];
-        const pName = id => tptPlayers[id]?.name ?? '?';
+        const pName = id => playerDisplayName(tptPlayers[id]) || '?';
         const subs = tptSubstitutions[`${ri}_${mi}_${gi}`] || {};
         const sideLabel = pids => (pids || []).filter(Boolean).map((pid, idx) => {
           const subPid = subs[pid];
@@ -139,16 +177,23 @@ export default function ModalRoot({
             : <span key={idx}>{pName(pid)}</span>;
           return idx === 0 ? el : <span key={`sep-${idx}`}>{' & '}{el}</span>;
         });
-        const sideALabel = sideLabel(def?.sideA);
-        const sideBLabel = sideLabel(def?.sideB);
         const gameLabel = `Round ${h.roundNum} · ${gi === 0 ? 'Males' : gi === 1 ? 'Mixed #1' : 'Mixed #2'}`;
+        const currentResult = matchup.games?.[gi] || null;
+        const scoreA0 = currentResult ? (currentResult.winnerTeamId === matchup.teamAId ? currentResult.winnerScore : currentResult.loserScore) : '';
+        const scoreB0 = currentResult ? (currentResult.winnerTeamId === matchup.teamBId ? currentResult.winnerScore : currentResult.loserScore) : '';
+        const sideA = { id: matchup.teamAId, label: sideLabel(def?.sideA), color: teamA.color, text: teamA.text };
+        const sideB = { id: matchup.teamBId, label: sideLabel(def?.sideB), color: teamB.color, text: teamB.text };
         return (
-          <EditTPTGameModal
-            gameLabel={gameLabel}
-            sideALabel={sideALabel} sideBLabel={sideBLabel}
-            teamAId={matchup.teamAId} teamBId={matchup.teamBId}
-            currentResult={matchup.games?.[gi] || null}
-            onSave={result => onEditTPTSave(ri, mi, gi, result)}
+          <EditGameModal
+            label={gameLabel}
+            sideA={sideA} sideB={sideB}
+            scoreA0={scoreA0} scoreB0={scoreB0}
+            onSave={({ scoreA, scoreB, aWins }) => onEditTPTSave(ri, mi, gi, {
+              winnerTeamId: aWins ? matchup.teamAId : matchup.teamBId,
+              loserTeamId: aWins ? matchup.teamBId : matchup.teamAId,
+              winnerScore: Math.max(scoreA, scoreB),
+              loserScore: Math.min(scoreA, scoreB),
+            })}
             onClose={closeModal}
           />
         );
@@ -178,17 +223,26 @@ export default function ModalRoot({
         const h = history[ri];
         const court = h?.doublesRRCourts?.[ci];
         if (!court) return null;
-        const pName = id => doublesRRPlayers[id]?.name ?? '?';
-        const sideALabel = (court.teamA || []).map(pName).join(' & ');
-        const sideBLabel = (court.teamB || []).map(pName).join(' & ');
+        const presA = buildSidePresentation(court.teamA, doublesRRPlayers, teamNameDisplay);
+        const presB = buildSidePresentation(court.teamB, doublesRRPlayers, teamNameDisplay);
+        const sideA = { id: presA.id, label: presA.name, color: presA.color, text: presA.text };
+        const sideB = { id: presB.id, label: presB.name, color: presB.color, text: presB.text };
+        const currentResult = court.winnerIds ? court : null;
+        const aIsWinner = currentResult ? currentResult.winnerIds.join(',') === court.teamA.join(',') : null;
+        const scoreA0 = currentResult ? (aIsWinner ? currentResult.winnerScore : currentResult.loserScore) : '';
+        const scoreB0 = currentResult ? (aIsWinner ? currentResult.loserScore : currentResult.winnerScore) : '';
         const gameLabel = `Round ${h.roundNum} · Court ${ci + 1}`;
         return (
-          <EditDoublesRRGameModal
-            gameLabel={gameLabel}
-            sideALabel={sideALabel} sideBLabel={sideBLabel}
-            teamAIds={court.teamA} teamBIds={court.teamB}
-            currentResult={court.winnerIds ? court : null}
-            onSave={result => onEditDoublesRRSave(ri, ci, result)}
+          <EditGameModal
+            label={gameLabel}
+            sideA={sideA} sideB={sideB}
+            scoreA0={scoreA0} scoreB0={scoreB0}
+            onSave={({ scoreA, scoreB, aWins }) => onEditDoublesRRSave(ri, ci, {
+              winnerIds: aWins ? court.teamA : court.teamB,
+              loserIds: aWins ? court.teamB : court.teamA,
+              winnerScore: Math.max(scoreA, scoreB),
+              loserScore: Math.min(scoreA, scoreB),
+            })}
             onClose={closeModal}
           />
         );

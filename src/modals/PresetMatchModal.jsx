@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useTeamById } from '../context/TeamRegistryContext';
+import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 
 export default function PresetMatchModal({ allTeamIds, courtNumbers, usedTeamIds, usedCourtNumbers = [], onSave, onClose }) {
   const teamById = useTeamById();
+  const teamLabel = useTeamLabel();
   const [teamAId, setTeamAId] = useState('');
   const [teamBId, setTeamBId] = useState('');
   const usedSet = new Set(usedTeamIds);
@@ -20,7 +21,7 @@ export default function PresetMatchModal({ allTeamIds, courtNumbers, usedTeamIds
     return (
       <button key={id} onClick={disabled ? undefined : onClick} disabled={disabled}
         style={{ padding: '5px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.35 : 1, background: active ? t.color + 'bb' : 'rgba(255,255,255,0.05)', color: active ? t.text : '#64748b', border: `2px solid ${active ? t.color : 'rgba(255,255,255,0.1)'}` }}>
-        {t.name}
+        {teamLabel(id)}
       </button>
     );
   };

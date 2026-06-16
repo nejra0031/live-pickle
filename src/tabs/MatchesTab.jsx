@@ -3,6 +3,7 @@ import { useTeamById, useTeamLabel, TeamRegistryContext } from '../context/TeamR
 import { rerank, rebuildStandings } from '../algorithms/standings';
 import { getTPTGamesForMatchup, formatTPTTeamLabel } from '../algorithms/threePlayerTeam';
 import { buildSidePresentation } from '../algorithms/doublesRR';
+import { playerDisplayName } from '../utils/nameDisplay';
 
 export default function MatchesTab({
   history, activeTeamIds, cancelledRoundNums,
@@ -259,7 +260,7 @@ export default function MatchesTab({
           if (mode === 'tpt') {
             const round = entry.round;
             const byeTeam = round.byeTeamId ? tptTeams[round.byeTeamId] : null;
-            const pName = id => { const p = tptPlayers[id]; return p ? (p.nickname || p.name) : '?'; };
+            const pName = id => { const p = tptPlayers[id]; return p ? playerDisplayName(p) : '?'; };
             const sideLabel = pids => pids.filter(Boolean).map(pName).join(' & ');
             return wrap(<>
               {round.matchups.map((matchup, mi) => {
@@ -343,7 +344,7 @@ export default function MatchesTab({
                   const teamB = tptTeams[matchup.teamBId];
                   if (!teamA || !teamB) return null;
                   const gameDefs = getTPTGamesForMatchup(teamA, teamB);
-                  const pName = id => { const p = tptPlayers[id]; return p ? (p.nickname || p.name) : '?'; };
+                  const pName = id => { const p = tptPlayers[id]; return p ? playerDisplayName(p) : '?'; };
                   const sideLabel = (pids, subs = {}) => (
                     <span>
                       {pids.filter(Boolean).map((pid, idx) => {

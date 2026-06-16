@@ -8,9 +8,10 @@ import TournamentCompleteBlock from './TournamentCompleteBlock';
 import { scheduleProgress } from './scheduleProgress';
 import { getTPTGamesForMatchup, formatTPTTeamLabel } from '../../algorithms/threePlayerTeam';
 import { TeamRegistryContext } from '../../context/TeamRegistryContext';
+import { playerDisplayName } from '../../utils/nameDisplay';
 
 function sideLabel(playerIds, players) {
-  return playerIds.map(pid => { const p = players[pid]; return p ? (p.nickname || p.name) : '?'; }).join(' & ');
+  return playerIds.map(pid => { const p = players[pid]; return p ? playerDisplayName(p) : '?'; }).join(' & ');
 }
 
 

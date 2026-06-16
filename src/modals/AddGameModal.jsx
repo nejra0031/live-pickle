@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useTeamById } from '../context/TeamRegistryContext';
+import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 import NumInput from '../components/NumInput';
 
 export default function AddGameModal({ allTeamIds, defaultCourt, label, courtNumbers = [], usedCourtNumbers = [], usedTeamIds = [], onSave, onClose }) {
   const teamById = useTeamById();
+  const teamLabel = useTeamLabel();
   const [teamAId, setTeamAId] = useState('');
   const [teamBId, setTeamBId] = useState('');
   const [scoreA, setScoreA] = useState('');
@@ -33,7 +34,7 @@ export default function AddGameModal({ allTeamIds, defaultCourt, label, courtNum
     return (
       <button key={id} onClick={inUse ? undefined : onClick} disabled={inUse}
         style={{ padding: '5px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: inUse ? 'not-allowed' : 'pointer', opacity: inUse ? 0.35 : 1, background: active ? t.color + 'bb' : 'rgba(255,255,255,0.05)', color: active ? t.text : '#64748b', border: `2px solid ${active ? t.color : 'rgba(255,255,255,0.1)'}` }}>
-        {t.name}
+        {teamLabel(id)}
       </button>
     );
   };
@@ -61,7 +62,7 @@ export default function AddGameModal({ allTeamIds, defaultCourt, label, courtNum
             <div className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2.5"
               style={{ background: teamA ? `${teamA.color}22` : 'rgba(255,255,255,0.04)', border: `1.5px solid ${teamA ? teamA.color : 'rgba(255,255,255,0.1)'}` }}>
               {teamA && <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: teamA.color }} />}
-              <span className="font-bold text-sm flex-1">{teamA?.name || '—'}</span>
+              <span className="font-bold text-sm flex-1">{teamAId ? teamLabel(teamAId) : '—'}</span>
             </div>
             <NumInput value={scoreA} onChange={setScoreA} />
           </div>
@@ -78,7 +79,7 @@ export default function AddGameModal({ allTeamIds, defaultCourt, label, courtNum
             <div className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2.5"
               style={{ background: teamB ? `${teamB.color}22` : 'rgba(255,255,255,0.04)', border: `1.5px solid ${teamB ? teamB.color : 'rgba(255,255,255,0.1)'}` }}>
               {teamB && <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: teamB.color }} />}
-              <span className="font-bold text-sm flex-1">{teamB?.name || '—'}</span>
+              <span className="font-bold text-sm flex-1">{teamBId ? teamLabel(teamBId) : '—'}</span>
             </div>
             <NumInput value={scoreB} onChange={setScoreB} />
           </div>
@@ -99,7 +100,7 @@ export default function AddGameModal({ allTeamIds, defaultCourt, label, courtNum
           {courtInUse && <p className="text-xs text-amber-400 mt-1">Court {courtNumber} is already in use — pick another.</p>}
         </div>
 
-        {valid && winnerId && <p className="text-xs text-green-400 text-center">→ {teamById(winnerId)?.name} wins {winnerScore}–{loserScore}</p>}
+        {valid && winnerId && <p className="text-xs text-green-400 text-center">→ {teamLabel(winnerId)} wins {winnerScore}–{loserScore}</p>}
         {!scoresValid && scoreA !== '' && scoreB !== '' && <p className="text-xs text-amber-400 text-center">Scores can't be equal.</p>}
         {!teamsValid && teamAId && teamBId && <p className="text-xs text-amber-400 text-center">Teams must be different.</p>}
 

@@ -1,10 +1,18 @@
 const TEST_PIN = 'test1234';
+const TEST_REFEREE_PIN = 'ref56789';
 
 async function loginAsAdmin(page) {
   await page.click('button:has-text("Login")');
   await page.fill('input[type="password"]', TEST_PIN);
   await page.click('button:has-text("Unlock")');
   await page.waitForSelector('button:has-text("Admin")', { timeout: 5000 });
+}
+
+async function loginAsReferee(page) {
+  await page.click('button:has-text("Login")');
+  await page.fill('input[type="password"]', TEST_REFEREE_PIN);
+  await page.click('button:has-text("Unlock")');
+  await page.waitForSelector('button:has-text("Referee")', { timeout: 5000 });
 }
 
 // Navigate from the landing page into a specific tournament and wait until
@@ -27,4 +35,4 @@ async function generateRound(page) {
   await page.waitForSelector('text=Round', { timeout: 5000 });
 }
 
-module.exports = { loginAsAdmin, navigateToTournament, waitForPlayTab, generateRound };
+module.exports = { loginAsAdmin, loginAsReferee, navigateToTournament, waitForPlayTab, generateRound };

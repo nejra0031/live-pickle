@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useTeamById } from '../context/TeamRegistryContext';
+import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 import useKnownPlayers from '../hooks/useKnownPlayers';
 import PlayerNameField from '../components/PlayerNameField';
 import {
@@ -14,6 +14,7 @@ const fieldS = { padding: '6px 8px', borderRadius: 6, fontSize: 12, fontWeight: 
 
 export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tptPlayers, tptSubstitutions = {}, doublesRRPlayers = {}, tournamentTitle, tournamentLocation, onClose }) {
   const teamById = useTeamById();
+  const teamLabel = useTeamLabel();
   const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
   const [eventName, setEventName] = useState(tournamentTitle || 'Tournament');
   const [date, setDate] = useState(todayStr());
@@ -185,7 +186,7 @@ export default function ExportDUPRModal({ history, tournamentMode, tptTeams, tpt
               const pair = swissOverrides[t.id] || t.players || [BLANK_PLAYER, BLANK_PLAYER];
               return (
                 <div key={t.id} className="flex flex-col gap-1">
-                  <span className="text-xs font-bold" style={{ color: '#e2e8f0' }}>{t.name}</span>
+                  <span className="text-xs font-bold" style={{ color: '#e2e8f0' }}>{teamLabel(t.id)}</span>
                   {[0, 1].map(idx => (
                     <PlayerNameField key={idx} name={pair[idx]?.name || ''} duprId={pair[idx]?.duprId || ''} knownPlayers={knownPlayers}
                       onChange={val => updateSwissOverride(t, idx, val)} placeholder={`Player ${idx + 1} name`}

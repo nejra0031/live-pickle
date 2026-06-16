@@ -1,9 +1,11 @@
 // Schedule generation and standings for the 3-player team tournament format.
 
+import { playerDisplayName } from '../utils/nameDisplay';
+
 export function formatTPTTeamLabel(team, tptPlayers, mode) {
   if (!team) return '';
   const allIds = [...(team.maleIds || []), team.femaleId].filter(Boolean);
-  const playerNames = allIds.map(pid => { const p = tptPlayers[pid]; return p?.nickname || p?.name; }).filter(Boolean).join(' / ');
+  const playerNames = allIds.map(pid => playerDisplayName(tptPlayers[pid])).filter(Boolean).join(' & ');
   if (mode === 'players') return playerNames || team.name;
   if (mode === 'both') return playerNames ? `${team.name} (${playerNames})` : team.name;
   return team.name;

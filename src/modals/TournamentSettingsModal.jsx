@@ -3,8 +3,9 @@ import { ROLES, hasPermission } from '../roleConfig';
 import { ALL_TEAMS } from '../constants';
 import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
 import PlayerNameField from '../components/PlayerNameField';
+import ColorSwatchPicker from '../components/ColorSwatchPicker';
 import useKnownPlayers from '../hooks/useKnownPlayers';
-import { useTeamById } from '../context/TeamRegistryContext';
+import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 
 const iS = { padding: '8px 10px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none', width: '100%' };
 const fS = { flex: 1, padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#e2e8f0', outline: 'none' };
@@ -121,7 +122,7 @@ export default function TournamentSettingsModal({
   tournamentMode,
   standingsTiebreakOrder, onStandingsTiebreakOrderChange,
   doublesRRTiebreakOrder, onDoublesRRTiebreakOrderChange,
-  activeTeamIds, tournamentTeams, pausedIds, onTogglePause, teamNameDisplay, onTeamNameDisplayChange,
+  activeTeamIds, pausedIds, onTogglePause, teamNameDisplay, onTeamNameDisplayChange,
   tptTeams, tptPlayers,
   doublesRRPlayers,
   history,
@@ -154,6 +155,7 @@ export default function TournamentSettingsModal({
 
   // Teams state — swiss / rr
   const teamById = useTeamById();
+  const teamLabel = useTeamLabel();
   const emptyPair = () => [{ name: '', duprId: '', nickname: '' }, { name: '', duprId: '', nickname: '' }];
   const [localTeams, setLocalTeams] = useState(() =>
     (activeTeamIds || []).map(id => {
@@ -162,7 +164,6 @@ export default function TournamentSettingsModal({
       return { id, name: t?.name ?? id, color: t?.color ?? '#475569', text: t?.text ?? '#fff', players };
     })
   );
-  const [addId, setAddId] = useState('');
   const [expandedPlayerId, setExpandedPlayerId] = useState(null);
   const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
 
@@ -173,7 +174,6 @@ export default function TournamentSettingsModal({
   const [localTPTPlayers, setLocalTPTPlayers] = useState(() =>
     tptPlayers ? Object.fromEntries(Object.entries(tptPlayers).map(([id, p]) => [id, { duprId: '', nickname: '', ...p }])) : {}
   );
-  const [addTPTId, setAddTPTId] = useState('');
 
   // Teams state — DoublesRR
   const [localDRRPlayers, setLocalDRRPlayers] = useState(() =>
@@ -219,11 +219,10 @@ export default function TournamentSettingsModal({
         onManageDoublesRRPlayersSave(newPlayers);
       } else if (onManageTeamsSave) {
         const registry = localTeams.map(t => {
-          const orig = (tournamentTeams || []).find(x => x.id === t.id);
           const players = t.players.map(p => ({ name: p.name.trim(), duprId: p.duprId.trim(), nickname: (p.nickname || '').trim() }));
           const hasPlayers = players.some(p => p.name);
           players.filter(p => p.name).forEach(p => saveKnownPlayer(p.name, p.duprId, p.nickname));
-          return { id: t.id, name: t.name.trim() || t.id, color: orig?.color ?? t.color, text: orig?.text ?? t.text, ...(hasPlayers ? { players } : {}) };
+          return { id: t.id, name: t.name.trim() || t.id, color: t.color, text: t.text, ...(hasPlayers ? { players } : {}) };
         });
         onManageTeamsSave(registry, localTeams.map(t => t.id));
       }
@@ -298,7 +297,7 @@ export default function TournamentSettingsModal({
             const pauseTeams = tournamentMode === 'tpt'
               ? Object.values(tptTeams || {})
               : (activeTeamIds || []).map(id => teamById(id)).filter(Boolean);
-            const nameFor = id => tournamentMode === 'tpt' ? tptTeams?.[id]?.name : teamById(id)?.name;
+            const nameFor = id => tournamentMode === 'tpt' ? tptTeams?.[id]?.name : teamLabel(id);
             return (
               <Acc title="Team status" open={sec.teamStatus} onToggle={() => toggle('teamStatus')}>
                 <div className="flex flex-wrap" style={{ gap: 8 }}>
@@ -307,7 +306,7 @@ export default function TournamentSettingsModal({
                     return (
                       <button key={t.id} onClick={() => onTogglePause(t.id)} className="rounded-full font-bold"
                         style={{ padding: '5px 12px', fontSize: 13, background: paused ? 'rgba(0,0,0,0.05)' : t.color, color: paused ? '#94a3b8' : t.text, border: `2px solid ${paused ? 'rgba(0,0,0,0.08)' : t.color}`, cursor: 'pointer', opacity: paused ? 0.6 : 1, textDecoration: paused ? 'line-through' : 'none' }}>
-                        {t.name}
+                        {tournamentMode === 'tpt' ? t.name : teamLabel(t.id)}
                       </button>
                     );
                   })}
@@ -347,7 +346,8 @@ export default function TournamentSettingsModal({
                     return (
                       <div key={t.id} className="flex flex-col gap-1">
                         <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: t.color }} />
+                          <ColorSwatchPicker color={t.color}
+                            onChange={({ color, text }) => setLocalTeams(p => p.map(x => x.id === t.id ? { ...x, color, text } : x))} />
                           <input value={t.name} onChange={e => setLocalTeams(p => p.map(x => x.id === t.id ? { ...x, name: e.target.value } : x))} style={fS} />
                           <button onClick={() => setExpandedPlayerId(p => p === t.id ? null : t.id)} title="Edit players"
                             style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0, background: filled > 0 ? 'rgba(99,102,241,0.18)' : 'rgba(255,255,255,0.06)', color: filled > 0 ? '#a5b4fc' : '#94a3b8', border: '1px solid rgba(99,102,241,0.25)' }}>
@@ -383,21 +383,14 @@ export default function TournamentSettingsModal({
                 {available.length > 0 && (
                   <div style={{ marginTop: 14 }}>
                     <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Add a team</p>
-                    <div className="flex gap-2">
-                      <select value={addId} onChange={e => setAddId(e.target.value)} style={{ flex: 1, ...fS }}>
-                        <option value="">— choose colour —</option>
-                        {available.map(t => <option key={t.id} value={t.id} style={{ background: '#1e293b' }}>{t.name}</option>)}
-                      </select>
-                      <button onClick={() => {
-                        const base = ALL_TEAMS.find(t => t.id === addId); if (!base) return;
-                        setLocalTeams(p => [...p, { id: base.id, name: base.name, color: base.color, text: base.text, players: emptyPair() }]);
-                        setAddId('');
-                      }} disabled={!addId}
-                        style={{ padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13, flexShrink: 0, cursor: addId ? 'pointer' : 'not-allowed', background: addId ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)', color: addId ? '#a5b4fc' : '#475569', border: '1px solid rgba(99,102,241,0.3)' }}>
-                        + Add
-                      </button>
-                    </div>
-                    <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>New teams start with 0 wins and join immediately.</p>
+                    <button onClick={() => {
+                      const base = available[0];
+                      setLocalTeams(p => [...p, { id: base.id, name: base.name, color: base.color, text: base.text, players: emptyPair() }]);
+                    }}
+                      style={{ padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', background: 'rgba(99,102,241,0.25)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }}>
+                      + Add team
+                    </button>
+                    <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>New teams start with 0 wins and join immediately. Tap a team's colour to change it.</p>
                   </div>
                 )}
               </div>
@@ -426,7 +419,8 @@ export default function TournamentSettingsModal({
                   return (
                     <div key={team.id} className="rounded-xl p-3 flex flex-col gap-2" style={{ border: `1px solid ${team.color}44`, background: `${team.color}18` }}>
                       <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: team.color }} />
+                        <ColorSwatchPicker color={team.color}
+                          onChange={({ color, text }) => setLocalTPTTeams(p => p.map(t => t.id === team.id ? { ...t, color, text } : t))} />
                         <input value={team.name} onChange={e => setLocalTPTTeams(p => p.map(t => t.id === team.id ? { ...t, name: e.target.value } : t))}
                           style={{ ...fS, fontWeight: 800, color: team.color }} />
                       </div>
@@ -450,27 +444,20 @@ export default function TournamentSettingsModal({
               {availableTPT.length > 0 && (
                 <div style={{ marginTop: 14 }}>
                   <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Add a team</p>
-                  <div className="flex gap-2">
-                    <select value={addTPTId} onChange={e => setAddTPTId(e.target.value)} style={{ flex: 1, ...fS }}>
-                      <option value="">— choose colour —</option>
-                      {availableTPT.map(t => <option key={t.id} value={t.id} style={{ background: '#1e293b' }}>{t.name}</option>)}
-                    </select>
-                    <button onClick={() => {
-                      const base = ALL_TEAMS.find(t => t.id === addTPTId); if (!base) return;
-                      const m1 = uid(), m2 = uid(), f = uid();
-                      setLocalTPTTeams(p => [...p, { id: base.id, name: base.name, color: base.color, text: base.text, maleIds: [m1, m2], femaleId: f }]);
-                      setLocalTPTPlayers(p => ({ ...p,
-                        [m1]: { id: m1, name: '', duprId: '', nickname: '', gender: 'male' },
-                        [m2]: { id: m2, name: '', duprId: '', nickname: '', gender: 'male' },
-                        [f]: { id: f, name: '', duprId: '', nickname: '', gender: 'female' },
-                      }));
-                      setAddTPTId('');
-                    }} disabled={!addTPTId}
-                      style={{ padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13, flexShrink: 0, cursor: addTPTId ? 'pointer' : 'not-allowed', background: addTPTId ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)', color: addTPTId ? '#a5b4fc' : '#475569', border: '1px solid rgba(99,102,241,0.3)' }}>
-                      + Add
-                    </button>
-                  </div>
-                  <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>New teams join the schedule when you save.</p>
+                  <button onClick={() => {
+                    const base = availableTPT[0];
+                    const m1 = uid(), m2 = uid(), f = uid();
+                    setLocalTPTTeams(p => [...p, { id: base.id, name: base.name, color: base.color, text: base.text, maleIds: [m1, m2], femaleId: f }]);
+                    setLocalTPTPlayers(p => ({ ...p,
+                      [m1]: { id: m1, name: '', duprId: '', nickname: '', gender: 'male' },
+                      [m2]: { id: m2, name: '', duprId: '', nickname: '', gender: 'male' },
+                      [f]: { id: f, name: '', duprId: '', nickname: '', gender: 'female' },
+                    }));
+                  }}
+                    style={{ padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', background: 'rgba(99,102,241,0.25)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }}>
+                    + Add team
+                  </button>
+                  <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>New teams join the schedule when you save. Tap a team's colour to change it.</p>
                 </div>
               )}
             </Acc>
@@ -495,7 +482,8 @@ export default function TournamentSettingsModal({
               <div className="flex flex-col gap-3">
                 {Object.values(localDRRPlayers).map(p => (
                   <div key={p.id} className="rounded-xl p-3 flex items-center gap-2" style={{ border: `1px solid ${p.color || '#64748b'}44`, background: `${p.color || '#64748b'}18` }}>
-                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: p.color || '#64748b' }} />
+                    <ColorSwatchPicker color={p.color || '#64748b'}
+                      onChange={({ color, text }) => setLocalDRRPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], color, text } }))} />
                     <div style={{ flex: 1 }}>
                       <NicknameField name={p.name} nickname={p.nickname || ''}
                         onChange={updates => setLocalDRRPlayers(prev => ({ ...prev, [p.id]: { ...prev[p.id], ...updates } }))} />
@@ -546,9 +534,9 @@ export default function TournamentSettingsModal({
                     <div key={i} className="flex items-center gap-2">
                       <span style={{ fontSize: 12, color: '#64748b', fontWeight: 700, width: 20, textAlign: 'right', flexShrink: 0 }}>{i + 1}.</span>
                       <input value={c} onChange={e => setLocalCourts(p => p.map((x, j) => j === i ? e.target.value : x))}
-                        style={{ flex: 1, ...fS, border: `1px solid ${invalid ? '#ef4444' : 'rgba(255,255,255,0.15)'}` }} />
-                      <button onClick={() => setLocalSocial(p => p.map((v, j) => j === i ? !v : v))} title={isSocial ? 'Mark as competitive' : 'Mark as social'}
-                        style={{ flexShrink: 0, width: 52, padding: '4px 0', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', background: isSocial ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.06)', color: isSocial ? '#a5b4fc' : '#64748b', border: `1px solid ${isSocial ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.1)'}` }}>Social</button>
+                        style={{ flex: 1, minWidth: 0, ...fS, border: `1px solid ${invalid ? '#ef4444' : 'rgba(255,255,255,0.15)'}` }} />
+                      <button onClick={() => setLocalSocial(p => p.map((v, j) => j === i ? !v : v))} title={isSocial ? 'Mark as competitive' : 'Mark as warm up / social'}
+                        style={{ flexShrink: 0, width: 76, padding: '4px 2px', borderRadius: 6, fontSize: 10, fontWeight: 700, lineHeight: 1.2, cursor: 'pointer', background: isSocial ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.06)', color: isSocial ? '#a5b4fc' : '#64748b', border: `1px solid ${isSocial ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.1)'}` }}>Warm up / Social</button>
                       <button onClick={() => { setLocalCourts(p => p.filter((_, j) => j !== i)); setLocalSocial(p => p.filter((_, j) => j !== i)); }}
                         disabled={localCourts.length <= 1}
                         style={{ padding: '4px 8px', borderRadius: 6, fontSize: 13, fontWeight: 700, flexShrink: 0, cursor: localCourts.length <= 1 ? 'not-allowed' : 'pointer', background: 'rgba(220,38,38,0.15)', color: localCourts.length <= 1 ? '#475569' : '#f87171', border: '1px solid rgba(220,38,38,0.3)' }}>×</button>

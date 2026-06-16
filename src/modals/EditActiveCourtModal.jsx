@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useTeamById } from '../context/TeamRegistryContext';
+import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 
 export default function EditActiveCourtModal({ courtIdx, courtNumbers, currentCourts, allTeamIds, hasPending, onSave, onClose }) {
   const teamById = useTeamById();
+  const teamLabel = useTeamLabel();
   const cur = currentCourts[courtIdx] || [];
   const currentCourtNum = courtNumbers[courtIdx] ?? courtIdx + 1;
   const [teamAId, setTeamAId] = useState(cur[0]?.id || '');
@@ -22,7 +23,7 @@ export default function EditActiveCourtModal({ courtIdx, courtNumbers, currentCo
     return (
       <button key={id} onClick={onClick}
         style={{ padding: '5px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? t.color + 'bb' : 'rgba(255,255,255,0.05)', color: active ? t.text : '#64748b', border: `2px solid ${active ? t.color : 'rgba(255,255,255,0.1)'}` }}>
-        {t.name}
+        {teamLabel(id)}
       </button>
     );
   };

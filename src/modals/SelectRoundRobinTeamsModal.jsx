@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useTeamById } from '../context/TeamRegistryContext';
+import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 
 export default function SelectRoundRobinTeamsModal({ rankedTeamIds, tournamentCourts, onConfirm, onClose }) {
   const teamById = useTeamById();
+  const teamLabel = useTeamLabel();
   const [selectedTeams, setSelectedTeams] = useState(() => new Set());
   const [selectedCourts, setSelectedCourts] = useState(() => new Set());
 
@@ -32,7 +33,7 @@ export default function SelectRoundRobinTeamsModal({ rankedTeamIds, tournamentCo
                   <span style={{ width: 14, height: 14, borderRadius: 4, flexShrink: 0, background: sel ? t.color : 'transparent', border: `2px solid ${sel ? t.color : 'rgba(255,255,255,0.25)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.text, fontSize: 10, fontWeight: 900 }}>{sel ? '✓' : ''}</span>
                   <span className="inline-flex items-center rounded-full font-bold flex-1"
                     style={{ background: t.color, color: t.text, padding: '4px 10px', fontSize: 13, opacity: sel ? 1 : 0.55 }}>
-                    {t.name}
+                    {teamLabel(id)}
                   </span>
                 </button>
               );

@@ -3,6 +3,8 @@ const { createHash } = require('crypto');
 const DB_URL = 'https://live-pickle-default-rtdb.asia-southeast1.firebasedatabase.app';
 const TEST_PIN = 'test1234';
 const TEST_PIN_HASH = createHash('sha256').update(TEST_PIN).digest('hex');
+const TEST_REFEREE_PIN = 'ref56789';
+const TEST_REFEREE_PIN_HASH = createHash('sha256').update(TEST_REFEREE_PIN).digest('hex');
 
 const E2E_CLUB_ID       = 'blue_test';
 const E2E_TOURNAMENT_ID = 'e2e_tournament';
@@ -31,6 +33,14 @@ const fbGet    = (path)       => fbReq(path, 'GET');
 async function seedAdminPin() {
   await fbSet(`${E2E_BASE}/config/adminPins/e2e_admin_pin`, {
     id: 'e2e_admin_pin', hash: TEST_PIN_HASH, label: 'E2E', createdAt: Date.now(),
+  });
+}
+
+// Uses a hash distinct from the admin PIN so PIN-based login resolves to the
+// 'referee' role (the login check matches the first role whose pins contain the hash).
+async function seedRefereePin() {
+  await fbSet(`${E2E_BASE}/config/refereePins/e2e_referee_pin`, {
+    id: 'e2e_referee_pin', hash: TEST_REFEREE_PIN_HASH, label: 'E2E Referee', createdAt: Date.now(),
   });
 }
 
@@ -85,6 +95,7 @@ async function seedTournament(overrides = {}) {
     teamCount: (base.activeTeamIds || []).length,
   });
   await seedAdminPin();
+  await seedRefereePin();
 }
 
 // Minimal 3-Player Team (TPT) tournament: 2 teams, 1 scheduled round, 1 matchup.
@@ -138,6 +149,55 @@ async function seedTPTTournament(overrides = {}) {
     teamCount: 0,
   });
   await seedAdminPin();
+  await seedRefereePin();
+}
+
+// Minimal Doubles RR tournament: 4 players, 1 scheduled round, 1 court.
+async function seedDoublesRRTournament(overrides = {}) {
+  const base = {
+    phase: 'play',
+    _tournamentId: E2E_TOURNAMENT_ID,
+    tournamentMode: 'doublesrr',
+    tournamentTitle: 'E2E Doubles RR Tournament',
+    courtNumbers: ['1'],
+    socialCourts: [],
+    activeTeamIds: [],
+    teamRegistry: [],
+    doublesRRPlayers: {
+      p1: { id: 'p1', name: 'Pat',   color: '#3b82f6', text: '#fff' },
+      p2: { id: 'p2', name: 'Quinn', color: '#ef4444', text: '#fff' },
+      p3: { id: 'p3', name: 'Riley', color: '#22c55e', text: '#fff' },
+      p4: { id: 'p4', name: 'Sam',   color: '#f59e0b', text: '#000' },
+    },
+    doublesRRSchedule: [{ courts: [{ teamA: ['p1', 'p2'], teamB: ['p3', 'p4'] }], byePlayerIds: [] }],
+    doublesRRResults: {},
+    history: [],
+    roundNum: 0,
+    pausedIds: [],
+    timerDuration: 0,
+    timerDefaultMins: 12,
+    timerRunning: false,
+    timerStartedAt: null,
+    timerPausedSecsLeft: 0,
+    roundData: null,
+    roundComplete: false,
+    tournamentFinished: false,
+    breakMode: null,
+    savedAt: Date.now(),
+    ...overrides,
+  };
+  await fbSet(E2E_TOURNAMENT_PATH, base);
+  // Seed meta so the landing page can list this tournament
+  await fbSet(`${E2E_BASE}/meta`, {
+    id: E2E_TOURNAMENT_ID,
+    title: base.tournamentTitle,
+    mode: base.tournamentMode,
+    status: 'active',
+    createdAt: base.savedAt,
+    teamCount: 0,
+  });
+  await seedAdminPin();
+  await seedRefereePin();
 }
 
 async function clearE2EData() {
@@ -146,8 +206,8 @@ async function clearE2EData() {
 }
 
 module.exports = {
-  DB_URL, TEST_PIN, TEST_PIN_HASH,
+  DB_URL, TEST_PIN, TEST_PIN_HASH, TEST_REFEREE_PIN, TEST_REFEREE_PIN_HASH,
   E2E_CLUB_ID, E2E_TOURNAMENT_ID, E2E_BASE,
   E2E_TOURNAMENT_PATH, E2E_BACKUPS_PATH, E2E_PRESENCE_PATH,
-  fbSet, fbDelete, fbGet, seedTournament, seedTPTTournament, clearE2EData,
+  fbSet, fbDelete, fbGet, seedTournament, seedTPTTournament, seedDoublesRRTournament, clearE2EData,
 };

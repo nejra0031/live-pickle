@@ -23,7 +23,7 @@ export default function TournamentFinished({ ranked, history, isAdmin, onResumeT
               <div style={{ fontSize: 'clamp(22px,6vw,36px)', marginBottom: 4 }}>{medals[i]}</div>
               <div className="rounded-full font-black inline-flex items-center justify-center"
                 style={{ background: t.color, color: t.text, padding: 'clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)', fontSize: 'clamp(12px,3vw,17px)', border: '3px solid rgba(255,255,255,0.5)', boxShadow: `0 4px 16px ${t.color}55`, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {t.name || teamLabel(t.id)}
+                {teamLabel(t.id)}
               </div>
               <div style={{ fontSize: 'clamp(10px,2.5vw,13px)', color: '#64748b', fontWeight: 700, marginTop: 6 }}>
                 {t.wins}W · {t.losses}L · {t.scoreDiff > 0 ? '+' : ''}{t.scoreDiff}
