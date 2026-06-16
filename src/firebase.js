@@ -163,23 +163,23 @@ export function deleteTournament(clubId, tid) {
 }
 
 // ── Known-players registry (cross-tournament, for DUPR export autocomplete) ─
-const KNOWN_PLAYERS_PATH = TEST_MODE ? 'known_players_e2e' : 'known_players';
+const KNOWN_PLAYERS_PATH = TEST_MODE ? 'players_e2e' : 'players';
 
 export const knownPlayersRef = () => ref(db, KNOWN_PLAYERS_PATH);
 
-function playerSlug(name) {
-  return name.trim().toLowerCase().replace(/\s+/g, '_').replace(/[.#$\[\]/]/g, '');
+export function generatePlayerKey() {
+  return push(knownPlayersRef()).key;
 }
 export function fetchKnownPlayers() {
   return get(knownPlayersRef());
 }
-export function saveKnownPlayer(name, duprId, nickname) {
+export function saveKnownPlayer(name, duprId, nickname, id) {
   const trimmedName = (name || '').trim();
-  const slug = playerSlug(trimmedName);
-  if (!slug) return Promise.resolve();
-  const fields = { id: slug, name: trimmedName, duprID: (duprId || '').trim() };
+  if (!trimmedName) return Promise.resolve();
+  const playerId = id || push(knownPlayersRef()).key;
+  const fields = { id: playerId, name: trimmedName, duprID: (duprId || '').trim() };
   if (nickname !== undefined) fields.nickname = (nickname || '').trim();
-  return update(ref(db, `${KNOWN_PLAYERS_PATH}/${slug}`), fields)
+  return set(ref(db, `${KNOWN_PLAYERS_PATH}/${playerId}`), fields)
     .catch(err => console.error('saveKnownPlayer failed', err));
 }
 

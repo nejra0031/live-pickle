@@ -18,7 +18,7 @@ const fieldLabelStyle = { fontSize: 10, fontWeight: 800, color: '#94a3b8', textT
 // the DUPR ID input only suggests matches against known players' DUPR ID. Picking a
 // suggestion from either field fills in all known fields for that player.
 //
-// `excludeKeys` (optional Set of known-player ids — i.e. `name.trim().toLowerCase()`)
+// `excludeKeys` (optional Set of `name.trim().toLowerCase()` strings)
 // hides players already present elsewhere in the current roster from suggestions.
 //
 // onChange always emits { name, duprId } and, when in full mode, also { nickname }.
@@ -38,8 +38,7 @@ export default function PlayerNameField({
   const wrapRef = useRef(null);
   const showNickname = nickname !== undefined;
 
-  const displayName = p => p.nickname || p.name;
-  const isExcluded = p => excludeKeys?.has(p.id);
+  const isExcluded = p => excludeKeys?.has((p.name || '').trim().toLowerCase());
 
   const searchName = useDebounce((q) => {
     const query = q.trim().toLowerCase();
@@ -85,12 +84,13 @@ export default function PlayerNameField({
     }}>
       {suggestions.map(p => (
         <li key={p.id} onMouseDown={() => pick(p)}
-          style={{ padding: '6px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#e2e8f0' }}
+          style={{ padding: '6px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}
           onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.2)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-          <span style={{ fontWeight: 700 }}>{displayName(p)}</span>
-          {p.nickname && p.name && p.name !== p.nickname && <span style={{ color: '#64748b' }}> · {p.name}</span>}
-          {p.duprID && <span style={{ color: '#94a3b8' }}> ({p.duprID})</span>}
+          <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#475569', flexShrink: 0 }}>{(p.id || '').slice(-4)}</span>
+          <span style={{ color: '#475569' }}>·</span>
+          <span style={{ fontWeight: 700 }}>{p.name}</span>
+          {p.nickname && <><span style={{ color: '#475569' }}>·</span><span style={{ color: '#94a3b8' }}>{p.nickname}</span></>}
         </li>
       ))}
     </ul>
