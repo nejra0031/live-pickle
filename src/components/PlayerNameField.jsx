@@ -87,8 +87,8 @@ export default function PlayerNameField({
           style={{ padding: '6px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}
           onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.2)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-          <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#475569', flexShrink: 0 }}>{(p.id || '').slice(-4)}</span>
-          <span style={{ color: '#475569' }}>·</span>
+          <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>{(p.id || '').slice(-4)}</span>
+          <span style={{ color: '#64748b' }}>·</span>
           <span style={{ fontWeight: 700 }}>{p.name}</span>
           {p.nickname && <><span style={{ color: '#475569' }}>·</span><span style={{ color: '#94a3b8' }}>{p.nickname}</span></>}
         </li>
@@ -123,7 +123,7 @@ export default function PlayerNameField({
               value={name}
               placeholder="Full name"
               onChange={e => emit({ name: e.target.value })}
-              style={{ padding: '4px 8px', borderRadius: 6, fontSize: 11, fontStyle: 'italic', fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', outline: 'none', width: '100%' }}
+              style={{ ...inputStyle, width: '100%' }}
             />
           </div>
         )}

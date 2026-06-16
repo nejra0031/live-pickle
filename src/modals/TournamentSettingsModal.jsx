@@ -55,7 +55,7 @@ function NicknameField({ name, nickname, onChange }) {
         value={name || ''}
         placeholder="Full name"
         onChange={e => onChange({ name: e.target.value })}
-        style={{ padding: '4px 8px', borderRadius: 6, fontSize: 11, fontStyle: 'italic', fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8', outline: 'none' }}
+        style={fS}
       />
     </div>
   );
