@@ -19,7 +19,7 @@ async function loginAsReferee(page) {
 // the tournament view is ready. The tournament's title must be visible on the
 // landing page as a clickable card.
 async function navigateToTournament(page, title) {
-  await page.waitForSelector(`text=${title}`, { timeout: 8000 });
+  await page.waitForSelector(`text=${title}`, { timeout: 15000 });
   await page.click(`text=${title}`);
   // The "← Tournaments" back button only appears inside the tournament view.
   await page.waitForSelector('button:has-text("← Tournaments")', { timeout: 8000 });

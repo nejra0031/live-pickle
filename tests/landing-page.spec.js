@@ -25,7 +25,8 @@ test('lists seeded tournament with title, mode badge, and status badge', async (
 test('empty state shown when no tournaments exist', async ({ page }) => {
   await page.goto('/_admin.html');
   await expect(page.locator('text=No tournaments yet')).toBeVisible({ timeout: 8000 });
-  await expect(page.locator('button:has-text("New Tournament")')).toBeVisible();
+  // "New Tournament" button requires Google-auth club ownership — not visible to unauthenticated users
+  await expect(page.locator('button:has-text("New Tournament")')).not.toBeVisible();
 });
 
 test('clicking a tournament card enters the tournament view', async ({ page }) => {
