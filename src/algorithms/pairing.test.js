@@ -32,7 +32,12 @@ describe('generateRound', () => {
     const st = mkStandings(['red', 'blue', 'green', 'yellow']);
     const r = generateRound(st, 2, 0, [], []);
     expect(r.courts).toHaveLength(2);
-    expect(r.courts.flat().map(t => t.id).sort()).toEqual(['blue', 'green', 'red', 'yellow']);
+    expect(
+      r.courts
+        .flat()
+        .map((t) => t.id)
+        .sort()
+    ).toEqual(['blue', 'green', 'red', 'yellow']);
     expect(r.bye).toEqual([]);
   });
 
@@ -45,25 +50,35 @@ describe('generateRound', () => {
 
   it('avoids replaying the immediately-previous matchup when an alternative exists', () => {
     const ids = ['red', 'blue', 'green', 'yellow'];
-    const history = [{
-      roundNum: 1, bye: [], paused: [],
-      games: [
-        { winnerId: 'red', loserId: 'blue', winnerScore: 11, loserScore: 0, courtNumber: '1' },
-        { winnerId: 'green', loserId: 'yellow', winnerScore: 11, loserScore: 0, courtNumber: '2' },
-      ],
-    }];
+    const history = [
+      {
+        roundNum: 1,
+        bye: [],
+        paused: [],
+        games: [
+          { winnerId: 'red', loserId: 'blue', winnerScore: 11, loserScore: 0, courtNumber: '1' },
+          {
+            winnerId: 'green',
+            loserId: 'yellow',
+            winnerScore: 11,
+            loserScore: 0,
+            courtNumber: '2',
+          },
+        ],
+      },
+    ];
     const st = rebuildStandings(ids, history);
     const r = generateRound(st, 2, 1, history, []);
     const lastPairs = new Set(['blue|red', 'green|yellow']);
     const newPairs = r.courts.map(([a, b]) => [a.id, b.id].sort().join('|'));
-    newPairs.forEach(p => expect(lastPairs.has(p)).toBe(false));
+    newPairs.forEach((p) => expect(lastPairs.has(p)).toBe(false));
   });
 
   it('excludes paused teams from the courts', () => {
     const st = mkStandings(['red', 'blue', 'green', 'yellow']);
     const r = generateRound(st, 2, 0, [], ['yellow']);
-    const onCourt = r.courts.flat().map(t => t.id);
+    const onCourt = r.courts.flat().map((t) => t.id);
     expect(onCourt).not.toContain('yellow');
-    expect(r.paused.map(t => t.id)).toContain('yellow');
+    expect(r.paused.map((t) => t.id)).toContain('yellow');
   });
 });

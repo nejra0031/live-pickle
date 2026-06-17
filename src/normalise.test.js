@@ -19,7 +19,12 @@ describe('normaliseSnapshot — roundData', () => {
   it('preserves courtNums when present (Phase A fix)', () => {
     const s = normaliseSnapshot({
       phase: 'play',
-      roundData: { courtTeamIds: { 0: { 0: 'red', 1: 'blue' } }, byeIds: {}, pausedTeamIds: {}, courtNums: { 0: '5', 1: '7' } },
+      roundData: {
+        courtTeamIds: { 0: { 0: 'red', 1: 'blue' } },
+        byeIds: {},
+        pausedTeamIds: {},
+        courtNums: { 0: '5', 1: '7' },
+      },
     });
     expect(s.roundData.courtNums).toEqual(['5', '7']);
   });
@@ -35,9 +40,16 @@ describe('normaliseSnapshot — roundData', () => {
   it('converts object-keyed courtTeamIds to nested arrays', () => {
     const s = normaliseSnapshot({
       phase: 'play',
-      roundData: { courtTeamIds: { 0: { 0: 'red', 1: 'blue' }, 1: { 0: 'green', 1: 'yellow' } }, byeIds: { 0: 'pink' }, pausedTeamIds: {} },
+      roundData: {
+        courtTeamIds: { 0: { 0: 'red', 1: 'blue' }, 1: { 0: 'green', 1: 'yellow' } },
+        byeIds: { 0: 'pink' },
+        pausedTeamIds: {},
+      },
     });
-    expect(s.roundData.courtTeamIds).toEqual([['red', 'blue'], ['green', 'yellow']]);
+    expect(s.roundData.courtTeamIds).toEqual([
+      ['red', 'blue'],
+      ['green', 'yellow'],
+    ]);
     expect(s.roundData.byeIds).toEqual(['pink']);
   });
 
@@ -50,7 +62,14 @@ describe('normaliseSnapshot — history', () => {
   it('normalises object-keyed history and its nested arrays', () => {
     const s = normaliseSnapshot({
       phase: 'play',
-      history: { 0: { roundNum: 1, games: { 0: { winnerId: 'red', loserId: 'blue' } }, bye: { 0: 'green' }, paused: {} } },
+      history: {
+        0: {
+          roundNum: 1,
+          games: { 0: { winnerId: 'red', loserId: 'blue' } },
+          bye: { 0: 'green' },
+          paused: {},
+        },
+      },
     });
     expect(s.history).toHaveLength(1);
     expect(s.history[0].games).toEqual([{ winnerId: 'red', loserId: 'blue' }]);

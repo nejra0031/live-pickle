@@ -65,7 +65,7 @@ describe('buildSnapshot', () => {
   });
 
   it('defaults socialCourts to [] when absent', () => {
-    const { socialCourts, ...noSocial } = baseState;
+    const { socialCourts: _socialCourts, ...noSocial } = baseState;
     expect(buildSnapshot(noSocial).socialCourts).toEqual([]);
   });
 
@@ -84,10 +84,26 @@ describe('snapshotToState', () => {
   // NOT included: roundComplete/finalRound/activeRoundExtras/liveAdditions (buildSnapshot
   // resets these to canonical defaults), and round (reconstructed via `derived`).
   const STATE_DERIVED = [
-    'activeTeamIds', 'tournamentTeams', 'courtNumbers', 'timerDuration', 'timerDefaultMins',
-    'history', 'roundNum', 'pausedIds', 'tournamentMode', 'roundRobinSchedule', 'roundRobinCourts',
-    'roundRobinStartRoundNum', 'roundRobinStartSnapshot', 'roundRobinEndSnapshot', 'nextRoundPresets',
-    'tournamentFinished', 'cancelledRoundNums', 'targetRounds', 'tournamentTitle', 'socialCourts',
+    'activeTeamIds',
+    'tournamentTeams',
+    'courtNumbers',
+    'timerDuration',
+    'timerDefaultMins',
+    'history',
+    'roundNum',
+    'pausedIds',
+    'tournamentMode',
+    'roundRobinSchedule',
+    'roundRobinCourts',
+    'roundRobinStartRoundNum',
+    'roundRobinStartSnapshot',
+    'roundRobinEndSnapshot',
+    'nextRoundPresets',
+    'tournamentFinished',
+    'cancelledRoundNums',
+    'targetRounds',
+    'tournamentTitle',
+    'socialCourts',
   ];
 
   const state = {
@@ -123,8 +139,10 @@ describe('snapshotToState', () => {
   it('maps the fields buildSnapshot resets (read directly from the snapshot)', () => {
     const snap = {
       courtNumbers: ['1', '2'],
-      roundComplete: true, finalRound: true,
-      activeRoundExtras: [{ a: 1 }], liveAdditions: [{ b: 2 }],
+      roundComplete: true,
+      finalRound: true,
+      activeRoundExtras: [{ a: 1 }],
+      liveAdditions: [{ b: 2 }],
     };
     const back = snapshotToState(snap);
     expect(back.roundComplete).toBe(true);
@@ -162,6 +180,6 @@ describe('snapshotToState', () => {
 
   it('does not produce non-reducer fields', () => {
     const back = snapshotToState({ courtNumbers: [] }, { round: null });
-    ['standings', 'breakMode', 'pending', 'roundKey'].forEach(k => expect(k in back).toBe(false));
+    ['standings', 'breakMode', 'pending', 'roundKey'].forEach((k) => expect(k in back).toBe(false));
   });
 });

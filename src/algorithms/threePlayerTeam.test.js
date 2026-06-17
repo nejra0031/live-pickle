@@ -14,14 +14,33 @@ const players = {
 };
 
 const tptTeams = {
-  A: { id: 'A', name: 'Team A', color: '#fff', text: '#000', maleIds: ['a1', 'a2'], femaleId: 'af' },
-  B: { id: 'B', name: 'Team B', color: '#fff', text: '#000', maleIds: ['b1', 'b2'], femaleId: 'bf' },
-  C: { id: 'C', name: 'Team C', color: '#fff', text: '#000', maleIds: ['c1', 'c2'], femaleId: 'cf' },
+  A: {
+    id: 'A',
+    name: 'Team A',
+    color: '#fff',
+    text: '#000',
+    maleIds: ['a1', 'a2'],
+    femaleId: 'af',
+  },
+  B: {
+    id: 'B',
+    name: 'Team B',
+    color: '#fff',
+    text: '#000',
+    maleIds: ['b1', 'b2'],
+    femaleId: 'bf',
+  },
+  C: {
+    id: 'C',
+    name: 'Team C',
+    color: '#fff',
+    text: '#000',
+    maleIds: ['c1', 'c2'],
+    femaleId: 'cf',
+  },
 };
 
-const tptSchedule = [
-  { matchups: [{ teamAId: 'A', teamBId: 'B' }], byeTeamId: 'C' },
-];
+const tptSchedule = [{ matchups: [{ teamAId: 'A', teamBId: 'B' }], byeTeamId: 'C' }];
 
 // Males doubles game (gi=0): sideA = [a1, a2], sideB = [b1, b2]. Team A wins 11-5.
 const tptResults = {
@@ -29,14 +48,20 @@ const tptResults = {
 };
 
 function findPlayer(playerStandings, teamId, pid) {
-  return playerStandings[teamId].find(p => p.id === pid);
+  return playerStandings[teamId].find((p) => p.id === pid);
 }
 
 describe('buildTPTStandings', () => {
   it('credits the rostered players when there is no substitution', () => {
-    const { teamStandings, playerStandings } = buildTPTStandings(tptTeams, players, tptSchedule, tptResults, ['wins', 'scoreDiff']);
+    const { teamStandings, playerStandings } = buildTPTStandings(
+      tptTeams,
+      players,
+      tptSchedule,
+      tptResults,
+      ['wins', 'scoreDiff']
+    );
 
-    const teamA = teamStandings.find(t => t.id === 'A');
+    const teamA = teamStandings.find((t) => t.id === 'A');
     expect(teamA.wins).toBe(1);
     expect(teamA.scoreDiff).toBe(6);
 
@@ -52,11 +77,18 @@ describe('buildTPTStandings', () => {
       '0_0_0': { a2: 'c1' },
     };
 
-    const { teamStandings, playerStandings } = buildTPTStandings(tptTeams, players, tptSchedule, tptResults, ['wins', 'scoreDiff'], tptSubstitutions);
+    const { teamStandings, playerStandings } = buildTPTStandings(
+      tptTeams,
+      players,
+      tptSchedule,
+      tptResults,
+      ['wins', 'scoreDiff'],
+      tptSubstitutions
+    );
 
     // Team-level results are untouched by the substitution.
-    const teamA = teamStandings.find(t => t.id === 'A');
-    const teamB = teamStandings.find(t => t.id === 'B');
+    const teamA = teamStandings.find((t) => t.id === 'A');
+    const teamB = teamStandings.find((t) => t.id === 'B');
     expect(teamA.wins).toBe(1);
     expect(teamA.scoreDiff).toBe(6);
     expect(teamB.losses).toBe(1);
