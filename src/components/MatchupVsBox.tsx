@@ -1,3 +1,5 @@
+import React from 'react';
+
 // Shared "no result yet" matchup display — a large colored box per side either
 // side of a "VS" divider. Gradient-aware: prefers `team.chipBackground` (e.g. a
 // Doubles RR side with two differently-colored players) over the solid `team.color`.
@@ -10,6 +12,14 @@ export default function MatchupVsBox({
   dimA = false,
   dimB = false,
   headerExtra = null,
+}: {
+  courtLabel?: any;
+  teamA: any;
+  teamB: any;
+  compact?: boolean;
+  dimA?: boolean;
+  dimB?: boolean;
+  headerExtra?: React.ReactNode;
 }) {
   const boxPadding = compact
     ? 'clamp(10px,2.5vw,16px)'
@@ -18,7 +28,7 @@ export default function MatchupVsBox({
   const vsFontSize = compact ? 'clamp(12px,3vw,18px)' : 'clamp(14px,3.5vw,22px)';
   const borderRadius = compact ? 'rounded-xl' : 'rounded-2xl';
 
-  const Side = ({ team, dim }) => (
+  const Side = ({ team, dim }: { team: any; dim: boolean }) => (
     <div
       className={`flex-1 flex items-center justify-center ${borderRadius}`}
       style={{

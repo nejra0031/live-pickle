@@ -38,6 +38,17 @@ const fieldS = {
   width: '100%',
 };
 
+interface Props {
+  history: any[];
+  tournamentMode: string;
+  tptTeams: Record<string, any>;
+  tptPlayers: Record<string, any>;
+  tptSubstitutions?: Record<string, any>;
+  doublesRRPlayers?: Record<string, any>;
+  tournamentTitle?: string;
+  tournamentLocation?: string;
+  onClose: () => void;
+}
 export default function ExportDUPRModal({
   history,
   tournamentMode,
@@ -48,7 +59,7 @@ export default function ExportDUPRModal({
   tournamentTitle,
   tournamentLocation,
   onClose,
-}) {
+}: Props) {
   const teamById = useTeamById();
   const teamLabel = useTeamLabel();
   const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
@@ -59,9 +70,9 @@ export default function ExportDUPRModal({
 
   // Players/teams that appear in the export but are missing a name or DUPR ID —
   // offered up for editing here so the export doesn't have to be blocked or re-run.
-  const [tptOverrides, setTptOverrides] = useState({}); // playerId -> { name, duprId }
-  const [doublesRROverrides, setDoublesRROverrides] = useState({}); // playerId -> { name, duprId }
-  const [swissOverrides, setSwissOverrides] = useState({}); // teamId -> [{name,duprId},{name,duprId}]
+  const [tptOverrides, setTptOverrides] = useState<Record<string, any>>({}); // playerId -> { name, duprId }
+  const [doublesRROverrides, setDoublesRROverrides] = useState<Record<string, any>>({}); // playerId -> { name, duprId }
+  const [swissOverrides, setSwissOverrides] = useState<Record<string, any[]>>({}); // teamId -> [{name,duprId},{name,duprId}]
 
   const incompleteTPTPlayers = useMemo(() => {
     if (tournamentMode !== 'tpt') return [];
@@ -87,13 +98,13 @@ export default function ExportDUPRModal({
       );
   }, [tournamentMode, history, teamById]);
 
-  const updateTptOverride = (player, val) =>
+  const updateTptOverride = (player: any, val: any) =>
     setTptOverrides((prev) => ({ ...prev, [player.id]: val }));
-  const updateDoublesRROverride = (player, val) =>
+  const updateDoublesRROverride = (player: any, val: any) =>
     setDoublesRROverrides((prev) => ({ ...prev, [player.id]: val }));
-  const updateSwissOverride = (team, idx, val) =>
+  const updateSwissOverride = (team: any, idx: number, val: any) =>
     setSwissOverrides((prev) => {
-      const current = prev[team.id] || team.players || [BLANK_PLAYER, BLANK_PLAYER];
+      const current = prev[team.id as string] || team.players || [BLANK_PLAYER, BLANK_PLAYER];
       const next = [...current];
       next[idx] = val;
       return { ...prev, [team.id]: next };
@@ -127,8 +138,8 @@ export default function ExportDUPRModal({
     () =>
       buildDUPRRows({
         history,
-        tournamentMode,
-        tptTeams,
+        tournamentMode: tournamentMode as any,
+        tptTeams: tptTeams as any,
         tptPlayers: effectiveTptPlayers,
         tptSubstitutions,
         doublesRRPlayers: effectiveDoublesRRPlayers,
@@ -359,7 +370,7 @@ export default function ExportDUPRModal({
                       name={pair[idx]?.name || ''}
                       duprId={pair[idx]?.duprId || ''}
                       knownPlayers={knownPlayers}
-                      onChange={(val) => updateSwissOverride(t, idx, val)}
+                      onChange={(val: any) => updateSwissOverride(t, idx, val)}
                       placeholder={`Player ${idx + 1} name`}
                       inputStyle={fieldS}
                     />

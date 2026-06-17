@@ -1,4 +1,7 @@
 import { useCallback } from 'react';
+import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
+import type { SetField } from '../state/TournamentProvider';
+import type { TournamentRepo } from '../firebase';
 import { writeTournamentMeta, createTournamentRepo } from '../firebase';
 import { buildSnapshot } from '../snapshot';
 import { hasPermission } from '../roleConfig';
@@ -18,7 +21,6 @@ import { MODES } from '../modes';
 // machinery, exactly like TPT.
 export function useDoublesRRManagement({
   stateRef,
-  // refs
   tournamentIdRef,
   lastSeenRoundNum,
   pendingRef,
@@ -27,25 +29,46 @@ export function useDoublesRRManagement({
   doublesRRResultsRef,
   doublesRRScheduleRef,
   doublesRRRoundCompletingRef,
-  // Doubles RR state setters (non-reducer)
   setDoublesRRPlayers,
   setDoublesRRSchedule,
   setDoublesRRResults,
-  // single reducer setter (replaces the ~18 individual setX params)
   set,
-  // non-reducer setters
   setRole,
   setStandings,
   setRoundKey,
   setTimerAlarmed,
   setPhase,
   setActiveTab,
-  // callbacks
   applyTimerState,
   onFirebaseError,
   closeModal,
   clubId,
   repo,
+}: {
+  stateRef: MutableRefObject<any>;
+  tournamentIdRef: MutableRefObject<string | null>;
+  lastSeenRoundNum: MutableRefObject<number>;
+  pendingRef: MutableRefObject<Record<string, any>>;
+  roleRef: MutableRefObject<string | null>;
+  doublesRRPlayersRef: MutableRefObject<Record<string, any>>;
+  doublesRRResultsRef: MutableRefObject<Record<string, any>>;
+  doublesRRScheduleRef: MutableRefObject<any[]>;
+  doublesRRRoundCompletingRef: MutableRefObject<boolean>;
+  setDoublesRRPlayers: (v: Record<string, any>) => void;
+  setDoublesRRSchedule: (v: any[]) => void;
+  setDoublesRRResults: (v: Record<string, any>) => void;
+  set: SetField;
+  setRole: (v: string) => void;
+  setStandings: (s: any[]) => void;
+  setRoundKey: Dispatch<SetStateAction<number>>;
+  setTimerAlarmed: (v: boolean) => void;
+  setPhase: (v: string) => void;
+  setActiveTab: (v: string) => void;
+  applyTimerState: (running: boolean, startedAt: number | null, secsLeft: number) => void;
+  onFirebaseError: (msg: string) => void;
+  closeModal: () => void;
+  clubId: string | null;
+  repo: TournamentRepo;
 }) {
   const handleStartDoublesRR = useCallback(
     (
@@ -133,7 +156,7 @@ export function useDoublesRRManagement({
   );
 
   const handleDoublesRRResult = useCallback(
-    (roundIdx, courtIdx, result) => {
+    (roundIdx: number, courtIdx: number, result: any) => {
       const desc = MODES.doublesrr;
       submitScheduledResult({
         key: `${roundIdx}_${courtIdx}`,
@@ -164,8 +187,8 @@ export function useDoublesRRManagement({
   // player registry (not the existing schedule's roster) so a player removed via
   // Manage Players since the schedule was generated doesn't reappear in the new one.
   const handleGenerateAdditionalDoublesRR = useCallback(
-    (mode) => {
-      if (!hasPermission(roleRef.current, 'canSwitchTournamentMode')) {
+    (mode: string) => {
+      if (!hasPermission(roleRef.current as any, 'canSwitchTournamentMode')) {
         closeModal();
         return;
       }
@@ -211,7 +234,7 @@ export function useDoublesRRManagement({
   );
 
   const handleManageDoublesRRPlayersSave = useCallback(
-    (newPlayers) => {
+    (newPlayers: Record<string, any>) => {
       setDoublesRRPlayers(newPlayers);
       doublesRRPlayersRef.current = newPlayers;
       closeModal();
@@ -236,7 +259,7 @@ export function useDoublesRRManagement({
   );
 
   const handleUndoDoublesRRResult = useCallback(
-    (roundIdx, courtIdx) => {
+    (roundIdx: number, courtIdx: number) => {
       undoScheduledResult({
         roleRef,
         resultsRef: doublesRRResultsRef,

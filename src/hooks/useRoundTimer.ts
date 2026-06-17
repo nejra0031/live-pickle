@@ -1,9 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { hasPermission } from '../roleConfig';
 
-export function useRoundTimer({ timerDuration, roleRef, onFirebaseError, repo }) {
+export function useRoundTimer({ timerDuration, roleRef, onFirebaseError, repo }: {
+  timerDuration: number;
+  roleRef: { current: string | null };
+  onFirebaseError: (msg: string) => void;
+  repo: { pushAtomicUpdate: (fields: Record<string, any>, onErr: (msg: string) => void) => void };
+}) {
   const timerRunningRef = useRef(false);
-  const timerStartedAtRef = useRef(null);
+  const timerStartedAtRef = useRef<number | null>(null);
   const timerPausedSecsRef = useRef(0);
   const timerDurationRef = useRef(timerDuration);
   const timerTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -25,7 +30,7 @@ export function useRoundTimer({ timerDuration, roleRef, onFirebaseError, repo })
   }, []);
 
   const applyTimerState = useCallback(
-    (running, startedAt, pausedSecs) => {
+    (running: boolean, startedAt: number | null, pausedSecs: number) => {
       timerRunningRef.current = running;
       timerStartedAtRef.current = startedAt;
       timerPausedSecsRef.current = pausedSecs;
@@ -65,7 +70,7 @@ export function useRoundTimer({ timerDuration, roleRef, onFirebaseError, repo })
   }, [computeSecsLeft]);
 
   const resetTimer = useCallback(
-    (ns) => {
+    (ns?: number | null) => {
       const s = ns ?? timerDurationRef.current;
       setTimerAlarmed(false);
       applyTimerState(false, null, s);

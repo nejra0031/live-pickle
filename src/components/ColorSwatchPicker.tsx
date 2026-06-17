@@ -3,7 +3,7 @@ import { ALL_TEAMS } from '../constants';
 
 // A colored circle that opens a small palette picker when tapped, letting the
 // user change a team/player's color (and matching text/foreground color).
-export default function ColorSwatchPicker({ color, onChange, size = 12 }) {
+export default function ColorSwatchPicker({ color, onChange, size = 12 }: { color: string; onChange: (v: { color: string; text: string }) => void; size?: number }) {
   const [open, setOpen] = useState(false);
 
   return (

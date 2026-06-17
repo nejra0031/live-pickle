@@ -1,10 +1,11 @@
-export default function ConfirmModal({
-  title,
-  message,
-  confirmLabel = 'Confirm',
-  onConfirm,
-  onClose,
-}) {
+interface Props {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}
+export default function ConfirmModal({ title, message, confirmLabel = 'Confirm', onConfirm, onClose }: Props) {
   return (
     <div className="modal-overlay">
       <div

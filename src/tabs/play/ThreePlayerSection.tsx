@@ -10,7 +10,7 @@ import { getTPTGamesForMatchup, formatTPTTeamLabel } from '../../algorithms/thre
 import { TeamRegistryContext } from '../../context/TeamRegistryContext';
 import { playerDisplayName } from '../../utils/nameDisplay';
 
-function sideLabel(playerIds, players) {
+function sideLabel(playerIds: string[], players: Record<string, any>) {
   return playerIds
     .map((pid) => {
       const p = players[pid];
@@ -19,6 +19,29 @@ function sideLabel(playerIds, players) {
     .join(' & ');
 }
 
+interface Props {
+  tptTeams: any[];
+  tptPlayers: Record<string, any>;
+  tptSchedule: any[];
+  tptResults: Record<string, any>;
+  courtNumbers: string[];
+  history: any[];
+  role: string | null;
+  isAdmin: boolean;
+  timerDuration: number;
+  timerSecsLeft: number;
+  timerRunning: boolean;
+  breakMode: any;
+  onTPTResult: (...args: any[]) => void;
+  onUndoTPTResult: (...args: any[]) => void;
+  onFinishTournament: () => void;
+  onBreakStart: () => void;
+  onBreakEnd: () => void;
+  onTournamentSettings: () => void;
+  onTimerToggle: () => void;
+  onTimerRestart: () => void;
+  onTimerSettings: () => void;
+}
 export default function ThreePlayerSection({
   tptTeams,
   tptPlayers,
@@ -41,9 +64,9 @@ export default function ThreePlayerSection({
   onTimerToggle,
   onTimerRestart,
   onTimerSettings,
-}) {
+}: Props) {
   const { teamNameDisplay } = useContext(TeamRegistryContext);
-  const tptTeamLabel = (team) => formatTPTTeamLabel(team, tptPlayers, teamNameDisplay);
+  const tptTeamLabel = (team: any) => formatTPTTeamLabel(team, tptPlayers, teamNameDisplay);
   const canWrite = hasPermission(role, 'canSubmitResults');
   const { currentRoundIdx, totalRounds, allDone } = scheduleProgress(tptSchedule, history);
   const viewedRound = tptSchedule[currentRoundIdx];
@@ -54,7 +77,7 @@ export default function ThreePlayerSection({
     for (let ri = 0; ri <= currentRoundIdx && ri < totalRounds; ri++) {
       const round = tptSchedule[ri];
       if (!round) continue;
-      round.matchups.forEach((_, mi) => {
+      round.matchups.forEach((_: any, mi: number) => {
         for (let gi = 0; gi < 3; gi++) {
           if (tptResults[`${ri}_${mi}_${gi}`]) n++;
         }
@@ -65,7 +88,7 @@ export default function ThreePlayerSection({
 
   const totalGames = tptSchedule.reduce((acc, r) => acc + (r.matchups?.length ?? 0) * 3, 0);
 
-  const renderMatchupCard = (matchup, mi, ri, isCurrentRound) => {
+  const renderMatchupCard = (matchup: any, mi: number, ri: number, isCurrentRound: boolean) => {
     const teamA = tptTeams[matchup.teamAId];
     const teamB = tptTeams[matchup.teamBId];
     if (!teamA || !teamB) return null;
@@ -138,7 +161,7 @@ export default function ThreePlayerSection({
                   courtLabel={game.label}
                   teams={[sideA, sideB]}
                   pendingResult={pendingResult}
-                  onResult={(r) =>
+                  onResult={(r: any) =>
                     onTPTResult(ri, mi, gi, {
                       winnerTeamId: r.winnerId,
                       loserTeamId: r.loserId,
@@ -250,7 +273,7 @@ export default function ThreePlayerSection({
           >
             Round {currentRoundIdx + 1}
           </span>
-          {viewedRound.matchups.map((matchup, mi) =>
+          {viewedRound.matchups.map((matchup: any, mi: number) =>
             renderMatchupCard(matchup, mi, currentRoundIdx, true)
           )}
           {viewedRound.byeTeamId && tptTeams[viewedRound.byeTeamId] && (

@@ -129,22 +129,22 @@ export default function PlayTab() {
     onResumeTournament,
     onBreakStart: () => openModal('break'),
     onBreakEnd,
-    onEditActiveCourt: (idx) => openModal('editActiveCourt', idx),
-    onRemoveActiveCourt: (idx) =>
+    onEditActiveCourt: (idx: number) => openModal('editActiveCourt', idx),
+    onRemoveActiveCourt: (idx: number) =>
       openModal('pin', { purpose: 'removeActiveCourt', removeActiveCourtIdx: idx }),
-    onEditLive: (idx) => openModal('editLive', idx),
-    onRemoveLive: (idx) => openModal('pin', { purpose: 'removeLiveAddition', removeLiveIdx: idx }),
+    onEditLive: (idx: number) => openModal('editLive', idx),
+    onRemoveLive: (idx: number) => openModal('pin', { purpose: 'removeLiveAddition', removeLiveIdx: idx }),
     onUndoResult: handleUndoResult,
     onUndoLiveResult: handleUndoLiveResult,
     onRemovePreset,
-    onRemoveExtra: (gi) =>
+    onRemoveExtra: (gi: number) =>
       openModal('pin', { purpose: 'removeActiveRoundExtra', removeActiveRoundExtraIdx: gi }),
     onSelectRRTeams: () => openModal('selectRRTeams'),
     onGenerateAdditionalGames: () => openModal('generateAdditionalGames'),
     onPresetMatch: () => openModal('presetMatch'),
     onLiveAddGame: () => openModal('liveAddGame'),
     onContinueSwissAfterRR,
-    onExitRoundRobin: (reason) => (reason ? doExitRoundRobin(reason) : handleExitRoundRobin()),
+    onExitRoundRobin: (reason: string | null | undefined) => (reason ? doExitRoundRobin(reason) : handleExitRoundRobin()),
     onCancelRound: () => openModal('pin', { purpose: 'cancelRound' }),
     onTournamentSettings: () => openModal('tournamentSettings'),
     rrMatchKey,

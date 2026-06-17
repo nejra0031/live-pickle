@@ -4,13 +4,20 @@ import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
 import { TeamRegistryContext } from '../context/TeamRegistryContext';
 import { formatPlayerName } from '../algorithms/doublesRR';
 
+interface Props {
+  doublesRRPlayers?: Record<string, any>;
+  doublesRRStandings: any[];
+  doublesRRTiebreakOrder: string[];
+  onDoublesRRTiebreakOrderChange: (order: string[]) => void;
+  isAdmin: boolean;
+}
 export default function DoublesRRStandingsTab({
   doublesRRPlayers = {},
   doublesRRStandings,
   doublesRRTiebreakOrder,
   onDoublesRRTiebreakOrderChange,
   isAdmin,
-}) {
+}: Props) {
   const { teamNameDisplay } = useContext(TeamRegistryContext);
   if (!doublesRRStandings || doublesRRStandings.length === 0) {
     return <div className="text-center text-slate-400 py-8 text-sm">No results yet.</div>;
@@ -106,7 +113,7 @@ export default function DoublesRRStandingsTab({
                     border: '2px solid rgba(255,255,255,0.25)',
                   }}
                 >
-                  {formatPlayerName(doublesRRPlayers[p.id] || p, teamNameDisplay)}
+                  {formatPlayerName((doublesRRPlayers as any)[p.id] || p, teamNameDisplay)}
                 </span>
               </div>
               <span

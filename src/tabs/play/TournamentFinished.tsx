@@ -1,18 +1,19 @@
 import { useTeamLabel } from '../../context/TeamRegistryContext';
 
-export default function TournamentFinished({
-  ranked,
-  history,
-  isAdmin,
-  onResumeTournament,
-  onReset,
-}) {
+interface Props {
+  ranked: any[];
+  history: any[];
+  isAdmin: boolean;
+  onResumeTournament: () => void;
+  onReset: () => void;
+}
+export default function TournamentFinished({ ranked, history, isAdmin, onResumeTournament, onReset }: Props) {
   const teamLabel = useTeamLabel();
   const top = ranked.slice(0, 3);
   const podium = [top[1], top[0], top[2]].filter(Boolean);
   const heights = [120, 160, 90];
   const medals = ['🥈', '🥇', '🥉'];
-  const placeFor = (t) => top.indexOf(t) + 1;
+  const placeFor = (t: (typeof top)[number]) => top.indexOf(t) + 1;
 
   return (
     <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>

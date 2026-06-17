@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import { hasPermission } from '../../roleConfig';
 
-export default function BreakBanner({ breakMode, onBreakEnd, role }) {
+interface Props {
+  breakMode: { endAt: number; message: string } | null;
+  onBreakEnd: () => void;
+  role: string | null;
+}
+export default function BreakBanner({ breakMode, onBreakEnd, role }: Props) {
   const [breakSecsLeft, setBreakSecsLeft] = useState(() =>
     breakMode ? Math.max(0, Math.round((breakMode.endAt - Date.now()) / 1000)) : 0
   );

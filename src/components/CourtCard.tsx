@@ -36,8 +36,8 @@ export default function CourtCard({
   };
 
   if (pendingResult) {
-    const winner = teams.find((t) => t.id === pendingResult.winnerId);
-    const loser = teams.find((t) => t.id === pendingResult.loserId);
+    const winner = teams.find((t: any) => t.id === pendingResult.winnerId);
+    const loser = teams.find((t: any) => t.id === pendingResult.loserId);
     return (
       <div
         className="rounded-2xl"
@@ -179,7 +179,7 @@ export default function CourtCard({
         )}
       </div>
 
-      {teams.map((team, i) => {
+      {teams.map((team: any, i: number) => {
         const iw = wIdx === i;
         return (
           <div key={team.id}>

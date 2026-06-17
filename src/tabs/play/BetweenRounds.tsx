@@ -15,6 +15,26 @@ const settingsBtnStyle = {
   border: '1px solid rgba(99,102,241,0.25)',
 };
 
+interface Props {
+  isAdmin: boolean;
+  isReferee: boolean;
+  role: string | null;
+  roundNum: number;
+  finalRound: boolean;
+  setFinalRound: (updater: (prev: boolean) => boolean) => void;
+  targetRounds: number;
+  nextRoundPresets: any[];
+  breakMode: any;
+  socialCourts: string[];
+  activeTeamIds: string[];
+  onGenerateRound: () => void;
+  onSelectRRTeams: () => void;
+  onPresetMatch: () => void;
+  onBreakStart: () => void;
+  onBreakEnd: () => void;
+  onFinishTournament: () => void;
+  onTournamentSettings: () => void;
+}
 export default function BetweenRounds({
   isAdmin,
   isReferee,
@@ -34,7 +54,7 @@ export default function BetweenRounds({
   onBreakEnd,
   onFinishTournament,
   onTournamentSettings,
-}) {
+}: Props) {
   const teamById = useTeamById();
   const teamLabel = useTeamLabel();
   const nextRN = roundNum === 0 ? 1 : roundNum + 1;
@@ -297,7 +317,7 @@ export default function BetweenRounds({
               margin: 0,
             }}
           >
-            {ROLE_MAP[role]?.title ?? 'Referee'} Options
+            {(ROLE_MAP as any)[role!]?.title ?? 'Referee'} Options
           </p>
           {hasPermission(role, 'canSwitchTournamentMode') && (
             <button

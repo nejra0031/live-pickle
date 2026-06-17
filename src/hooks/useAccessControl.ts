@@ -26,7 +26,7 @@ export function useAccessControl({
     return () => clearTimeout(t);
   }, [firebaseError, firebaseErrorPersist]);
 
-  const setCriticalError = useCallback((msg, retrySnap) => {
+  const setCriticalError = useCallback((msg: string, retrySnap: any) => {
     retrySnapshotRef.current = retrySnap || null;
     setFirebaseErrorPersist(true);
     setFirebaseError(msg);
@@ -51,18 +51,18 @@ export function useAccessControl({
   }, [dismissError, setCriticalError, repo]);
 
   const gatedUpdate = useCallback(
-    (perm, fields) => {
+    (perm: string | string[], fields: Record<string, any>) => {
       const perms = Array.isArray(perm) ? perm : [perm];
-      if (perms.some((p) => hasPermission(roleRef.current as any, p)))
+      if (perms.some((p) => hasPermission(roleRef.current as any, p as any)))
         repo.pushAtomicUpdate(fields, setFirebaseError);
     },
     [repo]
   );
 
   const handleAddPin = useCallback(
-    async (roleId, label, pinDigits) => {
+    async (roleId: string, label: string, pinDigits: string) => {
       if (!isOwner) return;
-      const r = ROLE_MAP[roleId];
+      const r = ROLE_MAP[roleId as keyof typeof ROLE_MAP];
       if (!r) return;
       const hash = await sha256hex(pinDigits);
       return repo.addPin(r.firebasePinsPath, { hash, label });
@@ -71,9 +71,9 @@ export function useAccessControl({
   );
 
   const handleRevokePin = useCallback(
-    (roleId, pinId) => {
+    (roleId: string, pinId: string) => {
       if (!isOwner) return;
-      const r = ROLE_MAP[roleId];
+      const r = ROLE_MAP[roleId as keyof typeof ROLE_MAP];
       if (!r) return;
       repo.revokePin(r.firebasePinsPath, pinId);
     },

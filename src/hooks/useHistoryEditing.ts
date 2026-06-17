@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
+import type { MutableRefObject } from 'react';
 import { rebuildStandings } from '../algorithms/standings';
 import { useTournamentState } from '../state/TournamentProvider';
 import { useModal } from '../state/ModalProvider';
 import { useRepo } from '../state/RepoProvider';
+import type { TPTSubstitutions } from '../types';
 
 export function useHistoryEditing({
   gatedUpdate,
@@ -11,13 +13,20 @@ export function useHistoryEditing({
   tptSubstitutionsRef,
   setTPTSubstitutions,
   roleRef,
+}: {
+  gatedUpdate: (perm: any, fields: any) => void;
+  setStandings: (s: any[]) => void;
+  onFirebaseError: (msg: string) => void;
+  tptSubstitutionsRef: MutableRefObject<TPTSubstitutions>;
+  setTPTSubstitutions: (v: TPTSubstitutions) => void;
+  roleRef: MutableRefObject<string | null>;
 }) {
   const { set, stateRef } = useTournamentState();
   const { modal, closeModal } = useModal();
   const repo = useRepo();
 
   const handleEditSave = useCallback(
-    (ri, gameIdx, { game: ng, newBye }) => {
+    (ri: number, gameIdx: number, { game: ng, newBye }: { game: any; newBye: string[] }) => {
       const s = stateRef.current;
       const nh = s.history.map((h, i) =>
         i !== ri
@@ -37,7 +46,7 @@ export function useHistoryEditing({
   );
 
   const handleTPTHistoryEditSave = useCallback(
-    (ri, mi, gi, result) => {
+    (ri: number, mi: number, gi: number, result: any) => {
       const nh = stateRef.current.history.map((h, i) => {
         if (i !== ri || !h.tptMatchups) return h;
         const newMatchups = h.tptMatchups.map((m, mIdx) => {
@@ -54,7 +63,7 @@ export function useHistoryEditing({
   );
 
   const handleSetTPTSubstitution = useCallback(
-    (ri, mi, gi, subsMap) => {
+    (ri: number, mi: number, gi: number, subsMap: Record<string, any>) => {
       const key = `${ri}_${mi}_${gi}`;
       const hasSubs = subsMap && Object.keys(subsMap).length > 0;
       const next = { ...tptSubstitutionsRef.current };
@@ -71,7 +80,7 @@ export function useHistoryEditing({
   );
 
   const handleDoublesRRHistoryEditSave = useCallback(
-    (ri, ci, result) => {
+    (ri: number, ci: number, result: any) => {
       const nh = stateRef.current.history.map((h, i) => {
         if (i !== ri || !h.doublesRRCourts) return h;
         return {
@@ -89,7 +98,7 @@ export function useHistoryEditing({
   );
 
   const handleAddGameSave = useCallback(
-    (target, game) => {
+    (target: string | number, game: any) => {
       const s = stateRef.current;
       if (target === 'active') {
         if (s.round) {
@@ -120,7 +129,7 @@ export function useHistoryEditing({
   );
 
   const handleEditCourtNumber = useCallback(
-    (ri, gi, newCourtNum) => {
+    (ri: number, gi: number, newCourtNum: string | number) => {
       const trimmed = String(newCourtNum).trim();
       if (!trimmed) return;
       const nh = stateRef.current.history.map((h, i) =>
@@ -152,7 +161,7 @@ export function useHistoryEditing({
   }, [modal.data, stateRef, set, setStandings, roleRef, repo, onFirebaseError, closeModal]);
 
   const handleTimerSettingsSave = useCallback(
-    (m) => {
+    (m: number) => {
       set('timerDefaultMins', m);
       set('timerDuration', m * 60);
       gatedUpdate('canEditTimer', { timerDefaultMins: m, timerDuration: m * 60 });
@@ -162,7 +171,7 @@ export function useHistoryEditing({
   );
 
   const handleAddPreset = useCallback(
-    (p) => {
+    (p: any) => {
       const np = [...stateRef.current.nextRoundPresets, p];
       set('nextRoundPresets', np);
       gatedUpdate('canPresetMatch', { nextRoundPresets: np });
@@ -172,7 +181,7 @@ export function useHistoryEditing({
   );
 
   const handleAddLiveGame = useCallback(
-    (la) => {
+    (la: any) => {
       const nl = [...stateRef.current.liveAdditions, la];
       set('liveAdditions', nl);
       gatedUpdate('canLiveAddGame', { liveAdditions: nl });

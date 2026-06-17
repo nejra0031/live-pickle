@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import type { MutableRefObject } from 'react';
+import type { TournamentRepo } from '../firebase';
 import {
   db,
   ref as fbRef,
@@ -27,6 +29,16 @@ export function useFirebaseSync({
   onTournamentSwap, // () => void
   onFirebaseError, // (msg) => void
   repo,
+}: {
+  role: string | null;
+  roleRef: MutableRefObject<string | null>;
+  tournamentIdRef: MutableRefObject<string | null>;
+  onSnapshot: (data: any) => void;
+  onPendingResults: (data: any) => void;
+  onPhaseTimeout: () => void;
+  onTournamentSwap: () => void;
+  onFirebaseError: (msg: string) => void;
+  repo: TournamentRepo;
 }) {
   const [firebaseConnected, setFirebaseConnected] = useState(false);
   const [presence, setPresence] = useState(() =>
@@ -35,7 +47,7 @@ export function useFirebaseSync({
   const [pins, setPins] = useState({});
   const [pinsLoaded, setPinsLoaded] = useState({});
   const [pinsLoadError, setPinsLoadError] = useState({});
-  const [backupRoundNums, setBackupRoundNums] = useState(new Set());
+  const [backupRoundNums, setBackupRoundNums] = useState<Set<number>>(new Set());
 
   const myPresRef = useRef<any>(null);
   const presHeartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);

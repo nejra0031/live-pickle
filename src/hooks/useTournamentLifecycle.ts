@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
 import { createTournamentRepo, writeTournamentMeta } from '../firebase';
 import { buildSnapshot } from '../snapshot';
 import { normaliseSnapshot } from '../normalise';
@@ -48,6 +49,44 @@ export function useTournamentLifecycle({
   doublesRRResultsRef,
   doublesRRScheduleRef,
   doublesRRRoundCompletingRef,
+}: {
+  clubId: string | null;
+  onCreated?: ((clubId: string | null, tid: string, role: string) => void) | null;
+  effectiveRankedRef: MutableRefObject<any[]>;
+  tournamentIdRef: MutableRefObject<string | null>;
+  lastSeenRoundNum: MutableRefObject<number>;
+  historyLengthRef: MutableRefObject<number>;
+  pendingRef: MutableRefObject<Record<string, any>>;
+  setStandings: (s: any[]) => void;
+  setBreakMode: (v: any) => void;
+  setPhase: (v: string) => void;
+  setActiveTab: (v: string) => void;
+  setRole: (v: string) => void;
+  setRoundKey: Dispatch<SetStateAction<number>>;
+  setTimerAlarmed: (v: boolean) => void;
+  setBackupRoundNums: Dispatch<SetStateAction<Set<number>>>;
+  applyTimerState: (running: boolean, startedAt: number | null, secsLeft: number) => void;
+  resetTimer: (secs: number) => void;
+  computeSecsLeft: () => number;
+  gatedUpdate: (perm: any, fields: any) => void;
+  onFirebaseError: (msg: string) => void;
+  updateAllStates: (s: any) => void;
+  setTPTTeams: (v: any) => void;
+  setTPTPlayers: (v: any) => void;
+  setTPTSchedule: (v: any) => void;
+  setTPTResults: (v: any) => void;
+  setTPTSubstitutions: (v: any) => void;
+  tptResultsRef: MutableRefObject<any>;
+  tptScheduleRef: MutableRefObject<any>;
+  tptRoundCompletingRef: MutableRefObject<boolean>;
+  tptSubstitutionsRef: MutableRefObject<any>;
+  setDoublesRRPlayers: (v: any) => void;
+  setDoublesRRSchedule: (v: any) => void;
+  setDoublesRRResults: (v: any) => void;
+  doublesRRPlayersRef: MutableRefObject<any>;
+  doublesRRResultsRef: MutableRefObject<any>;
+  doublesRRScheduleRef: MutableRefObject<any>;
+  doublesRRRoundCompletingRef: MutableRefObject<boolean>;
 }) {
   const { set, load, stateRef } = useTournamentState();
   const { modal, closeModal } = useModal();
@@ -116,7 +155,7 @@ export function useTournamentLifecycle({
       newRepo.pushSnapshot(snap, onFirebaseError);
       setRole('admin');
       onCreated?.(clubId, tid, 'admin');
-      const playerCount = allTeams.reduce((n, t) => n + (t.players?.length || 1), 0);
+      const playerCount = allTeams.reduce((n: number, t: any) => n + (t.players?.length || 1), 0);
       if (clubId)
         writeTournamentMeta(clubId, tid, {
           id: tid,
@@ -167,7 +206,7 @@ export function useTournamentLifecycle({
   );
 
   const doReset = useCallback(() => {
-    if (clubId) writeTournamentMeta(clubId, tournamentIdRef.current, { status: 'setup' });
+    if (clubId) writeTournamentMeta(clubId, tournamentIdRef.current as string, { status: 'setup' });
     repo.pushSnapshot(null, onFirebaseError);
     repo.clearBackups();
     setBackupRoundNums(new Set());
@@ -279,7 +318,7 @@ export function useTournamentLifecycle({
   }, [stateRef, closeModal, applyTimerState, setBackupRoundNums, repo, load, onFirebaseError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleBreakStart = useCallback(
-    (message, durationSecs) => {
+    (message: string, durationSecs: number) => {
       const bm = { message, endAt: Date.now() + durationSecs * 1000 };
       setBreakMode(bm);
       closeModal();
@@ -316,7 +355,7 @@ export function useTournamentLifecycle({
           losses: t.losses,
           scoreDiff: t.scoreDiff,
         }));
-      writeTournamentMeta(clubId, tournamentIdRef.current, { status: 'finished', top3 });
+      writeTournamentMeta(clubId, tournamentIdRef.current as string, { status: 'finished', top3 });
     }
   }, [computeSecsLeft, applyTimerState, set, gatedUpdate, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -324,7 +363,7 @@ export function useTournamentLifecycle({
     set('tournamentFinished', false);
     gatedUpdate('canFinishTournament', { tournamentFinished: false });
     if (clubId)
-      writeTournamentMeta(clubId, tournamentIdRef.current, { status: 'active', top3: null });
+      writeTournamentMeta(clubId, tournamentIdRef.current as string, { status: 'active', top3: null });
   }, [set, gatedUpdate, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {

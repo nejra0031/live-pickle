@@ -30,7 +30,7 @@ const fS = {
   outline: 'none',
 };
 const uid = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-const playerKey = (n) => n.trim().toLowerCase();
+const playerKey = (n: string) => n.trim().toLowerCase();
 
 const DISPLAY_MODE_OPTIONS = [
   { value: 'name', label: 'Team name' },
@@ -39,7 +39,7 @@ const DISPLAY_MODE_OPTIONS = [
 ];
 const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
-function parseDT(v) {
+function parseDT(v: string) {
   if (!v) return { date: '', hour: 8, min: 0 };
   const [date, time = ''] = v.split('T');
   const [h, m] = time.split(':').map(Number);
@@ -89,7 +89,7 @@ function Acc({
   );
 }
 
-function FL({ children }) {
+function FL({ children }: { children: any }) {
   return (
     <p style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 4, marginTop: 0 }}>
       {children}
@@ -99,7 +99,7 @@ function FL({ children }) {
 
 // Nickname + full-name editor — DUPR ID is set during setup and not editable
 // from Tournament Settings.
-function NicknameField({ name, nickname, onChange }) {
+function NicknameField({ name, nickname, onChange }: { name: string; nickname: string; onChange: (v: any) => void }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <input
@@ -118,7 +118,7 @@ function NicknameField({ name, nickname, onChange }) {
   );
 }
 
-function AddPinForm({ roleId, onAddPin, onAdded }) {
+function AddPinForm({ roleId, onAddPin, onAdded }: { roleId: string; onAddPin: (roleId: string, label: string, pin: string) => Promise<any>; onAdded: (label: string, pin: string) => void }) {
   const [label, setLabel] = useState('');
   const [pinDigits, setPinDigits] = useState('');
   const [saving, setSaving] = useState(false);
@@ -175,9 +175,9 @@ function AddPinForm({ roleId, onAddPin, onAdded }) {
 
 const selS = { ...iS, width: 'auto', background: '#1e293b' };
 
-function StartTimePicker({ startTime, setStartTime }) {
+function StartTimePicker({ startTime, setStartTime }: { startTime: string; setStartTime: (v: string) => void }) {
   const { date, hour, min } = parseDT(startTime);
-  const setDT = (d, h, m) =>
+  const setDT = (d: string, h: number, m: number) =>
     setStartTime(d ? `${d}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}` : '');
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -253,7 +253,7 @@ export default function TournamentSettingsModal({
   onAddPin,
   onRevokePin,
   onClose,
-}) {
+}: any) {
   const canEditEventInfo = hasPermission(role, 'canEditEventInfo');
   const canEditStandingsOrder = hasPermission(role, 'canEditStandingsOrder');
   const canPauseTeams = hasPermission(role, 'canPauseTeams');
@@ -262,11 +262,11 @@ export default function TournamentSettingsModal({
   const canResetTournament = hasPermission(role, 'canResetTournament');
 
   const [sec, setSec] = useState<Record<string, boolean>>({});
-  const toggle = (k) => setSec((p) => ({ ...p, [k]: !p[k] }));
+  const toggle = (k: string) => setSec((p) => ({ ...p, [k]: !p[k] }));
 
   // PINs created during this modal session — shown next to their label as a
   // one-time confirmation, since only the hash is persisted (see CLAUDE.md).
-  const [sessionPins, setSessionPins] = useState({});
+  const [sessionPins, setSessionPins] = useState<Record<string, string>>({});
 
   // Event info state
   const [title, setTitle] = useState(tournamentTitle || '');
@@ -283,11 +283,11 @@ export default function TournamentSettingsModal({
     { name: '', duprId: '', nickname: '' },
   ];
   const [localTeams, setLocalTeams] = useState(() =>
-    (activeTeamIds || []).map((id) => {
+    (activeTeamIds || []).map((id: any) => {
       const t = teamById(id);
       const players =
         t?.players?.length === 2
-          ? t.players.map((p) => ({
+          ? t.players.map((p: any) => ({
               name: p.name || '',
               duprId: p.duprId || '',
               nickname: p.nickname || '',
@@ -334,9 +334,9 @@ export default function TournamentSettingsModal({
   const [newDRRDraft, setNewDRRDraft] = useState({ name: '', duprId: '', nickname: '' });
 
   // Courts state
-  const [localCourts, setLocalCourts] = useState(() => (courtNumbers || []).map((c) => String(c)));
+  const [localCourts, setLocalCourts] = useState(() => (courtNumbers || []).map((c: any) => String(c)));
   const [localSocial, setLocalSocial] = useState(() =>
-    (courtNumbers || []).map((c) => (socialCourts || []).includes(String(c)))
+    (courtNumbers || []).map((c: any) => (socialCourts || []).includes(String(c)))
   );
 
   // Reset confirmation state
@@ -344,13 +344,13 @@ export default function TournamentSettingsModal({
 
   // Derived
   const playedTeamIds = new Set(
-    (history || []).flatMap((r) => (r.games || []).flatMap((g) => [g.winnerId, g.loserId]))
+    (history || []).flatMap((r: any) => (r.games || []).flatMap((g: any) => [g.winnerId, g.loserId]))
   );
-  const usedIds = new Set(localTeams.map((t) => t.id));
-  const available = ALL_TEAMS.filter((t) => !usedIds.has(t.id));
+  const usedIds = new Set(localTeams.map((t: any) => t.id));
+  const available = ALL_TEAMS.filter((t: any) => !usedIds.has(t.id));
   const addedPlayerKeys = new Set(
     localTeams
-      .flatMap((t) => t.players.map((p) => p.name))
+      .flatMap((t: any) => t.players.map((p: any) => p.name))
       .map(playerKey)
       .filter(Boolean)
   );
@@ -370,18 +370,18 @@ export default function TournamentSettingsModal({
   );
   const courtsValid =
     localCourts.length >= 1 &&
-    localCourts.every((v) => v.trim() !== '') &&
-    new Set(localCourts.map((v) => v.trim())).size === localCourts.length;
+    localCourts.every((v: any) => v.trim() !== '') &&
+    new Set(localCourts.map((v: any) => v.trim())).size === localCourts.length;
   const rrCourtCount = tournamentMode === 'roundrobin' ? (roundRobinCourts?.length ?? 0) : 0;
   const rrWarning =
-    rrCourtCount > 0 && localCourts.filter((_, i) => !localSocial[i]).length < rrCourtCount;
+    rrCourtCount > 0 && localCourts.filter((_: any, i: number) => !localSocial[i]).length < rrCourtCount;
 
   const handleSave = () => {
     if (canEditEventInfo) onSaveInfo({ title, location, startTime, durationMins, maxPlayers });
     if (canEditTeams) {
       if (tournamentMode === 'tpt' && onManageTPTTeamsSave) {
         const newTeams = Object.fromEntries(
-          localTPTTeams.map((t) => [t.id, { ...t, name: t.name.trim() || t.id }])
+          localTPTTeams.map((t: any) => [t.id, { ...t, name: t.name.trim() || t.id }])
         );
         const newPlayers = Object.fromEntries(
           Object.entries(localTPTPlayers).map(([id, p]) => [
@@ -394,7 +394,7 @@ export default function TournamentSettingsModal({
             },
           ])
         );
-        Object.values(newPlayers).forEach((p) => saveKnownPlayer(p.name, p.duprId, p.nickname));
+        Object.values(newPlayers).forEach((p: any) => saveKnownPlayer(p.name, p.duprId, p.nickname));
         onManageTPTTeamsSave(newTeams, newPlayers);
       } else if (tournamentMode === 'doublesrr' && onManageDoublesRRPlayersSave) {
         const newPlayers = Object.fromEntries(
@@ -408,19 +408,19 @@ export default function TournamentSettingsModal({
             },
           ])
         );
-        Object.values(newPlayers).forEach((p) => saveKnownPlayer(p.name, p.duprId, p.nickname));
+        Object.values(newPlayers).forEach((p: any) => saveKnownPlayer(p.name, p.duprId, p.nickname));
         onManageDoublesRRPlayersSave(newPlayers);
       } else if (onManageTeamsSave) {
-        const registry = localTeams.map((t) => {
-          const players = t.players.map((p) => ({
+        const registry = localTeams.map((t: any) => {
+          const players = t.players.map((p: any) => ({
             name: p.name.trim(),
             duprId: p.duprId.trim(),
             nickname: (p.nickname || '').trim(),
           }));
-          const hasPlayers = players.some((p) => p.name);
+          const hasPlayers = players.some((p: any) => p.name);
           players
-            .filter((p) => p.name)
-            .forEach((p) => saveKnownPlayer(p.name, p.duprId, p.nickname));
+            .filter((p: any) => p.name)
+            .forEach((p: any) => saveKnownPlayer(p.name, p.duprId, p.nickname));
           return {
             id: t.id,
             name: t.name.trim() || t.id,
@@ -431,15 +431,15 @@ export default function TournamentSettingsModal({
         });
         onManageTeamsSave(
           registry,
-          localTeams.map((t) => t.id)
+          localTeams.map((t: any) => t.id)
         );
       }
     }
     if (canEditCourts && courtsValid && onManageCourtsSave) {
-      const trimmed = localCourts.map((v) => v.trim());
+      const trimmed = localCourts.map((v: any) => v.trim());
       onManageCourtsSave(
         trimmed,
-        trimmed.filter((_, i) => localSocial[i])
+        trimmed.filter((_: any, i: number) => localSocial[i])
       );
     }
     onClose();
@@ -561,8 +561,8 @@ export default function TournamentSettingsModal({
               const pauseTeams =
                 tournamentMode === 'tpt'
                   ? Object.values(tptTeams || {})
-                  : (activeTeamIds || []).map((id) => teamById(id)).filter(Boolean);
-              const nameFor = (id) =>
+                  : (activeTeamIds || []).map((id: any) => teamById(id)).filter(Boolean);
+              const nameFor = (id: any) =>
                 tournamentMode === 'tpt' ? tptTeams?.[id]?.name : teamLabel(id);
               return (
                 <Acc
@@ -571,7 +571,7 @@ export default function TournamentSettingsModal({
                   onToggle={() => toggle('teamStatus')}
                 >
                   <div className="flex flex-wrap" style={{ gap: 8 }}>
-                    {pauseTeams.map((t) => {
+                    {pauseTeams.map((t: any) => {
                       const paused = (pausedIds || []).includes(t.id);
                       return (
                         <button
@@ -597,7 +597,7 @@ export default function TournamentSettingsModal({
                   {(pausedIds || []).length > 0 && (
                     <p style={{ fontSize: 12, color: '#d97706', marginTop: 8 }}>
                       {(pausedIds || [])
-                        .map((id) => nameFor(id))
+                        .map((id: any) => nameFor(id))
                         .filter(Boolean)
                         .join(', ')}{' '}
                       paused — excluded from rotation.
@@ -654,24 +654,24 @@ export default function TournamentSettingsModal({
                   Rename
                 </p>
                 <div className="flex flex-col gap-2">
-                  {localTeams.map((t) => {
-                    const filled = t.players.filter((p) => p.name.trim()).length;
+                  {localTeams.map((t: any) => {
+                    const filled = t.players.filter((p: any) => p.name.trim()).length;
                     return (
                       <div key={t.id} className="flex flex-col gap-1">
                         <div className="flex items-center gap-2">
                           <ColorSwatchPicker
                             color={t.color}
-                            onChange={({ color, text }) =>
-                              setLocalTeams((p) =>
-                                p.map((x) => (x.id === t.id ? { ...x, color, text } : x))
+                            onChange={({ color, text }: any) =>
+                              setLocalTeams((p: any) =>
+                                p.map((x: any) => (x.id === t.id ? { ...x, color, text } : x))
                               )
                             }
                           />
                           <input
                             value={t.name}
                             onChange={(e) =>
-                              setLocalTeams((p) =>
-                                p.map((x) => (x.id === t.id ? { ...x, name: e.target.value } : x))
+                              setLocalTeams((p: any) =>
+                                p.map((x: any) => (x.id === t.id ? { ...x, name: e.target.value } : x))
                               )
                             }
                             style={fS}
@@ -700,7 +700,7 @@ export default function TournamentSettingsModal({
                               localTeams.length <= 2 && playedTeamIds.has(t.id);
                             return (
                               <button
-                                onClick={() => setLocalTeams((p) => p.filter((x) => x.id !== t.id))}
+                                onClick={() => setLocalTeams((p: any) => p.filter((x: any) => x.id !== t.id))}
                                 disabled={removeDisabled}
                                 title={
                                   removeDisabled
@@ -745,7 +745,7 @@ export default function TournamentSettingsModal({
                             >
                               Players
                             </p>
-                            {t.players.map((pl, slot) => (
+                            {t.players.map((pl: any, slot: number) => (
                               <PlayerNameField
                                 key={slot}
                                 name={pl.name}
@@ -753,9 +753,9 @@ export default function TournamentSettingsModal({
                                 nickname={pl.nickname || ''}
                                 knownPlayers={knownPlayers}
                                 excludeKeys={addedPlayerKeys}
-                                onChange={(val) =>
-                                  setLocalTeams((p) =>
-                                    p.map((x) => {
+                                onChange={(val: any) =>
+                                  setLocalTeams((p: any) =>
+                                    p.map((x: any) => {
                                       if (x.id !== t.id) return x;
                                       const players = [...x.players];
                                       players[slot] = val;
@@ -780,7 +780,7 @@ export default function TournamentSettingsModal({
                     <button
                       onClick={() => {
                         const base = available[0];
-                        setLocalTeams((p) => [
+                        setLocalTeams((p: any) => [
                           ...p,
                           {
                             id: base.id,
@@ -907,10 +907,10 @@ export default function TournamentSettingsModal({
                               nickname={p.nickname || ''}
                               knownPlayers={knownPlayers}
                               excludeKeys={addedTPTPlayerKeys}
-                              onChange={(val) =>
+                              onChange={(val: any) =>
                                 setLocalTPTPlayers((prev) => ({
                                   ...prev,
-                                  [p.id]: { ...prev[p.id], ...val },
+                                  [p.id]: { ...(prev as any)[p.id], ...val },
                                 }))
                               }
                               inputStyle={fS}
@@ -1025,10 +1025,10 @@ export default function TournamentSettingsModal({
                   >
                     <ColorSwatchPicker
                       color={p.color || '#64748b'}
-                      onChange={({ color, text }) =>
+                      onChange={({ color, text }: any) =>
                         setLocalDRRPlayers((prev) => ({
                           ...prev,
-                          [p.id]: { ...prev[p.id], color, text },
+                          [p.id]: { ...(prev as any)[p.id], color, text },
                         }))
                       }
                     />
@@ -1036,10 +1036,10 @@ export default function TournamentSettingsModal({
                       <NicknameField
                         name={p.name}
                         nickname={p.nickname || ''}
-                        onChange={(updates) =>
+                        onChange={(updates: any) =>
                           setLocalDRRPlayers((prev) => ({
                             ...prev,
-                            [p.id]: { ...prev[p.id], ...updates },
+                            [p.id]: { ...(prev as any)[p.id], ...updates },
                           }))
                         }
                       />
@@ -1121,10 +1121,10 @@ export default function TournamentSettingsModal({
                 </div>
               )}
               <div className="flex flex-col gap-2">
-                {localCourts.map((c, i) => {
+                {localCourts.map((c: any, i: number) => {
                   const dup = localCourts
-                    .filter((_, j) => j !== i)
-                    .map((v) => v.trim())
+                    .filter((_: any, j: number) => j !== i)
+                    .map((v: any) => v.trim())
                     .includes(c.trim());
                   const invalid = c.trim() === '' || dup;
                   const isSocial = localSocial[i];
@@ -1145,7 +1145,7 @@ export default function TournamentSettingsModal({
                       <input
                         value={c}
                         onChange={(e) =>
-                          setLocalCourts((p) => p.map((x, j) => (j === i ? e.target.value : x)))
+                          setLocalCourts((p: any) => p.map((x: any, j: number) => (j === i ? e.target.value : x)))
                         }
                         style={{
                           minWidth: 0,
@@ -1154,7 +1154,7 @@ export default function TournamentSettingsModal({
                         }}
                       />
                       <button
-                        onClick={() => setLocalSocial((p) => p.map((v, j) => (j === i ? !v : v)))}
+                        onClick={() => setLocalSocial((p: any) => p.map((v: any, j: number) => (j === i ? !v : v)))}
                         title={isSocial ? 'Mark as competitive' : 'Mark as warm up / social'}
                         style={{
                           flexShrink: 0,
@@ -1174,8 +1174,8 @@ export default function TournamentSettingsModal({
                       </button>
                       <button
                         onClick={() => {
-                          setLocalCourts((p) => p.filter((_, j) => j !== i));
-                          setLocalSocial((p) => p.filter((_, j) => j !== i));
+                          setLocalCourts((p: any) => p.filter((_: any, j: number) => j !== i));
+                          setLocalSocial((p: any) => p.filter((_: any, j: number) => j !== i));
                         }}
                         disabled={localCourts.length <= 1}
                         style={{
@@ -1198,11 +1198,11 @@ export default function TournamentSettingsModal({
               </div>
               <button
                 onClick={() => {
-                  const existing = new Set(localCourts.map((v) => v.trim()));
+                  const existing = new Set(localCourts.map((v: any) => v.trim()));
                   let n = localCourts.length + 1;
                   while (existing.has(String(n))) n++;
-                  setLocalCourts((p) => [...p, String(n)]);
-                  setLocalSocial((p) => [...p, false]);
+                  setLocalCourts((p: any) => [...p, String(n)]);
+                  setLocalSocial((p: any) => [...p, false]);
                 }}
                 style={{
                   marginTop: 10,
@@ -1244,7 +1244,7 @@ export default function TournamentSettingsModal({
                         No PINs configured.
                       </p>
                     )}
-                    {(pins?.[r.id] || []).map((p) => (
+                    {(pins?.[r.id] || []).map((p: any) => (
                       <div key={p.id} className="flex items-center gap-2">
                         <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>
                           {p.label || 'Unnamed'}
@@ -1276,7 +1276,7 @@ export default function TournamentSettingsModal({
                   <AddPinForm
                     roleId={r.id}
                     onAddPin={onAddPin}
-                    onAdded={(id, digits) => setSessionPins((prev) => ({ ...prev, [id]: digits }))}
+                    onAdded={(id: string, digits: string) => setSessionPins((prev) => ({ ...prev, [id]: digits }))}
                   />
                 </div>
               ))}

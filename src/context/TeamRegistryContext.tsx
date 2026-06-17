@@ -14,10 +14,10 @@ function useRegistry() {
 // teamById for React components — reads from context so renames trigger re-renders
 export function useTeamById() {
   const registry = useRegistry();
-  return (id) => registry.find((t) => t.id === id) || ALL_TEAMS.find((t) => t.id === id);
+  return (id: string) => registry.find((t: any) => t.id === id) || ALL_TEAMS.find((t: any) => t.id === id);
 }
 
-function formatTeamLabel(team, mode) {
+function formatTeamLabel(team: any, mode: string) {
   if (!team) return '';
   const playerNames = (team.players || []).map(playerDisplayName).filter(Boolean).join(' & ');
   if (mode === 'players') return playerNames || team.name;
@@ -28,5 +28,5 @@ function formatTeamLabel(team, mode) {
 export function useTeamLabel() {
   const teamById = useTeamById();
   const { teamNameDisplay } = useContext(TeamRegistryContext);
-  return (teamId) => formatTeamLabel(teamById(teamId), teamNameDisplay);
+  return (teamId: string) => formatTeamLabel(teamById(teamId), teamNameDisplay);
 }

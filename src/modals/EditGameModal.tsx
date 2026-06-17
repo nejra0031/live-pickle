@@ -2,7 +2,8 @@ import { useState } from 'react';
 import NumInput from '../components/NumInput';
 
 // A single side's display chip + score input. `side` is { label, color, text }.
-function SideRow({ side, score, onScoreChange }) {
+interface SideRowProps { side: any; score: string; onScoreChange: (v: string) => void }
+function SideRow({ side, score, onScoreChange }: SideRowProps) {
   return (
     <div className="flex items-center gap-3">
       <div
@@ -90,7 +91,7 @@ export default function EditGameModal({
     });
   };
 
-  const chipBtn = (id, active, onClick) => {
+  const chipBtn = (id: string, active: boolean, onClick: () => void) => {
     const t = teamPicker.getTeam(id);
     if (!t) return null;
     return (
@@ -145,7 +146,7 @@ export default function EditGameModal({
             <div className="flex flex-col gap-2">
               <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">Team A</p>
               <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
-                {teamPicker.allTeamIds.map((id) =>
+                {teamPicker.allTeamIds.map((id: string) =>
                   chipBtn(id, teamAId === id, () => {
                     setTeamAId(id);
                     if (teamBId === id) setTeamBId(teamAId);
@@ -160,7 +161,7 @@ export default function EditGameModal({
             <div className="flex flex-col gap-2">
               <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">Team B</p>
               <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
-                {teamPicker.allTeamIds.map((id) =>
+                {teamPicker.allTeamIds.map((id: string) =>
                   chipBtn(id, teamBId === id, () => {
                     setTeamBId(id);
                     if (teamAId === id) setTeamAId(teamBId);

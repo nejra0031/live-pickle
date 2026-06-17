@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
-export default function TimerSettingsModal({ currentMins, onSave, onClose }) {
+interface Props { currentMins: number; onSave: (mins: number) => void; onClose: () => void }
+export default function TimerSettingsModal({ currentMins, onSave, onClose }: Props) {
   const [mins, setMins] = useState(currentMins);
   return (
     <div className="modal-overlay">

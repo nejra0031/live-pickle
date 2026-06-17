@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react';
+import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
 import { hasPermission } from '../roleConfig';
 import { courtKey, liveKey } from '../constants';
 import { rebuildStandings } from '../algorithms/standings';
@@ -8,6 +9,9 @@ import {
   generateRemainingRoundRobinSchedule,
 } from '../algorithms/roundRobin';
 import { buildSnapshot } from '../snapshot';
+import type { ActiveRound, RoundEntry } from '../types';
+import type { SetField } from '../state/TournamentProvider';
+import type { TournamentRepo } from '../firebase';
 
 // Owns the active-round lifecycle: result submission, round generation/cancel/regenerate,
 // round completion (auto-detects when all courts are filled), and Round Robin management.
@@ -55,15 +59,45 @@ export function useRoundManagement({
   onRequirePin, // (purpose) => void — open PIN modal from App
   closeModal,
   repo,
+}: {
+  stateRef: MutableRefObject<any>;
+  pending: Record<string, any>;
+  round: ActiveRound | null;
+  roundComplete: boolean;
+  liveAdditions: any[];
+  history: RoundEntry[];
+  phase: string;
+  roleRef: MutableRefObject<string | null>;
+  breakModeRef: MutableRefObject<string | null>;
+  timerRunningRef: MutableRefObject<boolean>;
+  timerStartedAtRef: MutableRefObject<number | null>;
+  timerPausedSecsRef: MutableRefObject<number>;
+  timerDurationRef: MutableRefObject<number>;
+  pendingRef: MutableRefObject<Record<string, any>>;
+  roundCompletingRef: MutableRefObject<boolean>;
+  lastSeenRoundNum: MutableRefObject<number>;
+  historyLengthRef: MutableRefObject<number>;
+  set: SetField;
+  setStandings: (s: any[]) => void;
+  setRoundKey: Dispatch<SetStateAction<number>>;
+  setTimerAlarmed: (v: boolean) => void;
+  setBackupRoundNums: Dispatch<SetStateAction<Set<number>>>;
+  applyTimerState: (running: boolean, startedAt: number | null, secsLeft: number) => void;
+  computeSecsLeft: () => number;
+  setCriticalError: (msg: string, snap: any) => void;
+  onFirebaseError: (msg: string) => void;
+  onRequirePin: (purpose: string) => void;
+  closeModal: () => void;
+  repo: TournamentRepo;
 }) {
   // ── Result submission ─────────────────────────────────────────────────────
   const handleResult = useCallback(
-    (ci, result) => {
+    (ci: number, result: any) => {
       const key = courtKey(ci);
       const np = { ...pendingRef.current, [key]: result };
       pendingRef.current = np;
       set('pending', np);
-      if (hasPermission(roleRef.current, 'canSubmitResults')) {
+      if (hasPermission(roleRef.current as any, 'canSubmitResults')) {
         repo.pushAtomicUpdate({ [`pendingResults/${key}`]: result }, onFirebaseError);
       }
     },
@@ -71,12 +105,12 @@ export function useRoundManagement({
   );
 
   const handleLiveResult = useCallback(
-    (i, result) => {
+    (i: number, result: any) => {
       const key = liveKey(i);
       const np = { ...pendingRef.current, [key]: result };
       pendingRef.current = np;
       set('pending', np);
-      if (hasPermission(roleRef.current, 'canSubmitResults')) {
+      if (hasPermission(roleRef.current as any, 'canSubmitResults')) {
         repo.pushAtomicUpdate({ [`pendingResults/${key}`]: result }, onFirebaseError);
       }
     },
@@ -84,13 +118,13 @@ export function useRoundManagement({
   );
 
   const handleUndoResult = useCallback(
-    (idx) => {
+    (idx: number) => {
       const k = courtKey(idx);
       const np = { ...pendingRef.current };
       delete np[k];
       pendingRef.current = np;
       set('pending', np);
-      if (hasPermission(roleRef.current, 'canSubmitResults')) {
+      if (hasPermission(roleRef.current as any, 'canSubmitResults')) {
         repo.pushAtomicUpdate({ [`pendingResults/${k}`]: null }, onFirebaseError);
       }
     },
@@ -98,13 +132,13 @@ export function useRoundManagement({
   );
 
   const handleUndoLiveResult = useCallback(
-    (i) => {
+    (i: number) => {
       const k = liveKey(i);
       const np = { ...pendingRef.current };
       delete np[k];
       pendingRef.current = np;
       set('pending', np);
-      if (hasPermission(roleRef.current, 'canSubmitResults')) {
+      if (hasPermission(roleRef.current as any, 'canSubmitResults')) {
         repo.pushAtomicUpdate({ [`pendingResults/${k}`]: null }, onFirebaseError);
       }
     },
@@ -122,14 +156,14 @@ export function useRoundManagement({
   useEffect(() => {
     const s = stateRef.current;
     if (!s.round || s.roundComplete || roundCompletingRef.current) return;
-    if (!s.round.courts.every((_, i) => s.pending[courtKey(i)])) return;
-    if (!s.liveAdditions.every((_, i) => s.pending[liveKey(i)])) return;
+    if (!s.round.courts.every((_: any, i: number) => s.pending[courtKey(i)])) return;
+    if (!s.liveAdditions.every((_: any, i: number) => s.pending[liveKey(i)])) return;
     roundCompletingRef.current = true;
-    const officialGames = s.round.courts.map((_, i) => ({
+    const officialGames = s.round.courts.map((_: any, i: number) => ({
       ...s.pending[courtKey(i)],
       courtNumber: s.round.courtNums?.[i] ?? s.courtNumbers[i] ?? i + 1,
     }));
-    const liveGames = s.liveAdditions.map((la, i) => ({
+    const liveGames = s.liveAdditions.map((la: any, i: number) => ({
       ...s.pending[liveKey(i)],
       courtNumber: la.courtNumber,
     }));
@@ -137,8 +171,8 @@ export function useRoundManagement({
     const entry = {
       roundNum: s.roundNum,
       games,
-      bye: s.round.bye.map((t) => t.id),
-      paused: (s.round.paused || []).map((t) => t.id),
+      bye: s.round.bye.map((t: any) => t.id),
+      paused: (s.round.paused || []).map((t: any) => t.id),
     };
     const nh = [...s.history, entry];
     const ns = rebuildStandings(s.activeTeamIds, nh);
@@ -197,7 +231,7 @@ export function useRoundManagement({
   const doRegenerateRound = useCallback(() => {
     const s = stateRef.current;
     const ns = rebuildStandings(s.activeTeamIds, s.history);
-    const compCourts = s.courtNumbers.filter((c) => !s.socialCourts.includes(String(c)));
+    const compCourts = s.courtNumbers.filter((c: any) => !s.socialCourts.includes(String(c)));
     const isFinalRound = s.finalRound || (s.targetRounds > 0 && s.roundNum === s.targetRounds);
     const nr = generateRound(
       ns as any,
@@ -211,14 +245,14 @@ export function useRoundManagement({
     const nrWithNums = { ...nr, courtNums: roundCourtNums };
     if (hasPermission(roleRef.current, 'canGenerateRound')) {
       const rd = {
-        courtTeamIds: nr.courts.map((p) => p.map((t) => t.id)),
-        byeIds: nr.bye.map((t) => t.id),
-        pausedTeamIds: (nr.paused || []).map((t) => t.id),
+        courtTeamIds: nr.courts.map((p: any) => p.map((t: any) => t.id)),
+        byeIds: nr.bye.map((t: any) => t.id),
+        pausedTeamIds: (nr.paused || []).map((t: any) => t.id),
         courtNums: roundCourtNums,
       };
       repo.pushAtomicUpdate({ roundData: rd, pendingResults: null }, onFirebaseError);
     }
-    set('round', nrWithNums);
+    set('round', nrWithNums as any);
     pendingRef.current = {};
     set('pending', {});
     setRoundKey((k) => k + 1);
@@ -236,17 +270,17 @@ export function useRoundManagement({
   const handleGenerateRound = useCallback(() => {
     const s = stateRef.current;
     const ns = rebuildStandings(s.activeTeamIds, s.history);
-    const compCourts = s.courtNumbers.filter((c) => !s.socialCourts.includes(String(c)));
+    const compCourts = s.courtNumbers.filter((c: any) => !s.socialCourts.includes(String(c)));
     const validPresets = s.nextRoundPresets.filter(
-      (p) =>
+      (p: any) =>
         !s.pausedIds.includes(p.teamId1) &&
         !s.pausedIds.includes(p.teamId2) &&
         s.activeTeamIds.includes(p.teamId1) &&
         s.activeTeamIds.includes(p.teamId2) &&
         !s.socialCourts.includes(String(p.courtNumber))
     );
-    const presetTeamSet = new Set(validPresets.flatMap((p) => [p.teamId1, p.teamId2]));
-    const nsFiltered = ns.filter((t) => !presetTeamSet.has(t.id));
+    const presetTeamSet = new Set(validPresets.flatMap((p: any) => [p.teamId1, p.teamId2]));
+    const nsFiltered = ns.filter((t: any) => !presetTeamSet.has(t.id));
     const numAlgCourts = Math.max(0, compCourts.length - validPresets.length);
     const newRN = s.roundNum === 0 ? 1 : s.roundNum + 1;
     const isFinalRound = s.finalRound || (s.targetRounds > 0 && newRN === s.targetRounds);
@@ -259,11 +293,11 @@ export function useRoundManagement({
       isFinalRound,
       ns as any
     );
-    const safe = (id) =>
+    const safe = (id: string) =>
       ns.find((t) => t.id === id) || { id, name: String(id), color: '#475569', text: '#fff' };
     const allCourts = compCourts.map(() => null);
     const allCourtNums = [...compCourts];
-    validPresets.forEach((p) => {
+    validPresets.forEach((p: any) => {
       const idx = compCourts.indexOf(p.courtNumber);
       if (idx >= 0 && !allCourts[idx]) allCourts[idx] = [safe(p.teamId1), safe(p.teamId2)];
     });
@@ -276,14 +310,14 @@ export function useRoundManagement({
       allCourtNums.push(`extra${algI}`);
     }
     const finalCourts = allCourts.filter(Boolean);
-    const roundCourtNums = allCourtNums.filter((_, i) => allCourts[i]);
+    const roundCourtNums = allCourtNums.filter((_: any, i: number) => allCourts[i]);
     const mergedNr = { ...nr, courts: finalCourts, courtNums: roundCourtNums };
     const bm = breakModeRef.current;
     if (hasPermission(roleRef.current, 'canGenerateRound')) {
       const rd = {
-        courtTeamIds: mergedNr.courts.map((p) => p.map((t) => t.id)),
-        byeIds: nr.bye.map((t) => t.id),
-        pausedTeamIds: (nr.paused || []).map((t) => t.id),
+        courtTeamIds: mergedNr.courts.map((p: any) => p.map((t: any) => t.id)),
+        byeIds: nr.bye.map((t: any) => t.id),
+        pausedTeamIds: (nr.paused || []).map((t: any) => t.id),
         courtNums: roundCourtNums,
       };
       const genSecs = computeSecsLeft();
@@ -301,7 +335,7 @@ export function useRoundManagement({
       lastSeenRoundNum.current = newRN;
       repo.pushSnapshot(snap, onFirebaseError);
     }
-    set('round', mergedNr);
+    set('round', mergedNr as any);
     set('roundNum', newRN);
     pendingRef.current = {};
     set('pending', {});
@@ -376,15 +410,15 @@ export function useRoundManagement({
   ]);
 
   // ── Round Robin ───────────────────────────────────────────────────────────
-  const rrMatchKey = useCallback((sr, mi) => `rr_${sr}_${mi}`, []);
+  const rrMatchKey = useCallback((sr: number, mi: number) => `rr_${sr}_${mi}`, []);
 
   const doExitRoundRobin = useCallback(
-    (reason = 'manual') => {
+    (reason: string = 'manual') => {
       const s = stateRef.current;
       const srn = s.roundRobinStartRoundNum || 0;
-      const rrRounds = s.history.filter((h) => h.roundNum >= srn);
+      const rrRounds = s.history.filter((h: any) => h.roundNum >= srn);
       const lastRRNum =
-        rrRounds.length > 0 ? rrRounds.reduce((m, h) => Math.max(m, h.roundNum), 0) : null;
+        rrRounds.length > 0 ? rrRounds.reduce((m: any, h: any) => Math.max(m, h.roundNum), 0) : null;
       const endSnap = { endRoundNum: lastRRNum, endReason: reason };
       const restoredRoundNum =
         lastRRNum != null ? lastRRNum : Math.max(0, (s.roundRobinStartRoundNum || 1) - 1);
@@ -395,7 +429,7 @@ export function useRoundManagement({
       set('roundRobinEndSnapshot', endSnap);
       set('roundNum', restoredRoundNum);
       lastSeenRoundNum.current = restoredRoundNum;
-      const cleared = {};
+      const cleared: Record<string, any> = {};
       Object.keys(pendingRef.current).forEach((k) => {
         if (!k.startsWith('rr_')) cleared[k] = pendingRef.current[k];
       });
@@ -424,7 +458,7 @@ export function useRoundManagement({
   }, [onRequirePin]);
 
   const handleStartRoundRobin = useCallback(
-    (participatingIds, courtsForRR) => {
+    (participatingIds: string[], courtsForRR: string[]) => {
       const s = stateRef.current;
       if (s.tournamentMode === 'roundrobin') {
         closeModal();
@@ -434,7 +468,7 @@ export function useRoundManagement({
       const schedule = generateRoundRobinSchedule(participatingIds, courts.length);
       const rrStart = (s.roundNum || 0) + 1;
       const partSet = new Set(participatingIds);
-      const excludedIds = s.activeTeamIds.filter((id) => !partSet.has(id));
+      const excludedIds = s.activeTeamIds.filter((id: any) => !partSet.has(id));
       const snapshot = {
         startRoundNum: rrStart,
         participatingIds: [...participatingIds],
@@ -478,7 +512,7 @@ export function useRoundManagement({
   // so its round/court groupings differ from the existing schedule — and merges it
   // with the existing schedule either by appending or replacing unplayed rounds.
   const handleGenerateAdditionalRoundRobin = useCallback(
-    (mode) => {
+    (mode: string) => {
       const s = stateRef.current;
       if (!hasPermission(roleRef.current, 'canSwitchTournamentMode')) {
         closeModal();
@@ -492,7 +526,7 @@ export function useRoundManagement({
       const activeSet = new Set(s.activeTeamIds);
       const participatingIds = (
         s.roundRobinStartSnapshot?.participatingIds || s.activeTeamIds
-      ).filter((id) => activeSet.has(id));
+      ).filter((id: string) => activeSet.has(id));
       if (participatingIds.length < 2) {
         closeModal();
         return;
@@ -502,16 +536,16 @@ export function useRoundManagement({
       const n = participatingIds.length;
       const startOffset = n > 1 ? Math.max(1, Math.floor(n / 2)) : 0;
       const startRN = s.roundRobinStartRoundNum || 1;
-      const completedCount = schedule.filter((_, i) =>
-        s.history.some((h) => h.roundNum === startRN + i)
+      const completedCount = schedule.filter((_: any, i: number) =>
+        s.history.some((h: any) => h.roundNum === startRN + i)
       ).length;
 
       let combined;
       if (mode === 'replace' && completedCount < schedule.length) {
         const playedPairKeys = new Set();
         for (let i = 0; i < completedCount; i++) {
-          const h = s.history.find((he) => he.roundNum === startRN + i);
-          (h?.games || []).forEach((g) =>
+          const h = s.history.find((he: any) => he.roundNum === startRN + i);
+          (h?.games || []).forEach((g: any) =>
             playedPairKeys.add([g.winnerId, g.loserId].sort().join('|'))
           );
         }
@@ -554,32 +588,32 @@ export function useRoundManagement({
   );
 
   const handleRRMatchResult = useCallback(
-    (srIdx, matchIdx, result) => {
+    (srIdx: number, matchIdx: number, result: any) => {
       const key = rrMatchKey(srIdx, matchIdx);
       const np = { ...pendingRef.current, [key]: result };
       pendingRef.current = np;
       set('pending', np);
 
-      if (hasPermission(roleRef.current, 'canSubmitResults')) {
+      if (hasPermission(roleRef.current as any, 'canSubmitResults')) {
         repo.pushAtomicUpdate({ [`pendingResults/${key}`]: result }, onFirebaseError);
       }
 
       const s = stateRef.current;
       const schedRound = s.roundRobinSchedule?.[srIdx] || [];
-      const allFilled = schedRound.every((_, mi) => np[rrMatchKey(srIdx, mi)]);
+      const allFilled = schedRound.every((_: any, mi: number) => np[rrMatchKey(srIdx, mi)]);
       if (!allFilled) return;
 
       const targetRoundNum = (s.roundRobinStartRoundNum || 1) + srIdx;
-      if (s.history.some((h) => h.roundNum === targetRoundNum)) return;
+      if (s.history.some((h: any) => h.roundNum === targetRoundNum)) return;
       if (
         srIdx > 0 &&
-        !s.history.some((h) => h.roundNum === (s.roundRobinStartRoundNum || 1) + srIdx - 1)
+        !s.history.some((h: any) => h.roundNum === (s.roundRobinStartRoundNum || 1) + srIdx - 1)
       )
         return;
 
       const rrCourts =
         s.roundRobinCourts && s.roundRobinCourts.length > 0 ? s.roundRobinCourts : s.courtNumbers;
-      const games = schedRound.map((_, mi) => {
+      const games = schedRound.map((_: any, mi: number) => {
         const r = np[rrMatchKey(srIdx, mi)];
         return { ...r, courtNumber: r?.courtNumber ?? rrCourts[mi] ?? mi + 1 };
       });
@@ -587,7 +621,7 @@ export function useRoundManagement({
       const nh = [...s.history, entry];
       const ns = rebuildStandings(s.activeTeamIds, nh);
       const cleared = { ...np };
-      schedRound.forEach((_, mi) => {
+      schedRound.forEach((_: any, mi: number) => {
         delete cleared[rrMatchKey(srIdx, mi)];
       });
       pendingRef.current = cleared;
@@ -596,8 +630,8 @@ export function useRoundManagement({
       set('pending', cleared);
 
       const totalSched = s.roundRobinSchedule?.length || 0;
-      const allDone = s.roundRobinSchedule?.every((_, i) =>
-        nh.some((hh) => hh.roundNum === (s.roundRobinStartRoundNum || 1) + i)
+      const allDone = s.roundRobinSchedule?.every((_: any, i: number) =>
+        nh.some((hh: any) => hh.roundNum === (s.roundRobinStartRoundNum || 1) + i)
       );
       let endSnap: { endRoundNum: number; endReason: string } | null = null;
       if (allDone && totalSched > 0) {
@@ -606,11 +640,11 @@ export function useRoundManagement({
         set('roundRobinEndSnapshot', endSnap);
       }
       const newRoundNum = allDone ? targetRoundNum : Math.max(s.roundNum || 0, targetRoundNum + 1);
-      if (hasPermission(roleRef.current, 'canSubmitResults')) {
+      if (hasPermission(roleRef.current as any, 'canSubmitResults')) {
         const bm = breakModeRef.current;
         const rrSecs = computeSecsLeft();
-        const pendingClear = {};
-        schedRound.forEach((_, mi) => {
+        const pendingClear: Record<string, null> = {};
+        schedRound.forEach((_: any, mi: number) => {
           pendingClear[`pendingResults/${rrMatchKey(srIdx, mi)}`] = null;
         });
         repo.pushAtomicUpdate(
@@ -652,13 +686,13 @@ export function useRoundManagement({
   );
 
   const handleUndoRRMatchResult = useCallback(
-    (srIdx, mi) => {
+    (srIdx: number, mi: number) => {
       const k = rrMatchKey(srIdx, mi);
       const np = { ...pendingRef.current };
       delete np[k];
       pendingRef.current = np;
       set('pending', np);
-      if (hasPermission(roleRef.current, 'canSubmitResults')) {
+      if (hasPermission(roleRef.current as any, 'canSubmitResults')) {
         repo.pushAtomicUpdate({ [`pendingResults/${k}`]: null }, onFirebaseError);
       }
     },

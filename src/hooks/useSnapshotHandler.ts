@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
 import { writeTournamentMeta } from '../firebase';
 import { rebuildStandings } from '../algorithms/standings';
 import { generateRound } from '../algorithms/pairing';
@@ -37,11 +38,38 @@ export function useSnapshotHandler({
   doublesRRPlayersRef,
   doublesRRScheduleRef,
   doublesRRResultsRef,
+}: {
+  clubId: string | null;
+  lastSeenRoundNum: MutableRefObject<number>;
+  tournamentIdRef: MutableRefObject<string | null>;
+  metaSyncedRef: MutableRefObject<boolean>;
+  pendingRef: MutableRefObject<Record<string, any>>;
+  setStandings: (s: any[]) => void;
+  setBreakMode: (v: string | null) => void;
+  setPhase: Dispatch<SetStateAction<string>>;
+  setRoundKey: Dispatch<SetStateAction<number>>;
+  applyTimerState: (running: boolean, startedAt: number | null, secsLeft: number) => void;
+  onFirebaseError: (msg: string) => void;
+  setTPTTeams: (v: any) => void;
+  setTPTPlayers: (v: any) => void;
+  setTPTSchedule: (v: any) => void;
+  setTPTResults: (v: any) => void;
+  setTPTSubstitutions: (v: any) => void;
+  tptResultsRef: MutableRefObject<any>;
+  tptScheduleRef: MutableRefObject<any>;
+  tptSubstitutionsRef: MutableRefObject<any>;
+  setDoublesRRPlayers: (v: any) => void;
+  setDoublesRRSchedule: (v: any) => void;
+  setDoublesRRResults: (v: any) => void;
+  setDoublesRRTiebreakOrder: (v: string[]) => void;
+  doublesRRPlayersRef: MutableRefObject<any>;
+  doublesRRScheduleRef: MutableRefObject<any>;
+  doublesRRResultsRef: MutableRefObject<any>;
 }) {
   const { load, set } = useTournamentState();
 
   const updateAllStates = useCallback(
-    (s) => {
+    (s: any) => {
       if (!s || s.phase === 'waiting') {
         setPhase((p) => (p === 'play' ? 'waiting' : p));
         return;
@@ -50,15 +78,15 @@ export function useSnapshotHandler({
       const ns = rebuildStandings(s.activeTeamIds, s.history);
       let nr;
       if (s.roundData && s.roundData.courtTeamIds) {
-        const safe = (id) =>
-          s.teamRegistry?.find((t) => t.id === id) || {
+        const safe = (id: any) =>
+          s.teamRegistry?.find((t: any) => t.id === id) || {
             id,
             name: String(id),
             color: '#475569',
             text: '#fff',
           };
         nr = {
-          courts: s.roundData.courtTeamIds.map((p) => p.map(safe)),
+          courts: s.roundData.courtTeamIds.map((p: any) => p.map(safe)),
           bye: (s.roundData.byeIds || []).map(safe),
           paused: (s.roundData.pausedTeamIds || []).map(safe),
           courtNums:
@@ -75,7 +103,7 @@ export function useSnapshotHandler({
           s.pausedIds || []
         );
       }
-      load(snapshotToState(s, { round: nr }));
+      load(snapshotToState(s, { round: nr as any }));
       setStandings(ns);
       setBreakMode(s.breakMode || null);
       if (s.tptTeams) {

@@ -10,6 +10,16 @@ export default function StatusBanners({
   canRetry,
   onRetry,
   onDismissError,
+}: {
+  isAdmin: boolean;
+  multiAdminCount: number;
+  multiAdminDismissed: boolean;
+  onDismissMultiAdmin: () => void;
+  firebaseError: string | null;
+  firebaseErrorPersist: boolean;
+  canRetry: boolean;
+  onRetry: () => void;
+  onDismissError: () => void;
 }) {
   return (
     <>

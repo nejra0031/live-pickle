@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchOwnedClubIds, createClub as fbCreateClub } from '../firebase';
 
 // Tracks the clubs the signed-in user (by uid) owns.
-export function useMyClubs(uid) {
+export function useMyClubs(uid: string | null | undefined) {
   const [ownedClubIds, setOwnedClubIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +24,7 @@ export function useMyClubs(uid) {
   }, [refresh]);
 
   const createClub = useCallback(
-    async (name) => {
+    async (name: string) => {
       if (!uid) return null;
       const clubId = await fbCreateClub(name, uid);
       await refresh();

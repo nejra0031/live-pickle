@@ -1,9 +1,9 @@
 import { useRef, useCallback } from 'react';
 
-export default function useDebounce(fn, delay) {
+export default function useDebounce(fn: (...args: any[]) => any, delay: number) {
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
   return useCallback(
-    (...args) => {
+    (...args: any[]) => {
       clearTimeout(t.current ?? undefined);
       t.current = setTimeout(() => fn(...args), delay);
     },

@@ -46,10 +46,10 @@ export default function ActiveRound({
   onTournamentSettings,
   isAdmin,
   isReferee,
-}) {
+}: any) {
   const teamById = useTeamById();
   const teamLabel = useTeamLabel();
-  const labeled = (t) => (t ? { ...t, name: teamLabel(t.id) } : t);
+  const labeled = (t: any) => (t ? { ...t, name: teamLabel(t.id) } : t);
   const canWrite = hasPermission(role, 'canSubmitResults');
   const nextRN = roundNum === 0 ? 1 : roundNum + 1;
   const isAutoFinal = targetRounds > 0 && nextRN === targetRounds && !finalRound;
@@ -83,19 +83,19 @@ export default function ActiveRound({
 
       {canWrite ? (
         <>
-          {round.courts.map((teams, idx) => (
+          {round.courts.map((teams: any, idx: number) => (
             <CourtCard
               key={`${roundKey}-court-${idx}`}
               courtLabel={`Court ${round.courtNums?.[idx] ?? courtNumbers[idx] ?? idx + 1}`}
               teams={teams.map(labeled)}
-              onResult={(r) => onResult(idx, r)}
+              onResult={(r: any) => onResult(idx, r)}
               pendingResult={pending[courtKey(idx)]}
               onEdit={isAdmin ? () => onEditActiveCourt(idx) : undefined}
               onRemove={isAdmin ? () => onRemoveActiveCourt(idx) : undefined}
               onUndo={() => onUndoResult(idx)}
             />
           ))}
-          {liveAdditions.map((la, i) => {
+          {liveAdditions.map((la: any, i: number) => {
             const tA = teamById(la.teamId1),
               tB = teamById(la.teamId2);
             if (!tA || !tB) return null;
@@ -104,7 +104,7 @@ export default function ActiveRound({
                 key={`live-${i}`}
                 courtLabel={`Court ${la.courtNumber}`}
                 teams={[labeled(tA), labeled(tB)]}
-                onResult={(r) => onLiveResult(i, r)}
+                onResult={(r: any) => onLiveResult(i, r)}
                 pendingResult={pending[liveKey(i)]}
                 onEdit={isAdmin ? () => onEditLive(i) : undefined}
                 onUndo={() => onUndoLiveResult(i)}
@@ -125,7 +125,7 @@ export default function ActiveRound({
                   >
                     Paused:
                   </span>
-                  {round.paused.map((t) => (
+                  {round.paused.map((t: any) => (
                     <TeamChip key={t.id} teamId={t.id} />
                   ))}
                 </>
@@ -143,7 +143,7 @@ export default function ActiveRound({
                   >
                     Bye:
                   </span>
-                  {round.bye.map((t) => (
+                  {round.bye.map((t: any) => (
                     <TeamChip key={t.id} teamId={t.id} />
                   ))}
                 </>
@@ -280,7 +280,7 @@ export default function ActiveRound({
                   </div>
                 </div>
                 <button
-                  onClick={() => setFinalRound((f) => !f)}
+                  onClick={() => setFinalRound((f: any) => !f)}
                   style={{
                     flexShrink: 0,
                     padding: 'clamp(4px,1vw,6px) clamp(12px,3vw,18px)',
@@ -319,7 +319,7 @@ export default function ActiveRound({
                     Manually added ({activeRoundExtras.length})
                   </p>
                   <div className="flex flex-col gap-1">
-                    {activeRoundExtras.map((g, gi) => {
+                    {activeRoundExtras.map((g: any, gi: number) => {
                       const w = teamById(g.winnerId),
                         l = teamById(g.loserId);
                       return (
@@ -417,7 +417,7 @@ export default function ActiveRound({
                   margin: 0,
                 }}
               >
-                {ROLE_MAP[role]?.title ?? 'Referee'} Options
+                {(ROLE_MAP as any)[role]?.title ?? 'Referee'} Options
               </p>
               {hasPermission(role, 'canGenerateRound') && (
                 <div className="flex gap-2">
@@ -477,7 +477,7 @@ export default function ActiveRound({
       ) : (
         /* Viewer branch */
         <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
-          {round.courts.map((teams, idx) => (
+          {round.courts.map((teams: any, idx: number) => (
             <div
               key={idx}
               className="rounded-2xl"
@@ -495,7 +495,7 @@ export default function ActiveRound({
               />
             </div>
           ))}
-          {liveAdditions.map((la, i) => {
+          {liveAdditions.map((la: any, i: number) => {
             const tA = teamById(la.teamId1),
               tB = teamById(la.teamId2);
             if (!tA || !tB) return null;
@@ -532,7 +532,7 @@ export default function ActiveRound({
                   >
                     Paused:
                   </span>
-                  {round.paused.map((t) => (
+                  {round.paused.map((t: any) => (
                     <TeamChip key={t.id} teamId={t.id} />
                   ))}
                 </>
@@ -550,7 +550,7 @@ export default function ActiveRound({
                   >
                     Bye:
                   </span>
-                  {round.bye.map((t) => (
+                  {round.bye.map((t: any) => (
                     <TeamChip key={t.id} teamId={t.id} />
                   ))}
                 </>

@@ -1,6 +1,6 @@
 import { useReducer, useCallback } from 'react';
 
-function modalReducer(state, action) {
+function modalReducer(state: any, action: any) {
   switch (action.type) {
     case 'OPEN':
       return { open: action.modal, data: action.data ?? null };
@@ -17,7 +17,7 @@ function modalReducer(state, action) {
 export function useModalState() {
   const [modal, dispatch] = useReducer(modalReducer, { open: null, data: null });
   const openModal = useCallback(
-    (modal, data = null) => dispatch({ type: 'OPEN', modal, data }),
+    (modal: string, data: any = null) => dispatch({ type: 'OPEN', modal, data }),
     []
   );
   const closeModal = useCallback(() => dispatch({ type: 'CLOSE' }), []);

@@ -1,25 +1,31 @@
 import { useState } from 'react';
 import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 
+interface Props {
+  rankedTeamIds: string[];
+  tournamentCourts: string[];
+  onConfirm: (teams: string[], courts: string[]) => void;
+  onClose: () => void;
+}
 export default function SelectRoundRobinTeamsModal({
   rankedTeamIds,
   tournamentCourts,
   onConfirm,
   onClose,
-}) {
+}: Props) {
   const teamById = useTeamById();
   const teamLabel = useTeamLabel();
-  const [selectedTeams, setSelectedTeams] = useState(() => new Set());
-  const [selectedCourts, setSelectedCourts] = useState(() => new Set());
+  const [selectedTeams, setSelectedTeams] = useState<Set<string>>(() => new Set());
+  const [selectedCourts, setSelectedCourts] = useState<Set<string>>(() => new Set());
 
-  const toggleTeam = (id) =>
+  const toggleTeam = (id: string) =>
     setSelectedTeams((p) => {
       const n = new Set(p);
       if (n.has(id)) n.delete(id);
       else n.add(id);
       return n;
     });
-  const toggleCourt = (c) =>
+  const toggleCourt = (c: string) =>
     setSelectedCourts((p) => {
       const n = new Set(p);
       if (n.has(c)) n.delete(c);

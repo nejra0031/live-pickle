@@ -31,7 +31,7 @@ import ModalRoot from './modals/ModalRoot';
 import AppHeader from './components/AppHeader';
 import StatusBanners from './components/StatusBanners';
 
-export default function App(props) {
+export default function App(props: any) {
   const repo = useMemo(
     () => createTournamentRepo(props.clubId ?? '', props.tournamentId ?? '__creating__'),
     [props.clubId, props.tournamentId]
@@ -90,7 +90,7 @@ function AppInner({
   const [standings, setStandings] = useState<any[]>([]);
   const [roundKey, setRoundKey] = useState(0);
   const [breakMode, setBreakMode] = useState<string | null>(null);
-  const pendingRef = useRef({});
+  const pendingRef = useRef<Record<string, any>>({});
   const roundCompletingRef = useRef(false);
   const [activeTab, setActiveTab] = useState('play');
 
@@ -229,7 +229,7 @@ function AppInner({
   });
 
   const handlePendingResults = useCallback(
-    (d) => {
+    (d: Record<string, any>) => {
       const m = { ...pendingRef.current };
       Object.keys(d).forEach((k) => {
         if (!m[k]) m[k] = d[k];
@@ -516,7 +516,7 @@ function AppInner({
 
   // ── Small inline handlers ─────────────────────────────────────────────────
   const handlePinSuccess = useCallback(
-    (matchedRole) => {
+    (matchedRole: string | null) => {
       const { purpose, ...payload } = modal.data || {};
       if (purpose === 'login') {
         setRole(matchedRole);
@@ -568,7 +568,7 @@ function AppInner({
   );
 
   const handleDoublesRRTiebreakOrderChange = useCallback(
-    (order) => {
+    (order: string[]) => {
       setDoublesRRTiebreakOrder(order);
       gatedUpdate('canEditTeams', { doublesRRTiebreakOrder: order });
     },
@@ -576,15 +576,15 @@ function AppInner({
   );
 
   const handleStandingsTiebreakOrderChange = useCallback(
-    (order) => {
-      set('standingsTiebreakOrder', order);
+    (order: string[]) => {
+      set('standingsTiebreakOrder', order as any);
       gatedUpdate('canEditTeams', { standingsTiebreakOrder: order });
     },
     [set, gatedUpdate]
   );
 
   const handleTournamentInfoSave = useCallback(
-    ({ title, location, startTime, durationMins, maxPlayers: mp = 0 }) => {
+    ({ title, location, startTime, durationMins, maxPlayers: mp = 0 }: { title: string; location: string; startTime: string; durationMins: number; maxPlayers?: number }) => {
       const t = title.trim() || 'Tournament';
       set('tournamentTitle', t);
       set('tournamentLocation', location);
@@ -610,7 +610,7 @@ function AppInner({
   );
 
   const handleChooseAdditionalGames = useCallback(
-    (mode) => {
+    (mode: string) => {
       if (stateRef.current.tournamentMode === 'doublesrr') handleGenerateAdditionalDoublesRR(mode);
       else handleGenerateAdditionalRoundRobin(mode);
     },
@@ -618,7 +618,7 @@ function AppInner({
   );
 
   const handleSetFinalRound = useCallback(
-    (v) => {
+    (v: boolean) => {
       set('finalRound', v);
       gatedUpdate('canSetFinalRound', { finalRound: v });
     },
@@ -626,7 +626,7 @@ function AppInner({
   );
 
   const handleRemovePreset = useCallback(
-    (pi) => {
+    (pi: number) => {
       const np = stateRef.current.nextRoundPresets.filter((_, i) => i !== pi);
       set('nextRoundPresets', np);
       gatedUpdate('canPresetMatch', { nextRoundPresets: np });

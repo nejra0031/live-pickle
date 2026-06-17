@@ -2,6 +2,16 @@ import { useState } from 'react';
 import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 import NumInput from '../components/NumInput';
 
+interface Props {
+  allTeamIds: string[];
+  defaultCourt?: string;
+  label?: string;
+  courtNumbers?: string[];
+  usedCourtNumbers?: string[];
+  usedTeamIds?: string[];
+  onSave: (game: any) => void;
+  onClose: () => void;
+}
 export default function AddGameModal({
   allTeamIds,
   defaultCourt,
@@ -11,7 +21,7 @@ export default function AddGameModal({
   usedTeamIds = [] as any[],
   onSave,
   onClose,
-}) {
+}: Props) {
   const teamById = useTeamById();
   const teamLabel = useTeamLabel();
   const [teamAId, setTeamAId] = useState('');
@@ -39,7 +49,7 @@ export default function AddGameModal({
   const winnerScore = valid ? Math.max(Number(scoreA), Number(scoreB)) : null;
   const loserScore = valid ? Math.min(Number(scoreA), Number(scoreB)) : null;
 
-  const chip = (id, active, onClick) => {
+  const chip = (id: string, active: boolean, onClick: () => void) => {
     const t = teamById(id);
     if (!t) return null;
     const inUse = !active && usedTeamSet.has(id);

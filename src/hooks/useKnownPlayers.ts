@@ -21,7 +21,7 @@ export default function useKnownPlayers() {
       .catch((err) => console.error('fetchKnownPlayers failed', err));
   }, []);
 
-  const save = useCallback((name, duprId, nickname) => {
+  const save = useCallback((name: string, duprId: string, nickname?: string) => {
     const trimmedName = (name || '').trim();
     if (!trimmedName) return;
     const trimmedDuprId = (duprId || '').trim();

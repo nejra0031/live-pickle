@@ -49,17 +49,17 @@ export default function MatchesTab() {
   const doublesRRScheduleArr = doublesRRSchedule ?? [];
   const backupRoundNumsSet = backupRoundNums instanceof Set ? backupRoundNums : new Set();
 
-  const onAddGame = (ri) => openModal('addGame', { target: String(ri), defaultCourt: '' });
-  const onEditGame = (ri, gameIdx) => openModal('editGame', { ri, gameIdx });
-  const onEditTPTGame = (ri, mi, gi) => openModal('editTPTGame', { ri, mi, gi });
-  const onEditTPTSubs = (ri, mi, gi) => openModal('editTPTSubs', { ri, mi, gi });
-  const onEditDoublesRRGame = (ri, ci) => openModal('editDoublesRRGame', { ri, ci });
+  const onAddGame = (ri: number) => openModal('addGame', { target: String(ri), defaultCourt: '' });
+  const onEditGame = (ri: number, gameIdx: number) => openModal('editGame', { ri, gameIdx });
+  const onEditTPTGame = (ri: number, mi: number, gi: number) => openModal('editTPTGame', { ri, mi, gi });
+  const onEditTPTSubs = (ri: number, mi: number, gi: number) => openModal('editTPTSubs', { ri, mi, gi });
+  const onEditDoublesRRGame = (ri: number, ci: number) => openModal('editDoublesRRGame', { ri, ci });
   const onExportDUPR = hasPermission(effectiveRole, 'canExportDUPR')
     ? () => openModal('exportDUPR')
     : undefined;
-  const onRemoveGame = (ri, gameIdx) =>
+  const onRemoveGame = (ri: number, gameIdx: number) =>
     openModal('pin', { purpose: 'removeGame', removeGameTarget: { ri, gameIdx } });
-  const onRevertToRound = (rn) => openModal('pin', { purpose: 'revertToRound', revertTarget: rn });
+  const onRevertToRound = (rn: number) => openModal('pin', { purpose: 'revertToRound', revertTarget: rn });
   const onRevertToBeginning = () => openModal('pin', { purpose: 'revertToBeginning' });
 
   const teamById = useTeamById();
@@ -70,13 +70,13 @@ export default function MatchesTab() {
   const [courtNumDraft, setCourtNumDraft] = useState('');
   const courtInputRef = useRef<HTMLInputElement | null>(null);
 
-  const commitCourtEdit = (ri, gi) => {
+  const commitCourtEdit = (ri: number, gi: number) => {
     const val = courtNumDraft.trim();
     if (val) onEditCourtNumber?.(ri, gi, val);
     setEditingCourtNum(null);
   };
 
-  const chip = (id, faded) => {
+  const chip = (id: string, faded?: boolean) => {
     const t = teamById(id);
     if (!t) return null;
     return (
@@ -391,13 +391,13 @@ export default function MatchesTab() {
         upcomingEntries.push({ type: 'upcoming', mode: 'roundrobin', roundNum, pairs });
     });
   } else if (tournamentMode === 'tpt' && tptSchedule.length > 0) {
-    tptSchedule.forEach((round, idx) => {
+    tptSchedule.forEach((round: any, idx: number) => {
       const roundNum = idx + 1;
       if (!committedNums.has(roundNum))
         upcomingEntries.push({ type: 'upcoming', mode: 'tpt', roundNum, round });
     });
   } else if (tournamentMode === 'doublesrr' && doublesRRScheduleArr.length > 0) {
-    doublesRRScheduleArr.forEach((round, idx) => {
+    doublesRRScheduleArr.forEach((round: any, idx: number) => {
       const roundNum = idx + 1;
       if (!committedNums.has(roundNum))
         upcomingEntries.push({ type: 'upcoming', mode: 'doublesrr', roundNum, round });
@@ -595,7 +595,7 @@ export default function MatchesTab() {
               </span>
             </div>
           );
-          const wrap = (children) => (
+          const wrap = (children: any) => (
             <div
               key={`upcoming-${roundNum}`}
               className="rounded-2xl"
@@ -624,7 +624,7 @@ export default function MatchesTab() {
             const rrCourts =
               roundRobinCourts && roundRobinCourts.length > 0 ? roundRobinCourts : courtNumbers;
             return wrap(
-              entry.pairs.map(([idA, idB], mi) => {
+              entry.pairs.map(([idA, idB]: [string, string], mi: number) => {
                 const tA = teamById(idA),
                   tB = teamById(idB);
                 if (!tA || !tB) return null;
@@ -656,14 +656,14 @@ export default function MatchesTab() {
           if (mode === 'tpt') {
             const round = entry.round;
             const byeTeam = round.byeTeamId ? tptTeamsMap[round.byeTeamId] : null;
-            const pName = (id) => {
+            const pName = (id: string) => {
               const p = tptPlayersMap[id];
               return p ? playerDisplayName(p) : '?';
             };
-            const sideLabel = (pids) => pids.filter(Boolean).map(pName).join(' & ');
+            const sideLabel = (pids: string[]) => pids.filter(Boolean).map(pName).join(' & ');
             return wrap(
               <>
-                {round.matchups.map((matchup, mi) => {
+                {round.matchups.map((matchup: any, mi: number) => {
                   const teamA = tptTeamsMap[matchup.teamAId];
                   const teamB = tptTeamsMap[matchup.teamBId];
                   if (!teamA || !teamB) return null;
@@ -795,7 +795,7 @@ export default function MatchesTab() {
           const round = entry.round;
           return wrap(
             <>
-              {round.courts.map((court, ci) => {
+              {round.courts.map((court: any, ci: number) => {
                 const sideA = buildSidePresentation(
                   court.teamA,
                   doublesRRPlayersMap,
@@ -931,18 +931,18 @@ export default function MatchesTab() {
                   gap: 'clamp(8px,2vw,12px)',
                 }}
               >
-                {h.tptMatchups.map((matchup, mi) => {
+                {h.tptMatchups.map((matchup: any, mi: number) => {
                   const teamA = tptTeamsMap[matchup.teamAId];
                   const teamB = tptTeamsMap[matchup.teamBId];
                   if (!teamA || !teamB) return null;
                   const gameDefs = getTPTGamesForMatchup(teamA, teamB);
-                  const pName = (id) => {
+                  const pName = (id: string) => {
                     const p = tptPlayersMap[id];
                     return p ? playerDisplayName(p) : '?';
                   };
-                  const sideLabel = (pids, subs = {}) => (
+                  const sideLabel = (pids: string[], subs: Record<string, any> = {}) => (
                     <span>
-                      {pids.filter(Boolean).map((pid, idx) => {
+                      {pids.filter(Boolean).map((pid: string, idx: number) => {
                         const subPid = subs[pid];
                         const el = subPid ? (
                           <span
@@ -966,7 +966,7 @@ export default function MatchesTab() {
                       })}
                     </span>
                   );
-                  const sideChip = (pids, team, won, subs = {}) => (
+                  const sideChip = (pids: string[], team: any, won: boolean, subs: Record<string, any> = {}) => (
                     <span
                       className="inline-flex items-center rounded-full font-bold"
                       style={{
@@ -1019,7 +1019,7 @@ export default function MatchesTab() {
                           {formatTPTTeamLabel(teamB, tptPlayersMap, teamNameDisplay)}
                         </span>
                       </div>
-                      {(matchup.games || []).map((game, gi) => {
+                      {(matchup.games || []).map((game: any, gi: number) => {
                         if (!game) return null;
                         const def = gameDefs[gi];
                         const gameLabel = gi === 0 ? 'Males' : gi === 1 ? 'Mixed #1' : 'Mixed #2';
@@ -1141,7 +1141,7 @@ export default function MatchesTab() {
         }
 
         if (isDoublesRRRound) {
-          const sideChip = (pids, won) => {
+          const sideChip = (pids: string[], won: boolean) => {
             const side = buildSidePresentation(pids || [], doublesRRPlayersMap, teamNameDisplay);
             return (
               <span
@@ -1196,7 +1196,7 @@ export default function MatchesTab() {
                   gap: 'clamp(6px,1.5vw,10px)',
                 }}
               >
-                {h.doublesRRCourts.map((court, ci) => {
+                {h.doublesRRCourts.map((court: any, ci: number) => {
                   const aWon =
                     court.winnerIds && court.winnerIds.join(',') === (court.teamA || []).join(',');
                   const scoreA = aWon ? court.winnerScore : court.loserScore;
@@ -1310,9 +1310,9 @@ export default function MatchesTab() {
         );
         const rbf = rerank(sbf),
           raf = rerank(saf);
-        const rb = (id) => rbf.findIndex((t) => t.id === id) + 1;
-        const ra = (id) => raf.findIndex((t) => t.id === id) + 1;
-        const played = h.games.flatMap((g) => [g.winnerId, g.loserId]);
+        const rb = (id: string) => rbf.findIndex((t: any) => t.id === id) + 1;
+        const ra = (id: string) => raf.findIndex((t: any) => t.id === id) + 1;
+        const played = h.games.flatMap((g: any) => [g.winnerId, g.loserId]);
         const hasBye = h.bye?.length > 0;
         const isFirstRR =
           roundRobinStartSnapshot && h.roundNum === roundRobinStartSnapshot.startRoundNum;
@@ -1390,7 +1390,7 @@ export default function MatchesTab() {
               </div>
 
               <div style={{ padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)' }}>
-                {h.games.map((game, gi) => {
+                {h.games.map((game: any, gi: number) => {
                   const w = teamById(game.winnerId),
                     l = teamById(game.loserId);
                   return (
@@ -1567,7 +1567,7 @@ export default function MatchesTab() {
                     >
                       Paused
                     </span>
-                    {h.paused.map((id) => {
+                    {h.paused.map((id: string) => {
                       const t = teamById(id);
                       if (!t) return null;
                       return (
@@ -1609,7 +1609,7 @@ export default function MatchesTab() {
                     >
                       Bye
                     </span>
-                    {h.bye.map((id) => {
+                    {h.bye.map((id: string) => {
                       const t = teamById(id);
                       if (!t) return null;
                       return (
@@ -1653,7 +1653,7 @@ export default function MatchesTab() {
                   className="flex flex-wrap"
                   style={{ gap: 'clamp(8px,2vw,16px) clamp(12px,3vw,20px)' }}
                 >
-                  {played.map((id) => {
+                  {played.map((id: string) => {
                     const b = rb(id),
                       a = ra(id),
                       d = b - a,

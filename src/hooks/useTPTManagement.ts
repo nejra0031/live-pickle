@@ -1,4 +1,7 @@
 import { useCallback } from 'react';
+import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
+import type { SetField } from '../state/TournamentProvider';
+import type { TournamentRepo } from '../firebase';
 import { writeTournamentMeta, createTournamentRepo } from '../firebase';
 import { buildSnapshot } from '../snapshot';
 import { generateTPTSchedule } from '../algorithms/threePlayerTeam';
@@ -14,7 +17,6 @@ import { MODES } from '../modes';
 // through the single `set` reducer setter passed in.
 export function useTPTManagement({
   stateRef,
-  // refs
   tournamentIdRef,
   lastSeenRoundNum,
   pendingRef,
@@ -23,27 +25,50 @@ export function useTPTManagement({
   tptScheduleRef,
   tptRoundCompletingRef,
   tptSubstitutionsRef,
-  // TPT state setters (non-reducer)
   setTPTTeams,
   setTPTPlayers,
   setTPTSchedule,
   setTPTResults,
   setTPTSubstitutions,
-  // single reducer setter (replaces the ~18 individual setX params)
   set,
-  // non-reducer setters
   setRole,
   setStandings,
   setRoundKey,
   setTimerAlarmed,
   setPhase,
   setActiveTab,
-  // callbacks
   applyTimerState,
   onFirebaseError,
   closeModal,
   clubId,
   repo,
+}: {
+  stateRef: MutableRefObject<any>;
+  tournamentIdRef: MutableRefObject<string | null>;
+  lastSeenRoundNum: MutableRefObject<number>;
+  pendingRef: MutableRefObject<Record<string, any>>;
+  roleRef: MutableRefObject<string | null>;
+  tptResultsRef: MutableRefObject<Record<string, any>>;
+  tptScheduleRef: MutableRefObject<any[]>;
+  tptRoundCompletingRef: MutableRefObject<boolean>;
+  tptSubstitutionsRef: MutableRefObject<Record<string, any>>;
+  setTPTTeams: (v: any) => void;
+  setTPTPlayers: (v: any) => void;
+  setTPTSchedule: (v: any) => void;
+  setTPTResults: (v: Record<string, any>) => void;
+  setTPTSubstitutions: (v: Record<string, any>) => void;
+  set: SetField;
+  setRole: (v: string) => void;
+  setStandings: (s: any[]) => void;
+  setRoundKey: Dispatch<SetStateAction<number>>;
+  setTimerAlarmed: (v: boolean) => void;
+  setPhase: (v: string) => void;
+  setActiveTab: (v: string) => void;
+  applyTimerState: (running: boolean, startedAt: number | null, secsLeft: number) => void;
+  onFirebaseError: (msg: string) => void;
+  closeModal: () => void;
+  clubId: string | null;
+  repo: TournamentRepo;
 }) {
   const handleStartTPT = useCallback(
     (
@@ -136,7 +161,7 @@ export function useTPTManagement({
   );
 
   const handleTPTResult = useCallback(
-    (schedRoundIdx, matchupIdx, gameIdx, result) => {
+    (schedRoundIdx: number, matchupIdx: number, gameIdx: number, result: any) => {
       const desc = MODES.tpt;
       submitScheduledResult({
         key: `${schedRoundIdx}_${matchupIdx}_${gameIdx}`,
@@ -161,7 +186,7 @@ export function useTPTManagement({
   );
 
   const handleManageTPTTeamsSave = useCallback(
-    (newTPTTeams, newPlayers) => {
+    (newTPTTeams: any, newPlayers: any) => {
       setTPTTeams(newTPTTeams);
       setTPTPlayers(newPlayers);
       closeModal();
@@ -182,7 +207,7 @@ export function useTPTManagement({
   );
 
   const handleUndoTPTResult = useCallback(
-    (schedRoundIdx, matchupIdx, gameIdx) => {
+    (schedRoundIdx: number, matchupIdx: number, gameIdx: number) => {
       undoScheduledResult({
         roleRef,
         resultsRef: tptResultsRef,

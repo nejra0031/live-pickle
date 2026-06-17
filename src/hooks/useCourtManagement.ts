@@ -18,13 +18,21 @@ export function useCourtManagement({
   onFirebaseError,
   pendingRef,
   roleRef,
+}: {
+  clubId: string | null;
+  tournamentIdRef: import('react').MutableRefObject<string | null>;
+  gatedUpdate: (perm: any, fields: any) => void;
+  setStandings: (s: any[]) => void;
+  onFirebaseError: (msg: string) => void;
+  pendingRef: import('react').MutableRefObject<Record<string, any>>;
+  roleRef: import('react').MutableRefObject<string | null>;
 }) {
   const { set, stateRef } = useTournamentState();
   const { modal, closeModal } = useModal();
   const repo = useRepo();
 
   const handleManageTeamsSave = useCallback(
-    (newRegistry, newActiveIds) => {
+    (newRegistry: any[], newActiveIds: string[]) => {
       const s = stateRef.current;
       set('tournamentTeams', newRegistry);
       setModuleRegistry(newRegistry);
@@ -40,28 +48,28 @@ export function useCourtManagement({
       gatedUpdate('canEditTeams', upd);
       if (clubId && tournamentIdRef.current)
         writeTournamentMeta(clubId, tournamentIdRef.current, {
-          playerCount: newRegistry.reduce((n, t) => n + (t.players?.length || 1), 0),
+          playerCount: newRegistry.reduce((n: number, t: any) => n + (t.players?.length || 1), 0),
         });
     },
     [stateRef, set, gatedUpdate, setStandings, closeModal, clubId] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleTeamNameDisplayChange = useCallback(
-    (mode) => {
-      set('teamNameDisplay', mode);
+    (mode: string) => {
+      set('teamNameDisplay', mode as any);
       gatedUpdate('canEditTeams', { teamNameDisplay: mode });
     },
     [set, gatedUpdate]
   );
 
   const handleManageCourtsSave = useCallback(
-    (newCourts, newSocialCourts) => {
+    (newCourts: string[], newSocialCourts: string[]) => {
       const s = stateRef.current;
       const upd: Record<string, any> = { courtNumbers: newCourts, socialCourts: newSocialCourts };
       if (s.round) {
         const prevSocialSet = new Set(s.socialCourts.map(String));
         const newlySocial = new Set(
-          newSocialCourts.filter((c) => !prevSocialSet.has(String(c))).map(String)
+          newSocialCourts.filter((c: string) => !prevSocialSet.has(String(c))).map(String)
         );
         if (newlySocial.size > 0) {
           const currentNums = s.round.courtNums || s.courtNumbers;
@@ -89,9 +97,9 @@ export function useCourtManagement({
             const np = reindexPendingAfterRemoval(pendingRef.current, 'court_', removedIndices);
             pendingRef.current = np;
             set('pending', np);
-            if (hasPermission(roleRef.current, 'canEditCourts')) {
+            if (hasPermission(roleRef.current as any, 'canEditCourts')) {
               upd.roundData = {
-                courtTeamIds: newRoundCourts.map((p) => p.map((t) => t.id)),
+                courtTeamIds: newRoundCourts.map((p: any[]) => p.map((t: any) => t.id)),
                 byeIds: newBye.map((t) => t.id),
                 pausedTeamIds: (s.round.paused || []).map((t) => t.id),
                 courtNums: newRoundNums,
@@ -121,7 +129,7 @@ export function useCourtManagement({
   );
 
   const handleTogglePause = useCallback(
-    (id) => {
+    (id: string) => {
       const prev = stateRef.current.pausedIds;
       const np = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       set('pausedIds', np);
@@ -131,7 +139,7 @@ export function useCourtManagement({
   );
 
   const handleEditActiveCourt = useCallback(
-    ({ courtIdx, teamAId, teamBId, courtNum }) => {
+    ({ courtIdx, teamAId, teamBId, courtNum }: { courtIdx: number; teamAId: string; teamBId: string; courtNum?: string | number }) => {
       const s = stateRef.current;
       if (!s.round) return;
       const tA = s.tournamentTeams.find((t) => t.id === teamAId),
@@ -163,13 +171,13 @@ export function useCourtManagement({
         courts: newCourts,
         bye: newByeTeams,
         ...(newCourtNums ? { courtNums: newCourtNums } : {}),
-      });
-      if (courtNum !== undefined) set('courtNumbers', newCourtNumbers);
+      } as any);
+      if (courtNum !== undefined) set('courtNumbers', newCourtNumbers as any);
       const np = { ...pendingRef.current };
       delete np[courtKey(courtIdx)];
       pendingRef.current = np;
       set('pending', np);
-      if (hasPermission(roleRef.current, 'canEditActiveCourt')) {
+      if (hasPermission(roleRef.current as any, 'canEditActiveCourt')) {
         const rd = {
           courtTeamIds: newCourts.map((p) => p.map((t) => t.id)),
           byeIds: newByeTeams.map((t) => t.id),
@@ -191,7 +199,7 @@ export function useCourtManagement({
   );
 
   const handleEditLiveAddition = useCallback(
-    ({ courtIdx: _courtIdx, teamAId, teamBId, courtNum }) => {
+    ({ courtIdx: _courtIdx, teamAId, teamBId, courtNum }: { courtIdx: number; teamAId: string; teamBId: string; courtNum?: string | number }) => {
       const liveIdx = modal.open === 'editLive' ? modal.data : null;
       const s = stateRef.current;
       if (liveIdx === null || !(s.liveAdditions as any[])[liveIdx]) return;
@@ -235,7 +243,7 @@ export function useCourtManagement({
       const np = reindexPendingAfterRemoval(pendingRef.current, 'court_', [idx]);
       pendingRef.current = np;
       set('pending', np);
-      if (hasPermission(roleRef.current, 'canEditActiveCourt')) {
+      if (hasPermission(roleRef.current as any, 'canEditActiveCourt')) {
         const rd = {
           courtTeamIds: newCourts.map((p) => p.map((t) => t.id)),
           byeIds: newBye.map((t) => t.id),
@@ -250,7 +258,7 @@ export function useCourtManagement({
   );
 
   const handleRemoveLiveAddition = useCallback(
-    (idx) => {
+    (idx: number) => {
       const s = stateRef.current;
       const nl = s.liveAdditions.filter((_, j) => j !== idx);
       const np = reindexPendingAfterRemoval(pendingRef.current, 'live_', [idx]);
@@ -263,7 +271,7 @@ export function useCourtManagement({
   );
 
   const handleRemoveActiveRoundExtra = useCallback(
-    (idx) => {
+    (idx: number) => {
       const ne = stateRef.current.activeRoundExtras.filter((_, i) => i !== idx);
       set('activeRoundExtras', ne);
       gatedUpdate('canEditActiveCourt', { activeRoundExtras: ne });

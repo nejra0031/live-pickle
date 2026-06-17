@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useClubMembers } from '../hooks/useClubMembers';
 
 const iS = {
@@ -12,7 +12,7 @@ const iS = {
   width: '100%',
 };
 
-export default function ClubMembersPanel({ clubId, onClose }) {
+export default function ClubMembersPanel({ clubId, onClose }: { clubId: string; onClose: () => void }) {
   const { members, loading, error, addMember } = useClubMembers(clubId);
   const [name, setName] = useState('');
   const [duprId, setDuprId] = useState('');
@@ -20,7 +20,7 @@ export default function ClubMembersPanel({ clubId, onClose }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
-  async function handleAdd(e) {
+  async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);

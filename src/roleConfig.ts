@@ -78,7 +78,7 @@ export const ROLE_MAP = Object.fromEntries(ROLES.map((r) => [r.id, r])) as Recor
   (typeof ROLES)[0]
 >;
 
-export function hasPermission(role: RoleId | null | undefined, permission: Permission): boolean {
+export function hasPermission(role: string | null | undefined, permission: string): boolean {
   if (!role) return false;
-  return ROLE_MAP[role]?.permissions[permission] ?? false;
+  return (ROLE_MAP as Record<string, any>)[role]?.permissions[permission] ?? false;
 }

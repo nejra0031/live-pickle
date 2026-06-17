@@ -19,12 +19,12 @@ function Root() {
   const { user, signIn, signOut } = useAuth();
   const { ownedClubIds, createClub } = useMyClubs(user?.uid ?? null);
 
-  function handleSelectTournament(clubId, tournamentId) {
+  function handleSelectTournament(clubId: string, tournamentId: string) {
     setActiveContext({ clubId, tournamentId });
     setScreen('tournament');
   }
 
-  function handleCreateTournament(clubId) {
+  function handleCreateTournament(clubId: string) {
     if (!ownedClubIds.includes(clubId)) return;
     // tournamentId=null until handleStart generates the real tournament ID
     setActiveContext({ clubId, tournamentId: null });
@@ -32,7 +32,7 @@ function Root() {
   }
 
   // Called by App after handleStart generates the tournament ID
-  function handleCreated(clubId, tournamentId, role) {
+  function handleCreated(clubId: string, tournamentId: string, role: string) {
     setActiveContext({ clubId, tournamentId, initialRole: role });
     setScreen('tournament');
   }
@@ -45,7 +45,7 @@ function Root() {
 
   // Browser back/forward: sync app screen state with URL hash
   useEffect(() => {
-    const onPopState = (e) => {
+    const onPopState = (e: PopStateEvent) => {
       const hash = window.location.hash.slice(1);
       if (!hash) {
         setScreen('landing');

@@ -51,7 +51,7 @@ const DEFAULT_COURTS = ['1', '2', '3', '4'];
 const DEFAULT_TIMER_SECS = 12 * 60;
 const EMPTY_EVENT_DETAILS = { location: '', startTime: '', durationMins: 0, maxPlayers: 0 };
 
-function FormatSelector({ value, onChange }) {
+function FormatSelector({ value, onChange }: { value: string | null; onChange: (opt: (typeof FORMAT_OPTIONS)[number]) => void }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       {FORMAT_OPTIONS.map((f) => {
@@ -96,14 +96,15 @@ function FormatSelector({ value, onChange }) {
   );
 }
 
-export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }) {
+interface SetupProps { onStart: (...args: any[]) => void; onStartTPT: (...args: any[]) => void; onStartDoublesRR: (...args: any[]) => void }
+export default function SetupScreen({ onStart, onStartTPT, onStartDoublesRR }: SetupProps) {
   const [format, setFormat] = useState('singles');
   const [startMode, setStartMode] = useState('swiss');
 
   const selectedFormatOptionId =
     FORMAT_OPTIONS.find((o) => o.format === format && o.startMode === startMode)?.id ?? null;
 
-  const selectFormatOption = (opt) => {
+  const selectFormatOption = (opt: (typeof FORMAT_OPTIONS)[number]) => {
     setFormat(opt.format);
     setStartMode(opt.startMode);
   };

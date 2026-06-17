@@ -53,7 +53,7 @@ export function useAllClubs() {
   }, []);
 
   const deleteTournament = useCallback(
-    async (clubId, tid) => {
+    async (clubId: string, tid: string) => {
       await fbDeleteTournament(clubId, tid);
       await fetchData();
     },

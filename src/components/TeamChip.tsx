@@ -1,6 +1,6 @@
 import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 
-export default function TeamChip({ teamId }) {
+export default function TeamChip({ teamId }: { teamId: string }) {
   const teamById = useTeamById();
   const teamLabel = useTeamLabel();
   const t = teamById(teamId);

@@ -1,7 +1,8 @@
 import { useTeamLabel } from '../context/TeamRegistryContext';
 import { ORDINAL } from '../constants';
 
-export default function StandingsTab({ ranked, pausedIds }) {
+interface Props { ranked: any[]; pausedIds?: string[] }
+export default function StandingsTab({ ranked, pausedIds }: Props) {
   const teamLabel = useTeamLabel();
 
   return (

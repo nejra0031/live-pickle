@@ -1,3 +1,4 @@
+import type { MutableRefObject } from 'react';
 import { hasPermission } from '../roleConfig';
 
 // Removes a single result from a scheduled-format results map (TPT or DoublesRR)
@@ -17,8 +18,19 @@ export function undoScheduledResult({
   set,
   roundCompletingRef,
   pushAtomicUpdate,
+}: {
+  roleRef: MutableRefObject<string | null>;
+  resultsRef: MutableRefObject<Record<string, any>>;
+  setResults: (v: Record<string, any>) => void;
+  firebasePath: string;
+  key: string;
+  onFirebaseError: (msg: string) => void;
+  stateRef: MutableRefObject<any>;
+  set: (k: any, v: any) => void;
+  roundCompletingRef: MutableRefObject<boolean> | null;
+  pushAtomicUpdate: (fields: Record<string, any>, onErr: (msg: string) => void) => void;
 }) {
-  if (!hasPermission(roleRef.current, 'canSubmitResults')) return;
+  if (!hasPermission(roleRef.current as any, 'canSubmitResults')) return;
   const newResults = { ...resultsRef.current };
   delete newResults[key];
   setResults(newResults);
@@ -59,8 +71,23 @@ export function submitScheduledResult({
   roleRef,
   onFirebaseError,
   pushAtomicUpdate,
+}: {
+  key: string;
+  result: any;
+  resultsRef: MutableRefObject<Record<string, any>>;
+  setResults: (v: Record<string, any>) => void;
+  firebasePath: string;
+  roundCompletingRef: MutableRefObject<boolean>;
+  getScheduleRound: () => any;
+  isRoundComplete: (schedRound: any, newResults: Record<string, any>) => boolean;
+  buildHistEntry: (schedRound: any, newResults: Record<string, any>, newRoundNum: number) => any;
+  stateRef: MutableRefObject<any>;
+  set: (k: any, v: any) => void;
+  roleRef: MutableRefObject<string | null>;
+  onFirebaseError: (msg: string) => void;
+  pushAtomicUpdate: (fields: Record<string, any>, onErr: (msg: string) => void) => void;
 }) {
-  if (!hasPermission(roleRef.current, 'canSubmitResults')) return;
+  if (!hasPermission(roleRef.current as any, 'canSubmitResults')) return;
   const newResults = { ...resultsRef.current, [key]: result };
   setResults(newResults);
   resultsRef.current = newResults;

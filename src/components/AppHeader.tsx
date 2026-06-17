@@ -1,4 +1,6 @@
+import React from 'react';
 import { ROLES, ROLE_MAP } from '../roleConfig';
+import type { RoleId } from '../types';
 import ballIcon from '/ball.png';
 
 const TABS = [
@@ -9,7 +11,7 @@ const TABS = [
 
 // Renders "📍 Location · 🗓 Sat Jun 13, 9:00 AM · ⏱ 4 hours" from whichever
 // event-detail fields are set — any subset may be blank.
-function formatEventInfo(location, startTime, durationMins) {
+function formatEventInfo(location: string, startTime: string, durationMins: number) {
   const parts: string[] = [];
   if (location) parts.push(location);
   if (startTime) {
@@ -58,6 +60,28 @@ export default function AppHeader({
   activeTab,
   onTabChange,
   onBack,
+}: {
+  headerRef: React.RefObject<HTMLDivElement | null>;
+  headerHidden: boolean;
+  onShowHeader: () => void;
+  onHideHeader: () => void;
+  tournamentTitle: string;
+  tournamentLocation: string;
+  tournamentStartTime: string;
+  tournamentDurationMins: number;
+  firebaseConnected: boolean;
+  phase: string;
+  role: string | null;
+  presence: Record<string, number>;
+  online: boolean;
+  user: any;
+  onSignIn: (() => void) | null;
+  onSignOut: (() => void) | null;
+  isOwner: boolean;
+  onLoginToggle: () => void;
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+  onBack?: (() => void) | null;
 }) {
   return (
     <>
@@ -163,7 +187,7 @@ export default function AppHeader({
                 )}
                 {phase === 'play' && (
                   <span className="text-slate-500" style={{ fontSize: 'clamp(10px,2.5vw,13px)' }}>
-                    {ROLE_MAP[role]?.title ?? 'Viewer'}
+                    {ROLE_MAP[role as RoleId]?.title ?? 'Viewer'}
                   </span>
                 )}
                 {phase === 'setup' && (
@@ -216,16 +240,16 @@ export default function AppHeader({
                 borderRadius: 10,
                 fontWeight: 700,
                 cursor: 'pointer',
-                background: ROLE_MAP[role]?.btnBg ?? 'rgba(0,0,0,0.06)',
-                color: ROLE_MAP[role]?.btnColor ?? '#64748b',
-                border: `1px solid ${ROLE_MAP[role]?.btnBorder ?? 'rgba(0,0,0,0.12)'}`,
+                background: ROLE_MAP[role as RoleId]?.btnBg ?? 'rgba(0,0,0,0.06)',
+                color: ROLE_MAP[role as RoleId]?.btnColor ?? '#64748b',
+                border: `1px solid ${ROLE_MAP[role as RoleId]?.btnBorder ?? 'rgba(0,0,0,0.12)'}`,
               }}
             >
-              {role ? `${ROLE_MAP[role]?.icon ?? ''} ${ROLE_MAP[role]?.title ?? role}` : '🔒 Login'}
+              {role ? `${ROLE_MAP[role as RoleId]?.icon ?? ''} ${ROLE_MAP[role as RoleId]?.title ?? role}` : '🔒 Login'}
             </button>
             {user ? (
               <button
-                onClick={onSignOut}
+                onClick={onSignOut ?? undefined}
                 title={`Signed in as ${user.email} · Sign out`}
                 style={{
                   flexShrink: 0,
@@ -249,7 +273,7 @@ export default function AppHeader({
               </button>
             ) : (
               <button
-                onClick={onSignIn}
+                onClick={onSignIn ?? undefined}
                 title="Sign in with Google"
                 style={{
                   flexShrink: 0,

@@ -64,9 +64,9 @@ export default function PlayerNameField({
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const showNickname = nickname !== undefined;
 
-  const isExcluded = (p) => excludeKeys?.has((p.name || '').trim().toLowerCase());
+  const isExcluded = (p: any) => excludeKeys?.has((p.name || '').trim().toLowerCase());
 
-  const searchName = useDebounce((q) => {
+  const searchName = useDebounce((q: string) => {
     const query = q.trim().toLowerCase();
     if (!query) {
       setNameSuggestions([]);
@@ -84,7 +84,7 @@ export default function PlayerNameField({
     );
   }, 250);
 
-  const searchDupr = useDebounce((q) => {
+  const searchDupr = useDebounce((q: string) => {
     const query = q.trim().toLowerCase();
     if (!query) {
       setDuprSuggestions([]);
@@ -98,8 +98,8 @@ export default function PlayerNameField({
   }, 250);
 
   useEffect(() => {
-    const onDocClick = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+    const onDocClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node | null)) {
         setNameOpen(false);
         setDuprOpen(false);
       }
@@ -108,7 +108,7 @@ export default function PlayerNameField({
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
-  const pick = (p) => {
+  const pick = (p: any) => {
     // Fall back to the full name when the known player has no nickname, so the
     // primary "Name" field doesn't end up showing blank after picking.
     onChange({ name: p.name, duprId: p.duprID || '', nickname: p.nickname || p.name || '' });
@@ -118,10 +118,10 @@ export default function PlayerNameField({
     setDuprSuggestions([]);
   };
 
-  const emit = (fields) =>
+  const emit = (fields: Record<string, any>) =>
     onChange({ name, duprId, ...(showNickname ? { nickname } : {}), ...fields });
 
-  const renderDropdown = (open, suggestions) =>
+  const renderDropdown = (open: boolean, suggestions: any[]) =>
     open &&
     suggestions.length > 0 && (
       <ul

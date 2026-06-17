@@ -6,6 +6,36 @@ import { hasPermission } from '../../roleConfig';
 import BreakBanner from './BreakBanner';
 import SocialCourts from './SocialCourts';
 
+interface Props {
+  roundRobinSchedule: any[];
+  roundRobinCourts: string[];
+  roundRobinStartRoundNum: number;
+  timerDuration: number;
+  timerSecsLeft: number;
+  timerRunning: boolean;
+  breakMode: any;
+  role: string | null;
+  pending: Record<string, any>;
+  pausedIds: string[];
+  courtNumbers: string[];
+  socialCourts: string[];
+  history: any[];
+  isAdmin: boolean;
+  onRRMatchResult: (...args: any[]) => void;
+  rrMatchKey: any;
+  onContinueSwissAfterRR: () => void;
+  onExitRoundRobin: (reason?: string | null) => void;
+  onSelectRRTeams: () => void;
+  onGenerateAdditionalGames: () => void;
+  onFinishTournament: () => void;
+  onBreakEnd: () => void;
+  onBreakStart: () => void;
+  onTournamentSettings: () => void;
+  onUndoRRMatchResult: (...args: any[]) => void;
+  onTimerToggle: () => void;
+  onTimerRestart: () => void;
+  onTimerSettings: () => void;
+}
 export default function RoundRobinSection({
   roundRobinSchedule,
   roundRobinCourts,
@@ -35,7 +65,7 @@ export default function RoundRobinSection({
   onTimerToggle,
   onTimerRestart,
   onTimerSettings,
-}) {
+}: Props) {
   const teamById = useTeamById();
   const teamLabel = useTeamLabel();
   const canWrite = hasPermission(role, 'canSubmitResults');
@@ -163,14 +193,14 @@ export default function RoundRobinSection({
                   </span>
                 )}
               </div>
-              {schedRound.map(([idA, idB], mi) => {
+              {schedRound.map(([idA, idB]: [string, string], mi: number) => {
                 const tA = teamById(idA),
                   tB = teamById(idB);
                 if (!tA || !tB) return null;
                 const courtLabel = `Court ${rrCourts[mi] ?? mi + 1}`;
                 const committedGame = isComplete
                   ? committedEntry.games.find(
-                      (g) =>
+                      (g: any) =>
                         (g.winnerId === idA && g.loserId === idB) ||
                         (g.winnerId === idB && g.loserId === idA)
                     )
@@ -341,7 +371,7 @@ export default function RoundRobinSection({
                         { ...tA, name: teamLabel(tA.id) },
                         { ...tB, name: teamLabel(tB.id) },
                       ]}
-                      onResult={(r) =>
+                      onResult={(r: any) =>
                         onRRMatchResult(srIdx, mi, { ...r, courtNumber: rrCourts[mi] ?? mi + 1 })
                       }
                       pendingResult={pendingResult}

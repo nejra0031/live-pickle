@@ -1,5 +1,5 @@
-// Shared "All rounds complete!" block for TPT and DoublesRR play sections.
-export default function TournamentCompleteBlock({ onFinish, isAdmin }) {
+interface Props { onFinish: () => void; isAdmin: boolean }
+export default function TournamentCompleteBlock({ onFinish, isAdmin }: Props) {
   if (isAdmin) {
     return (
       <div

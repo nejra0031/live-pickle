@@ -1,7 +1,8 @@
 // Lets the admin generate a fresh full round-robin schedule for the same
 // roster — re-paired with different round/court groupings where the structure
 // allows — and choose how it merges with what's already there.
-export default function GenerateAdditionalGamesModal({ onChoose, onClose }) {
+interface Props { onChoose: (mode: string) => void; onClose: () => void }
+export default function GenerateAdditionalGamesModal({ onChoose, onClose }: Props) {
   return (
     <div className="modal-overlay">
       <div

@@ -13,11 +13,11 @@ export default class ErrorBoundary extends React.Component<Props, State> {
     this.state = { error: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error) {
     return { error };
   }
 
-  componentDidCatch(error, info) {
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('App crashed:', error, info);
   }
 

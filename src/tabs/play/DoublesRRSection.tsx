@@ -9,6 +9,29 @@ import { scheduleProgress } from './scheduleProgress';
 import { buildSidePresentation } from '../../algorithms/doublesRR';
 import { TeamRegistryContext } from '../../context/TeamRegistryContext';
 
+interface Props {
+  doublesRRPlayers: Record<string, any>;
+  doublesRRSchedule: any[];
+  doublesRRResults: Record<string, any>;
+  courtNumbers: string[];
+  history: any[];
+  role: string | null;
+  isAdmin: boolean;
+  timerDuration: number;
+  timerSecsLeft: number;
+  timerRunning: boolean;
+  breakMode: any;
+  onDoublesRRResult: (...args: any[]) => void;
+  onUndoDoublesRRResult: (...args: any[]) => void;
+  onGenerateAdditionalGames: () => void;
+  onFinishTournament: () => void;
+  onBreakStart: () => void;
+  onBreakEnd: () => void;
+  onTournamentSettings: () => void;
+  onTimerToggle: () => void;
+  onTimerRestart: () => void;
+  onTimerSettings: () => void;
+}
 export default function DoublesRRSection({
   doublesRRPlayers,
   doublesRRSchedule,
@@ -31,7 +54,7 @@ export default function DoublesRRSection({
   onTimerToggle,
   onTimerRestart,
   onTimerSettings,
-}) {
+}: Props) {
   const { teamNameDisplay } = useContext(TeamRegistryContext);
   const canWrite = hasPermission(role, 'canSubmitResults');
   const { currentRoundIdx, totalRounds, allDone } = scheduleProgress(doublesRRSchedule, history);
@@ -43,7 +66,7 @@ export default function DoublesRRSection({
     for (let ri = 0; ri <= currentRoundIdx && ri < totalRounds; ri++) {
       const round = doublesRRSchedule[ri];
       if (!round) continue;
-      round.courts.forEach((_, ci) => {
+      round.courts.forEach((_: any, ci: number) => {
         if (doublesRRResults[`${ri}_${ci}`]) n++;
       });
     }
@@ -52,7 +75,7 @@ export default function DoublesRRSection({
 
   const totalGames = doublesRRSchedule.reduce((acc, r) => acc + r.courts.length, 0);
 
-  const renderCourtCard = (court, ci, ri, isCurrentRound) => {
+  const renderCourtCard = (court: any, ci: number, ri: number, isCurrentRound: boolean) => {
     const courtLabel = courtNumbers[ci] ?? String(ci + 1);
     const key = `${ri}_${ci}`;
     const stored = doublesRRResults[key];
@@ -74,7 +97,7 @@ export default function DoublesRRSection({
             courtLabel={`Court ${courtLabel}`}
             teams={[sideA, sideB]}
             pendingResult={pendingResult}
-            onResult={(r) =>
+            onResult={(r: any) =>
               onDoublesRRResult(ri, ci, {
                 winnerIds: r.winnerId.split('|'),
                 loserIds: r.loserId.split('|'),
@@ -183,7 +206,7 @@ export default function DoublesRRSection({
           >
             Round {currentRoundIdx + 1}
           </span>
-          {viewedRound.courts.map((court, ci) => renderCourtCard(court, ci, currentRoundIdx, true))}
+          {viewedRound.courts.map((court: any, ci: number) => renderCourtCard(court, ci, currentRoundIdx, true))}
           {viewedRound.byePlayerIds?.length > 0 &&
             (() => {
               const byeSide = buildSidePresentation(

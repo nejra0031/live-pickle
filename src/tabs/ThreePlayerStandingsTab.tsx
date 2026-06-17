@@ -4,6 +4,15 @@ import { TeamRegistryContext } from '../context/TeamRegistryContext';
 import { playerDisplayName } from '../utils/nameDisplay';
 import { ORDINAL } from '../constants';
 
+interface Props {
+  tptTeams: Record<string, any>;
+  tptPlayers: Record<string, any>;
+  tptSchedule: any[];
+  tptResults: Record<string, any>;
+  tiebreakOrder: any[];
+  tptSubstitutions?: Record<string, any>;
+  tournamentFinished?: boolean;
+}
 export default function ThreePlayerStandingsTab({
   tptTeams,
   tptPlayers,
@@ -12,7 +21,7 @@ export default function ThreePlayerStandingsTab({
   tiebreakOrder,
   tptSubstitutions = {},
   tournamentFinished = false,
-}) {
+}: Props) {
   const { teamStandings, playerStandings, partnershipStandings } = useMemo(
     () =>
       buildTPTStandings(
@@ -27,7 +36,7 @@ export default function ThreePlayerStandingsTab({
   );
   const { teamNameDisplay } = useContext(TeamRegistryContext);
   const [openIds, setOpenIds] = useState(new Set());
-  const toggle = (id) =>
+  const toggle = (id: string) =>
     setOpenIds((prev) => {
       const s = new Set(prev);
       if (s.has(id)) s.delete(id);
@@ -188,7 +197,7 @@ export default function ThreePlayerStandingsTab({
                     {partnerships.map((p, pi) => {
                       const pd = p.scoreDiff;
                       const names = p.playerIds
-                        .map((id) => {
+                        .map((id: string) => {
                           const pl = tptPlayers[id];
                           return pl ? playerDisplayName(pl) : id;
                         })

@@ -121,9 +121,9 @@ export default function ModalRoot() {
     if (!pinPurpose) return null;
     if (pinPurpose === 'login') {
       if (ROLES.some((r) => !pinsLoaded[r.id])) return null;
-      return (hash) => {
+      return (hash: string) => {
         for (const r of ROLES) {
-          if (pins[r.id]?.some((p) => p.hash === hash)) return r.id;
+          if (pins[r.id]?.some((p: any) => p.hash === hash)) return r.id;
         }
         return null;
       };
@@ -131,7 +131,7 @@ export default function ModalRoot() {
     const selfAuth = pinPurpose === 'exitRR' && hasPermission(role, 'canExitRRWithOwnPin');
     const pinRoleId = selfAuth ? role : 'admin';
     if (!pinsLoaded[pinRoleId]) return null;
-    return (hash) => (pins[pinRoleId]?.some((p) => p.hash === hash) ? pinRoleId : null);
+    return (hash: string) => (pins[pinRoleId]?.some((p: any) => p.hash === hash) ? pinRoleId : null);
   })();
   const pinLoadError =
     pinPurpose === 'login'
@@ -297,7 +297,7 @@ export default function ModalRoot() {
       )}
       {modal.open === 'selectRRTeams' && (
         <SelectRoundRobinTeamsModal
-          rankedTeamIds={ranked.map((t) => t.id)}
+          rankedTeamIds={ranked.map((t: any) => t.id)}
           tournamentCourts={courtNumbers}
           onConfirm={onStartRoundRobin}
           onClose={closeModal}
@@ -317,7 +317,7 @@ export default function ModalRoot() {
           usedCourtNumbers={addGameData.usedCourts}
           usedTeamIds={addGameData.usedTeams}
           label={addGameData.label}
-          onSave={(g) => onAddGameSave(addGameData.target, g)}
+          onSave={(g: any) => onAddGameSave(addGameData.target, g)}
           onClose={closeModal}
         />
       )}
@@ -387,7 +387,7 @@ export default function ModalRoot() {
                   ? undefined
                   : { allTeamIds: activeTeamIds, getTeam: teamById, formatLabel: teamLabel }
               }
-              onSave={(d) => {
+              onSave={(d: any) => {
                 const teamAId = d.teamAId ?? sideA.id,
                   teamBId = d.teamBId ?? sideB.id;
                 const winnerId = d.aWins ? teamAId : teamBId,
@@ -421,10 +421,10 @@ export default function ModalRoot() {
           const teamB = matchup && tptTeams[matchup.teamBId];
           if (!teamA || !teamB) return null;
           const def = getTPTGamesForMatchup(teamA, teamB)[gi];
-          const pName = (id) => playerDisplayName(tptPlayers[id]) || '?';
+          const pName = (id: string) => playerDisplayName(tptPlayers[id]) || '?';
           const subs = tptSubstitutions[`${ri}_${mi}_${gi}`] || {};
-          const sideLabel = (pids) =>
-            (pids || []).filter(Boolean).map((pid, idx) => {
+          const sideLabel = (pids: string[]) =>
+            (pids || []).filter(Boolean).map((pid: string, idx: number) => {
               const subPid = subs[pid];
               const el = subPid ? (
                 <span key={idx} style={{ fontStyle: 'italic' }} title={`Sub for ${pName(pid)}`}>
@@ -473,7 +473,7 @@ export default function ModalRoot() {
               sideB={sideB}
               scoreA0={scoreA0}
               scoreB0={scoreB0}
-              onSave={({ scoreA, scoreB, aWins }) =>
+              onSave={({ scoreA, scoreB, aWins }: { scoreA: number; scoreB: number; aWins: boolean }) =>
                 onEditTPTSave(ri, mi, gi, {
                   winnerTeamId: aWins ? matchup.teamAId : matchup.teamBId,
                   loserTeamId: aWins ? matchup.teamBId : matchup.teamAId,
@@ -504,7 +504,7 @@ export default function ModalRoot() {
               gameDef={def}
               tptPlayers={tptPlayers}
               currentSubs={currentSubs}
-              onSave={(subs) => onSetTPTSubstitution(ri, mi, gi, subs)}
+              onSave={(subs: Record<string, string>) => onSetTPTSubstitution(ri, mi, gi, subs)}
               onClose={closeModal}
             />
           );
@@ -540,7 +540,7 @@ export default function ModalRoot() {
               sideB={sideB}
               scoreA0={scoreA0}
               scoreB0={scoreB0}
-              onSave={({ scoreA, scoreB, aWins }) =>
+              onSave={({ scoreA, scoreB, aWins }: { scoreA: number; scoreB: number; aWins: boolean }) =>
                 onEditDoublesRRSave(ri, ci, {
                   winnerIds: aWins ? court.teamA : court.teamB,
                   loserIds: aWins ? court.teamB : court.teamA,

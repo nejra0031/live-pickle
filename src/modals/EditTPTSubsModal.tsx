@@ -5,6 +5,16 @@ import { playerDisplayName } from '../utils/nameDisplay';
 // the 4 roster slots in a TPT game (e.g. two players swapped courts mid-round).
 // Team-level results and rosters are untouched — only player/partnership credit
 // is remapped via the returned subsMap.
+interface Props {
+  gameLabel: string;
+  teamA: { name: string };
+  teamB: { name: string };
+  gameDef: any;
+  tptPlayers: Record<string, any>;
+  currentSubs?: Record<string, string>;
+  onSave: (subs: Record<string, string>) => void;
+  onClose: () => void;
+}
 export default function EditTPTSubsModal({
   gameLabel,
   teamA,
@@ -14,19 +24,19 @@ export default function EditTPTSubsModal({
   currentSubs = {},
   onSave,
   onClose,
-}) {
-  const pName = (id) => {
+}: Props) {
+  const pName = (id: string) => {
     const p = tptPlayers[id];
     return p ? playerDisplayName(p) : '?';
   };
 
-  const [subs, setSubs] = useState(() => ({ ...currentSubs }));
+  const [subs, setSubs] = useState<Record<string, string>>(() => ({ ...currentSubs }));
 
   const sortedPlayers = Object.entries(tptPlayers)
     .map(([id, p]) => ({ id, label: playerDisplayName(p as any) }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  const row = (pid) => (
+  const row = (pid: string) => (
     <div key={pid} className="flex items-center gap-3">
       <div
         className="flex-1 rounded-xl px-3 py-2.5"
@@ -67,7 +77,7 @@ export default function EditTPTSubsModal({
   );
 
   const save = () => {
-    const subsMap = {};
+    const subsMap: Record<string, string> = {};
     Object.entries(subs).forEach(([pid, subPid]) => {
       if (subPid && subPid !== pid) subsMap[pid] = subPid;
     });

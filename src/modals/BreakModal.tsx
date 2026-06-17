@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
-export default function BreakModal({ onStart, onClose }) {
+interface Props { onStart: (msg: string, secs: number) => void; onClose: () => void }
+export default function BreakModal({ onStart, onClose }: Props) {
   const [message, setMessage] = useState('Taking a short break!');
   const [minsRaw, setMinsRaw] = useState('5');
   const minsNum = Number(minsRaw);

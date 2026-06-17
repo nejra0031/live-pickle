@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 
+interface Props {
+  courtIdx: number;
+  courtNumbers: string[];
+  currentCourts: any[][];
+  allTeamIds: string[];
+  hasPending: boolean;
+  onSave: (data: { courtIdx: number; teamAId: string; teamBId: string; courtNum: string }) => void;
+  onClose: () => void;
+}
 export default function EditActiveCourtModal({
   courtIdx,
   courtNumbers,
@@ -9,7 +18,7 @@ export default function EditActiveCourtModal({
   hasPending,
   onSave,
   onClose,
-}) {
+}: Props) {
   const teamById = useTeamById();
   const teamLabel = useTeamLabel();
   const cur = currentCourts[courtIdx] || [];
@@ -26,7 +35,7 @@ export default function EditActiveCourtModal({
     onSave({ courtIdx, teamAId, teamBId, courtNum: courtNumTrimmed });
   };
 
-  const chip = (id, active, onClick) => {
+  const chip = (id: string, active: boolean, onClick: () => void) => {
     const t = teamById(id);
     if (!t) return null;
     return (

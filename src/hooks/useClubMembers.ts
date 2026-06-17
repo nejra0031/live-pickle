@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { get, update, usersRef, userRef, saveKnownPlayer } from '../firebase';
 
-function memberSlug(name) {
+function memberSlug(name: string) {
   return name
     .trim()
     .toLowerCase()
@@ -9,7 +9,7 @@ function memberSlug(name) {
     .replace(/[.#$[\]/]/g, '');
 }
 
-export function useClubMembers(clubId) {
+export function useClubMembers(clubId: string) {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +42,7 @@ export function useClubMembers(clubId) {
   }, [fetchMembers]);
 
   const addMember = useCallback(
-    async (name, duprId, nickname) => {
+    async (name: string, duprId: string, nickname: string) => {
       const trimmedName = (name || '').trim();
       if (!trimmedName) return;
       const uid = memberSlug(trimmedName);

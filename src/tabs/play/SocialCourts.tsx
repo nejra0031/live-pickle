@@ -1,4 +1,4 @@
-export default function SocialCourts({ socialCourts }) {
+export default function SocialCourts({ socialCourts }: { socialCourts: string[] }) {
   if (!socialCourts || socialCourts.length === 0) return null;
   return (
     <div className="flex flex-col" style={{ gap: 'clamp(8px,2vw,12px)' }}>

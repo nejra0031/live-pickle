@@ -3,11 +3,18 @@ import { sha256hex } from '../utils/pin';
 
 // checkPin: sync (hashHex: string) => role | null — null means no match
 // If checkPin is null, pins are still loading
-export default function PinModal({ title = 'Login', checkPin, pinLoadError, onSuccess, onClose }) {
+interface Props {
+  title?: string;
+  checkPin: ((hash: string) => string | null) | null;
+  pinLoadError?: boolean;
+  onSuccess: (role: string) => void;
+  onClose: () => void;
+}
+export default function PinModal({ title = 'Login', checkPin, pinLoadError, onSuccess, onClose }: Props) {
   const [pin, setPin] = useState('');
   const [errMsg, setErrMsg] = useState('');
 
-  const showErr = (msg) => {
+  const showErr = (msg: string) => {
     setErrMsg(msg);
     setTimeout(() => setErrMsg(''), 1800);
   };

@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 
+interface Props {
+  allTeamIds: string[];
+  courtNumbers: string[];
+  usedTeamIds: string[];
+  usedCourtNumbers?: string[];
+  onSave: (preset: { teamId1: string; teamId2: string; courtNumber: string }) => void;
+  onClose: () => void;
+}
 export default function PresetMatchModal({
   allTeamIds,
   courtNumbers,
@@ -8,7 +16,7 @@ export default function PresetMatchModal({
   usedCourtNumbers = [] as any[],
   onSave,
   onClose,
-}) {
+}: Props) {
   const teamById = useTeamById();
   const teamLabel = useTeamLabel();
   const [teamAId, setTeamAId] = useState('');
@@ -25,7 +33,7 @@ export default function PresetMatchModal({
   const allCourtsUsed =
     courtNumbers.length > 0 && courtNumbers.every((c) => usedCourtSet.has(String(c)));
 
-  const chip = (id, active, onClick) => {
+  const chip = (id: string, active: boolean, onClick: (() => void) | undefined) => {
     const t = teamById(id);
     if (!t) return null;
     const disabled = !active && usedSet.has(id);

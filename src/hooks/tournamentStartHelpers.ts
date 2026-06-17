@@ -5,12 +5,9 @@ export function applyTournamentStartState({
   tournamentMode,
   courts,
   durSecs,
-  // refs
   lastSeenRoundNum,
   pendingRef,
-  // single reducer setter (replaces the ~18 individual setX calls that lived here)
   set,
-  // non-reducer setters
   setRole,
   setStandings,
   setRoundKey,
@@ -18,6 +15,20 @@ export function applyTournamentStartState({
   setPhase,
   setActiveTab,
   applyTimerState,
+}: {
+  tournamentMode: string;
+  courts: string[];
+  durSecs: number;
+  lastSeenRoundNum: import('react').MutableRefObject<number>;
+  pendingRef: import('react').MutableRefObject<Record<string, any>>;
+  set: (k: any, v: any) => void;
+  setRole: (v: string) => void;
+  setStandings: (s: any[]) => void;
+  setRoundKey: (v: number) => void;
+  setTimerAlarmed: (v: boolean) => void;
+  setPhase: (v: string) => void;
+  setActiveTab: (v: string) => void;
+  applyTimerState: (running: boolean, startedAt: number | null, secsLeft: number) => void;
 }) {
   setRole('admin');
   set('courtNumbers', courts);

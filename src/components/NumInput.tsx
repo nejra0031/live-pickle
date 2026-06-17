@@ -1,11 +1,11 @@
-export default function NumInput({ value, onChange }) {
+export default function NumInput({ value, onChange }: { value: string | number; onChange: (v: string) => void }) {
   return (
     <input
       type="number"
       min={0}
       max={99}
       value={value}
-      onChange={(e) => onChange(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
+      onChange={(e) => onChange(e.target.value === '' ? '' : String(Math.max(0, Number(e.target.value))))}
       style={{
         width: 'clamp(44px,11vw,64px)',
         textAlign: 'center',

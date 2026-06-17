@@ -4,7 +4,7 @@ import { useAllClubs } from './hooks/useAllClubs';
 import { TOURNAMENT_MODES, splitAndSortTournaments, applyLandingFilters } from './landingFilters';
 import ClubMembersPanel from './components/ClubMembersPanel';
 
-function toSlug(title) {
+function toSlug(title: string) {
   return (
     (title || 'tournament')
       .toLowerCase()
@@ -14,15 +14,15 @@ function toSlug(title) {
   );
 }
 
-function buildSlugMap(tournaments) {
-  const slugCount = {};
-  tournaments.forEach((t) => {
+function buildSlugMap(tournaments: any[]) {
+  const slugCount: Record<string, number> = {};
+  tournaments.forEach((t: any) => {
     const s = toSlug(t.title);
     slugCount[s] = (slugCount[s] || 0) + 1;
   });
-  const idToSlug = {},
-    slugToId = {};
-  tournaments.forEach((t) => {
+  const idToSlug: Record<string, string> = {},
+    slugToId: Record<string, string> = {};
+  tournaments.forEach((t: any) => {
     const base = toSlug(t.title);
     const slug = slugCount[base] > 1 ? `${base}-${t.id.slice(0, 6)}` : base;
     idToSlug[t.id] = slug;
@@ -38,7 +38,7 @@ const LS_KEYS = {
   hideFull: 'livepickle:hideFull',
 };
 
-function readStoredJSON(key, fallback) {
+function readStoredJSON(key: string, fallback: any) {
   try {
     const raw = localStorage.getItem(key);
     return raw != null ? JSON.parse(raw) : fallback;
@@ -47,7 +47,7 @@ function readStoredJSON(key, fallback) {
   }
 }
 
-function writeStoredJSON(key, value) {
+function writeStoredJSON(key: string, value: any) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
@@ -68,7 +68,7 @@ const STATUS_STYLES = {
   finished: { bg: '#f1f5f9', color: '#64748b', label: 'Finished' },
 };
 
-function formatStartTime(ts) {
+function formatStartTime(ts: string) {
   if (!ts) return '';
   const d = new Date(ts);
   if (isNaN(d.getTime())) return '';
@@ -81,10 +81,10 @@ function formatStartTime(ts) {
   return `${date} · ${time}`;
 }
 
-function TournamentCard({ t, onClick, onDelete }) {
+function TournamentCard({ t, onClick, onDelete }: { t: any; onClick: () => void; onDelete?: (id: string) => void }) {
   const [confirming, setConfirming] = useState(false);
-  const statusStyle = STATUS_STYLES[t.status] ?? STATUS_STYLES.finished;
-  const modeLabel = MODE_LABELS[t.mode] ?? t.mode ?? '';
+  const statusStyle = (STATUS_STYLES as any)[t.status] ?? STATUS_STYLES.finished;
+  const modeLabel = (MODE_LABELS as any)[t.mode] ?? t.mode ?? '';
   return (
     <div
       onClick={onClick}
@@ -189,7 +189,7 @@ function TournamentCard({ t, onClick, onDelete }) {
             >
               <span style={{ fontSize: 12, color: '#64748b', alignSelf: 'center' }}>Delete?</span>
               <button
-                onClick={() => onDelete(t.id)}
+                onClick={() => onDelete?.(t.id)}
                 style={{
                   fontSize: 12,
                   padding: '3px 10px',
@@ -345,10 +345,10 @@ function TournamentCard({ t, onClick, onDelete }) {
   );
 }
 
-function ClubTogglesRow({ clubs, hiddenClubs, onToggle }) {
+function ClubTogglesRow({ clubs, hiddenClubs, onToggle }: { clubs: any[]; hiddenClubs: Set<string>; onToggle: (id: string) => void }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-      {clubs.map(({ clubId, clubInfo }) => {
+      {clubs.map(({ clubId, clubInfo }: { clubId: string; clubInfo: any }) => {
         const active = !hiddenClubs.has(clubId);
         return (
           <button
@@ -373,7 +373,7 @@ function ClubTogglesRow({ clubs, hiddenClubs, onToggle }) {
   );
 }
 
-function FilterControls({ enabledModes, onToggleMode, hideFull, onToggleHideFull }) {
+function FilterControls({ enabledModes, onToggleMode, hideFull, onToggleHideFull }: { enabledModes: Set<string>; onToggleMode: (m: string) => void; hideFull: boolean; onToggleHideFull: () => void }) {
   const labelStyle = {
     display: 'flex',
     alignItems: 'center',
@@ -438,8 +438,8 @@ function ClubSection({
   onDelete,
   onManageMembers,
   idToSlug,
-}) {
-  function handleCardClick(t) {
+}: any) {
+  function handleCardClick(t: any) {
     const slug = idToSlug[t.id] || t.id;
     history.pushState({ clubId, tournamentId: t.id }, '', `#${clubId}/${slug}`);
     onSelectTournament(clubId, t.id);
@@ -547,7 +547,7 @@ function ClubSection({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {upcoming.map((t) => (
+                {upcoming.map((t: any) => (
                   <TournamentCard
                     key={t.id}
                     t={t}
@@ -574,7 +574,7 @@ function ClubSection({
                 Finished
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {finished.map((t) => (
+                {finished.map((t: any) => (
                   <TournamentCard
                     key={t.id}
                     t={t}
@@ -591,13 +591,13 @@ function ClubSection({
   );
 }
 
-function NewClubForm({ onCreateClub }) {
+function NewClubForm({ onCreateClub }: { onCreateClub: (name: string) => Promise<any> }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  async function handleCreate(e) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
@@ -692,19 +692,28 @@ function NewClubForm({ onCreateClub }) {
   );
 }
 
+interface LandingPageProps {
+  onSelectTournament: (clubId: string, id: string) => void;
+  onCreateTournament: (clubId: string) => void;
+  user: any;
+  onSignIn: () => void;
+  onSignOut: () => void;
+  ownedClubIds?: string[];
+  onCreateClub: (name: string) => Promise<any>;
+}
 export default function LandingPage({
   onSelectTournament,
   onCreateTournament,
   user,
   onSignIn,
   onSignOut,
-  ownedClubIds = [] as string[],
+  ownedClubIds = [],
   onCreateClub,
-}) {
+}: LandingPageProps) {
   const { clubs, loading, error, refresh, deleteTournament } = useAllClubs();
 
   // Per-club visibility toggle. Default: all visible. Persisted in localStorage.
-  const [hiddenClubs, setHiddenClubs] = useState(
+  const [hiddenClubs, setHiddenClubs] = useState<Set<string>>(
     () => new Set(readStoredJSON(LS_KEYS.hiddenClubs, []))
   );
 
@@ -719,7 +728,7 @@ export default function LandingPage({
       Array.isArray(stored) ? stored.filter((m) => TOURNAMENT_MODES.includes(m)) : TOURNAMENT_MODES
     );
   });
-  const [hideFull, setHideFull] = useState(() => readStoredJSON(LS_KEYS.hideFull, false));
+  const [hideFull, setHideFull] = useState<boolean>(() => readStoredJSON(LS_KEYS.hideFull, false));
 
   // Persist filter changes for next session.
   useEffect(() => {
@@ -775,7 +784,7 @@ export default function LandingPage({
     }
   }, [loading, clubs, slugMaps]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function toggleClub(clubId) {
+  function toggleClub(clubId: string) {
     setHiddenClubs((prev) => {
       const next = new Set(prev);
       if (next.has(clubId)) next.delete(clubId);
@@ -784,7 +793,7 @@ export default function LandingPage({
     });
   }
 
-  function toggleMode(mode) {
+  function toggleMode(mode: string) {
     setEnabledModes((prev) => {
       const next = new Set(prev);
       if (next.has(mode)) next.delete(mode);
@@ -989,7 +998,7 @@ export default function LandingPage({
                     onCreateTournament={() => onCreateTournament(clubId)}
                     onSelectTournament={onSelectTournament}
                     onDelete={
-                      ownedClubIds.includes(clubId) ? (tid) => deleteTournament(clubId, tid) : null
+                      ownedClubIds.includes(clubId) ? (tid: string) => deleteTournament(clubId, tid) : null
                     }
                     onManageMembers={() => setMembersClubId(clubId)}
                     idToSlug={slugMaps[clubId]?.idToSlug ?? {}}

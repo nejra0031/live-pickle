@@ -5,15 +5,15 @@ import { useState, useRef } from 'react';
 // call site (updateAllStates, doReset, handleStartTPT, handleTPTResult) works
 // unchanged. A future step can move the TPT handlers here too (plan C.4).
 export function useTPTState() {
-  const [tptTeams, setTPTTeams] = useState({});
-  const [tptPlayers, setTPTPlayers] = useState({});
-  const [tptSchedule, setTPTSchedule] = useState([]);
-  const [tptResults, setTPTResults] = useState({});
-  const [tptSubstitutions, setTPTSubstitutions] = useState({});
-  const tptResultsRef = useRef({});
-  const tptScheduleRef = useRef([]);
+  const [tptTeams, setTPTTeams] = useState<Record<string, any>>({});
+  const [tptPlayers, setTPTPlayers] = useState<Record<string, any>>({});
+  const [tptSchedule, setTPTSchedule] = useState<any[]>([]);
+  const [tptResults, setTPTResults] = useState<Record<string, any>>({});
+  const [tptSubstitutions, setTPTSubstitutions] = useState<Record<string, any>>({});
+  const tptResultsRef = useRef<Record<string, any>>({});
+  const tptScheduleRef = useRef<any[]>([]);
   const tptRoundCompletingRef = useRef(false);
-  const tptSubstitutionsRef = useRef({});
+  const tptSubstitutionsRef = useRef<Record<string, any>>({});
 
   return {
     tptTeams,

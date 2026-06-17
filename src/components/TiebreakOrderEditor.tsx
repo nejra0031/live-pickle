@@ -4,8 +4,8 @@ const CRITERION_LABELS = {
   headToHead: 'Head-to-head',
 };
 
-export default function TiebreakOrderEditor({ order, onChange, dark = false }) {
-  const move = (i, dir) => {
+export default function TiebreakOrderEditor({ order, onChange, dark = false }: { order: string[]; onChange: (v: string[]) => void; dark?: boolean }) {
+  const move = (i: number, dir: number) => {
     const j = i + dir;
     if (j < 0 || j >= order.length) return;
     const next = [...order];
@@ -15,7 +15,7 @@ export default function TiebreakOrderEditor({ order, onChange, dark = false }) {
 
   return (
     <div className="flex flex-col" style={{ gap: 6 }}>
-      {order.map((criterion, i) => (
+      {order.map((criterion: string, i: number) => (
         <div key={criterion} className="flex items-center" style={{ gap: 8 }}>
           <span
             style={{
@@ -31,7 +31,7 @@ export default function TiebreakOrderEditor({ order, onChange, dark = false }) {
             className="flex-1 font-semibold"
             style={{ color: dark ? '#e2e8f0' : '#334155', fontSize: 'clamp(12px,3vw,14px)' }}
           >
-            {CRITERION_LABELS[criterion] || criterion}
+            {(CRITERION_LABELS as Record<string, string>)[criterion] || criterion}
           </span>
           <button
             onClick={() => move(i, -1)}
