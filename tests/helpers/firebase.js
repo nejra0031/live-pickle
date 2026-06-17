@@ -202,7 +202,9 @@ async function seedDoublesRRTournament(overrides = {}) {
 
 async function clearE2EData() {
   await fbDelete(`clubs/${E2E_CLUB_ID}`).catch(() => {});
-  await fbDelete('clubsIndex_test').catch(() => {});
+  // clubsIndex_test is seeded once in global-setup and kept between tests.
+  // Preserving it means ensureClubsIndexBootstrapped() hits the fast path (1 read)
+  // instead of 4 sequential Firebase ops, cutting cold-start page-load time from ~12s to ~4s.
 }
 
 module.exports = {

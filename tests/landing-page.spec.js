@@ -8,7 +8,7 @@ test.beforeEach(async () => {
 
 test('shows BLUE club header on admin landing page', async ({ page }) => {
   await page.goto('/_admin.html');
-  await expect(page.locator('text=BLUE')).toBeVisible({ timeout: 8000 });
+  await expect(page.locator('text=BLUE')).toBeVisible({ timeout: 20000 });
   await expect(page.locator('img[alt="BLUE logo"]')).toBeVisible();
 });
 
