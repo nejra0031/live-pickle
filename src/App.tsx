@@ -255,6 +255,13 @@ function AppInner({
     onFirebaseError: setFirebaseError,
   });
 
+  // Warn owner when no admin PIN is set — some PIN-gated actions would block them.
+  const showNoPinWarning =
+    isOwner &&
+    !role &&
+    !!(pinsLoaded as Record<string, boolean>)['admin'] &&
+    ((pins as Record<string, any[]>)['admin']?.length ?? 0) === 0;
+
   // ── Round management ──────────────────────────────────────────────────────
   const {
     handleResult,
@@ -749,6 +756,8 @@ function AppInner({
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onBack={onBack}
+            showNoPinWarning={showNoPinWarning}
+            onOpenSettings={() => openModal('tournamentSettings')}
           />
           <StatusBanners
             firebaseError={firebaseError}

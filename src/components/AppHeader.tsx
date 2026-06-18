@@ -50,6 +50,8 @@ export default function AppHeader({
   activeTab,
   onTabChange,
   onBack,
+  showNoPinWarning,
+  onOpenSettings,
 }: {
   headerRef: React.RefObject<HTMLDivElement | null>;
   headerHidden: boolean;
@@ -70,6 +72,8 @@ export default function AppHeader({
   activeTab: string;
   onTabChange: (tab: string) => void;
   onBack?: (() => void) | null;
+  showNoPinWarning?: boolean;
+  onOpenSettings?: () => void;
 }) {
   const eventInfo = formatEventInfo(tournamentLocation, tournamentStartTime, tournamentDurationMins);
 
@@ -329,6 +333,43 @@ export default function AppHeader({
             )}
           </>}
         </div>
+
+        {/* No-PIN warning — shown below the inner padding so it spans the full header width */}
+        {showNoPinWarning && !headerHidden && (
+          <div
+            style={{
+              background: '#fefce8',
+              borderTop: '1px solid #fde68a',
+              padding: '7px clamp(12px,3vw,20px)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e', flex: 1, minWidth: 0 }}>
+              ⚠ No admin PIN set — actions like cancelling a round or resetting require one.
+            </span>
+            {onOpenSettings && (
+              <button
+                onClick={onOpenSettings}
+                style={{
+                  flexShrink: 0,
+                  fontSize: 11,
+                  fontWeight: 800,
+                  padding: '4px 10px',
+                  borderRadius: 7,
+                  cursor: 'pointer',
+                  background: '#fde68a',
+                  color: '#78350f',
+                  border: '1px solid #fbbf24',
+                }}
+              >
+                Open Settings
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </>
   );
