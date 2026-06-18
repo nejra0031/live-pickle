@@ -1,4 +1,4 @@
-interface Props { onFinish: () => void; isAdmin: boolean }
+﻿interface Props { onFinish: () => void; isAdmin: boolean }
 export default function TournamentCompleteBlock({ onFinish, isAdmin }: Props) {
   if (isAdmin) {
     return (
@@ -41,7 +41,7 @@ export default function TournamentCompleteBlock({ onFinish, isAdmin }: Props) {
       style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)' }}
     >
       <div style={{ fontSize: 'clamp(28px,7vw,44px)', marginBottom: 8 }}>🏆</div>
-      <p className="font-bold" style={{ color: '#0f4c75', fontSize: 'clamp(14px,3.5vw,20px)' }}>
+      <p className="font-bold" style={{ color: 'var(--court)', fontSize: 'clamp(14px,3.5vw,20px)' }}>
         All rounds complete!
       </p>
     </div>

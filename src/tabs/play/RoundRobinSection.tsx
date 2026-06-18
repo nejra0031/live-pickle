@@ -1,4 +1,5 @@
-import { useTeamById, useTeamLabel } from '../../context/TeamRegistryContext';
+﻿import { useTeamById, useTeamLabel } from '../../context/TeamRegistryContext';
+import { chipStyle } from '../../utils/chipStyle';
 import CourtCard from '../../components/CourtCard';
 import MatchupVsBox from '../../components/MatchupVsBox';
 import RoundTimer from '../../components/RoundTimer';
@@ -107,7 +108,7 @@ export default function RoundRobinSection({
             border: '1px solid rgba(0,0,0,0.08)',
           }}
         >
-          <p style={{ fontWeight: 800, color: '#0f4c75', margin: 0 }}>No schedule yet</p>
+          <p style={{ fontWeight: 800, color: 'var(--court)', margin: 0 }}>No schedule yet</p>
           <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
             {isAdmin
               ? 'Add at least 2 teams in Tournament Settings to generate the round robin schedule.'
@@ -122,9 +123,9 @@ export default function RoundRobinSection({
                 fontWeight: 700,
                 fontSize: 'clamp(12px,3vw,15px)',
                 cursor: 'pointer',
-                background: 'rgba(99,102,241,0.08)',
-                color: '#4338ca',
-                border: '1px solid rgba(99,102,241,0.25)',
+                background: 'var(--court-faint)',
+                color: 'var(--court)',
+                border: '1px solid var(--court-soft)',
               }}
             >
               ⚙️ Tournament Settings
@@ -137,11 +138,11 @@ export default function RoundRobinSection({
           style={{
             padding: 'clamp(10px,2.5vw,16px)',
             gap: 'clamp(4px,1vw,8px)',
-            background: 'rgba(99,102,241,0.06)',
-            border: '1px solid rgba(99,102,241,0.25)',
+            background: 'var(--court-faint)',
+            border: '1px solid var(--court-soft)',
           }}
         >
-          <p className="font-bold" style={{ color: '#4338ca', fontSize: 'clamp(13px,3.5vw,17px)' }}>
+          <p className="font-bold" style={{ color: 'var(--court)', fontSize: 'clamp(13px,3.5vw,17px)' }}>
             🔁 Round Robin
           </p>
           <p style={{ color: '#64748b', fontSize: 'clamp(10px,2.5vw,13px)' }}>
@@ -172,7 +173,7 @@ export default function RoundRobinSection({
               <div className="flex items-center justify-between">
                 <span
                   style={{
-                    color: isComplete ? '#16a34a' : '#0f4c75',
+                    color: isComplete ? '#16a34a' : 'var(--court)',
                     fontWeight: 800,
                     fontSize: 'clamp(12px,3vw,15px)',
                     textTransform: 'uppercase',
@@ -214,7 +215,7 @@ export default function RoundRobinSection({
                   return (
                     <div
                       key={mi}
-                      className="rounded-xl flex items-center"
+                      className="rounded-xl flex items-center flex-wrap"
                       style={{
                         padding: 'clamp(8px,2vw,12px)',
                         gap: 'clamp(8px,2vw,12px)',
@@ -228,49 +229,36 @@ export default function RoundRobinSection({
                           fontSize: 'clamp(10px,2.5vw,12px)',
                           fontWeight: 700,
                           minWidth: 50,
+                          flexShrink: 0,
                         }}
                       >
                         {committedLabel}
                       </span>
                       <span
-                        className="inline-flex items-center rounded-full font-bold"
                         style={{
-                          background: w?.color,
-                          color: w?.text,
+                          ...(w ? chipStyle(w, true) : {}),
+                          whiteSpace: 'normal',
                           padding: '3px 10px',
                           fontSize: 'clamp(11px,2.8vw,14px)',
-                          whiteSpace: 'nowrap',
                         }}
                       >
                         {w ? teamLabel(w.id) : ''}
                       </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: w?.color, fontSize: 'clamp(13px,3vw,16px)', minWidth: '2ch', textAlign: 'right' }}>
+                          {committedGame.winnerScore}
+                        </span>
+                        <span style={{ color: '#cbd5e1', fontWeight: 700 }}>–</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: l?.color, fontSize: 'clamp(13px,3vw,16px)', minWidth: '2ch', textAlign: 'left' }}>
+                          {committedGame.loserScore}
+                        </span>
+                      </div>
                       <span
                         style={{
-                          fontWeight: 800,
-                          color: w?.color,
-                          fontSize: 'clamp(13px,3vw,16px)',
-                        }}
-                      >
-                        {committedGame.winnerScore}
-                      </span>
-                      <span style={{ color: '#cbd5e1' }}>–</span>
-                      <span
-                        style={{
-                          fontWeight: 800,
-                          color: l?.color,
-                          fontSize: 'clamp(13px,3vw,16px)',
-                        }}
-                      >
-                        {committedGame.loserScore}
-                      </span>
-                      <span
-                        className="inline-flex items-center rounded-full font-bold"
-                        style={{
-                          background: l?.color,
-                          color: l?.text,
+                          ...(l ? chipStyle(l, false) : {}),
+                          whiteSpace: 'normal',
                           padding: '3px 10px',
                           fontSize: 'clamp(11px,2.8vw,14px)',
-                          whiteSpace: 'nowrap',
                         }}
                       >
                         {l ? teamLabel(l.id) : ''}
@@ -308,10 +296,8 @@ export default function RoundRobinSection({
                             {courtLabel}
                           </span>
                           <span
-                            className="inline-flex items-center rounded-full font-bold"
                             style={{
-                              background: activeTeam.color,
-                              color: activeTeam.text,
+                              ...chipStyle(activeTeam),
                               padding: '3px 10px',
                               fontSize: 'clamp(11px,2.8vw,14px)',
                             }}
@@ -320,10 +306,8 @@ export default function RoundRobinSection({
                           </span>
                           <span style={{ color: '#94a3b8', fontSize: 13 }}>vs</span>
                           <span
-                            className="inline-flex items-center rounded-full font-bold"
                             style={{
-                              background: pausedTeam.color,
-                              color: pausedTeam.text,
+                              ...chipStyle(pausedTeam),
                               padding: '3px 10px',
                               fontSize: 'clamp(11px,2.8vw,14px)',
                               opacity: 0.5,
@@ -447,7 +431,7 @@ export default function RoundRobinSection({
               fontWeight: 800,
               fontSize: 'clamp(13px,3vw,16px)',
               cursor: 'pointer',
-              background: 'linear-gradient(90deg,#0f4c75,#1a6fa8)',
+              background: 'linear-gradient(90deg,var(--court),var(--court))',
               color: '#fff',
               border: 'none',
             }}
@@ -465,7 +449,7 @@ export default function RoundRobinSection({
               fontWeight: 800,
               fontSize: 'clamp(13px,3vw,16px)',
               cursor: 'pointer',
-              background: 'linear-gradient(90deg,#6366f1,#8b5cf6)',
+              background: 'linear-gradient(90deg,var(--court),#8b5cf6)',
               color: '#fff',
               border: 'none',
             }}
@@ -566,9 +550,9 @@ export default function RoundRobinSection({
             fontWeight: 700,
             fontSize: 'clamp(12px,3vw,15px)',
             cursor: 'pointer',
-            background: 'rgba(99,102,241,0.08)',
-            color: '#4338ca',
-            border: '1px solid rgba(99,102,241,0.25)',
+            background: 'var(--court-faint)',
+            color: 'var(--court)',
+            border: '1px solid var(--court-soft)',
           }}
         >
           ⚙️ Tournament Settings

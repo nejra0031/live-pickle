@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+﻿import { useCallback } from 'react';
 import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
 import { createTournamentRepo, writeTournamentMeta } from '../firebase';
 import { buildSnapshot } from '../snapshot';
@@ -349,7 +349,7 @@ export function useTournamentLifecycle({
         .slice(0, 3)
         .map((t) => ({
           name: t.name,
-          color: t.color || '#0f4c75',
+          color: t.color || 'var(--court)',
           text: t.text || '#fff',
           wins: t.wins,
           losses: t.losses,

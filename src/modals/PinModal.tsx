@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { sha256hex } from '../utils/pin';
 
-// checkPin: sync (hashHex: string) => role | null — null means no match
-// If checkPin is null, pins are still loading
 interface Props {
   title?: string;
   checkPin: ((hash: string) => string | null) | null;
@@ -36,25 +34,22 @@ export default function PinModal({ title = 'Login', checkPin, pinLoadError, onSu
   return (
     <div className="modal-overlay">
       <div
-        className="rounded-2xl p-6 w-full max-w-xs flex flex-col gap-4"
-        style={{
-          background: '#1e293b',
-          border: `1px solid ${hasErr ? '#ef4444' : 'rgba(99,102,241,0.4)'}`,
-        }}
+        className="rounded-2xl p-6 w-full max-w-xs flex flex-col gap-5 modal-box"
+        style={{ border: hasErr ? '1px solid rgba(220,38,38,0.4)' : undefined }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-center">
-          <div className="text-2xl mb-1">🔐</div>
-          <div className="text-sm font-bold text-indigo-300">{title}</div>
-          {errMsg && <div className="text-xs text-red-400 mt-1">{errMsg}</div>}
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 22, marginBottom: 4 }}>🔐</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--court)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            {title}
+          </div>
+          {errMsg && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 4 }}>{errMsg}</div>}
         </div>
         {pinLoadError && (
-          <div className="text-xs text-amber-400 text-center">
-            Could not load PIN — check connection.
-          </div>
+          <div className="notice-amber">Could not load PIN — check connection.</div>
         )}
         {!ready ? (
-          <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, padding: '8px 0' }}>
+          <div style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 13, padding: '8px 0' }}>
             Loading…
           </div>
         ) : (
@@ -66,35 +61,23 @@ export default function PinModal({ title = 'Login', checkPin, pinLoadError, onSu
             onChange={(e) => setPin(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && check()}
             autoFocus
+            className="input-dark"
             style={{
               textAlign: 'center',
-              padding: '10px',
-              borderRadius: 10,
-              fontSize: 20,
-              letterSpacing: 6,
-              background: 'rgba(255,255,255,0.07)',
-              border: `1px solid ${hasErr ? '#ef4444' : 'rgba(255,255,255,0.15)'}`,
-              color: '#e2e8f0',
-              outline: 'none',
+              fontSize: 22,
+              letterSpacing: 8,
+              border: hasErr ? '1px solid rgba(220,38,38,0.5)' : undefined,
             }}
           />
         )}
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold btn-cancel">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-bold btn-cancel">
             Cancel
           </button>
           <button
             onClick={check}
             disabled={!ready}
-            className="flex-1 py-2 rounded-xl text-sm font-bold"
-            style={{
-              background: ready
-                ? 'linear-gradient(90deg,#6366f1,#8b5cf6)'
-                : 'rgba(255,255,255,0.08)',
-              color: ready ? '#fff' : '#475569',
-              cursor: ready ? 'pointer' : 'not-allowed',
-              border: 'none',
-            }}
+            className="flex-1 py-2.5 rounded-xl text-sm font-bold btn-indigo"
           >
             Unlock
           </button>

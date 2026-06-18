@@ -104,6 +104,7 @@ export function buildSnapshot(
     nextRoundPresets: state.nextRoundPresets ?? [],
     tournamentFinished: state.tournamentFinished ?? false,
     cancelledRoundNums: state.cancelledRoundNums ?? [],
+    teamNameDisplay: state.teamNameDisplay ?? 'name',
     standingsTiebreakOrder: state.standingsTiebreakOrder ?? ['wins', 'scoreDiff', 'headToHead'],
     savedAt: Date.now(),
     ...overrides,

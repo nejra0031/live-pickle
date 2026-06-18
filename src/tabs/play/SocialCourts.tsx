@@ -5,7 +5,7 @@ export default function SocialCourts({ socialCourts }: { socialCourts: string[] 
       <div
         style={{
           textAlign: 'center',
-          color: '#94a3b8',
+          color: 'var(--muted)',
           fontSize: 'clamp(9px,2vw,11px)',
           fontWeight: 700,
           textTransform: 'uppercase',
@@ -20,15 +20,19 @@ export default function SocialCourts({ socialCourts }: { socialCourts: string[] 
           className="rounded-2xl flex flex-col items-center"
           style={{
             padding: 'clamp(14px,3.5vw,22px)',
-            background: 'rgba(99,102,241,0.05)',
-            border: '1px solid rgba(99,102,241,0.2)',
+            background: 'var(--court-faint)',
+            borderTop: '1px solid var(--court-soft)',
+            borderRight: '1px solid var(--court-soft)',
+            borderBottom: '1px solid var(--court-soft)',
+            borderLeft: '3px solid var(--court)',
           }}
         >
           <p
             style={{
+              fontFamily: 'var(--font-display)',
               fontSize: 'clamp(10px,2.5vw,13px)',
-              color: '#6366f1',
-              fontWeight: 800,
+              color: 'var(--court)',
+              fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
               marginBottom: 8,
@@ -39,15 +43,16 @@ export default function SocialCourts({ socialCourts }: { socialCourts: string[] 
           <p
             className="font-black"
             style={{
+              fontFamily: 'var(--font-display)',
               fontSize: 'clamp(16px,4.5vw,28px)',
-              color: '#6366f1',
+              color: 'var(--court)',
               letterSpacing: '0.05em',
               margin: 0,
             }}
           >
             WARM UP / SOCIAL
           </p>
-          <p style={{ fontSize: 'clamp(10px,2.5vw,12px)', color: '#94a3b8', marginTop: 4 }}>
+          <p style={{ fontSize: 'clamp(10px,2.5vw,12px)', color: 'var(--muted)', marginTop: 4 }}>
             Open play — not counted in standings
           </p>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 
 interface Props {
@@ -49,9 +49,9 @@ export default function PresetMatchModal({
           fontWeight: 700,
           cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.35 : 1,
-          background: active ? t.color + 'bb' : 'rgba(255,255,255,0.05)',
+          background: active ? t.color + 'bb' : 'rgba(0,0,0,0.05)',
           color: active ? t.text : '#64748b',
-          border: `2px solid ${active ? t.color : 'rgba(255,255,255,0.1)'}`,
+          border: `2px solid ${active ? t.color : 'var(--border)'}`,
         }}
       >
         {teamLabel(id)}
@@ -62,13 +62,13 @@ export default function PresetMatchModal({
   return (
     <div className="modal-overlay">
       <div
-        className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4 modal-box"
+        className="rounded-2xl p-6 w-full max-w-sm flex flex-col gap-5 my-4 modal-box"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">
+        <div style={{ fontSize: 13, fontWeight: 800, color: "var(--court)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
           📌 Pre-set Matchup
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-600">
           Lock in a game for the next round. Remaining courts are filled by the algorithm.
         </p>
 
@@ -79,7 +79,7 @@ export default function PresetMatchModal({
         )}
 
         <div>
-          <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Team A</p>
+          <p className="text-xs text-slate-600 mb-2 font-bold uppercase tracking-wide">Team A</p>
           <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
             {allTeamIds.map((id) =>
               chip(id, teamAId === id, () => {
@@ -90,7 +90,7 @@ export default function PresetMatchModal({
           </div>
         </div>
         <div>
-          <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Team B</p>
+          <p className="text-xs text-slate-600 mb-2 font-bold uppercase tracking-wide">Team B</p>
           <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
             {allTeamIds.map((id) =>
               chip(id, teamBId === id, () => {
@@ -101,7 +101,7 @@ export default function PresetMatchModal({
           </div>
         </div>
         <div>
-          <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Court</p>
+          <p className="text-xs text-slate-600 mb-2 font-bold uppercase tracking-wide">Court</p>
           <select
             value={courtNumber}
             onChange={(e) => setCourtNumber(e.target.value)}
@@ -111,9 +111,9 @@ export default function PresetMatchModal({
               borderRadius: 10,
               fontSize: 14,
               fontWeight: 700,
-              background: '#0f172a',
+              background: '#fff',
               border: '1px solid rgba(255,255,255,0.2)',
-              color: '#e2e8f0',
+              color: 'var(--ink)',
               outline: 'none',
             }}
           >
@@ -130,7 +130,7 @@ export default function PresetMatchModal({
           </select>
         </div>
         {courtInUse && (
-          <p className="text-xs text-amber-400 text-center">
+          <p className="text-xs  text-center">
             Court {courtNumber} is already in use — pick another.
           </p>
         )}
@@ -151,3 +151,6 @@ export default function PresetMatchModal({
     </div>
   );
 }
+
+
+

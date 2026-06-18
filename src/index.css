@@ -2,8 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --court: #1B7A78;
+  --court-faint: rgba(27,122,120,0.07);
+  --court-soft: rgba(27,122,120,0.18);
+  --ball: #C8E84E;
+  --ball-bg: rgba(200,232,78,0.17);
+  --ball-border: rgba(200,232,78,0.5);
+  --surface: #EFF6F5;
+  --ink: #0C1F1E;
+  --muted: #5A7978;
+  --white: #FFFFFF;
+  --red: #DC2626;
+  --red-faint: rgba(220,38,38,0.07);
+  --red-soft: rgba(220,38,38,0.2);
+  --border: rgba(0,0,0,0.09);
+  --font-display: 'Barlow Condensed', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-body { margin: 0; padding: 0; background: #fff; font-family: 'Trebuchet MS', sans-serif; color: #1e293b; }
+body { margin: 0; padding: 0; background: var(--surface); font-family: var(--font-body); color: var(--ink); }
 
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -14,48 +34,64 @@ input[type=number] { -moz-appearance: textfield; }
   position: fixed; inset: 0;
   display: flex; align-items: center; justify-content: center;
   z-index: 50; padding: 1rem;
-  background: rgba(0,0,0,0.88);
+  background: rgba(0,0,0,0.52);
   overflow-y: auto;
 }
 
 /* ── Modal box ────────────────────────────────────────────────────────────── */
 .modal-box {
-  background: #1e293b;
-  border: 1px solid rgba(99,102,241,0.4);
+  background: #fff;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.14);
 }
 
 /* ── Action buttons ──────────────────────────────────────────────────────── */
-.btn-cancel { background: rgba(255,255,255,0.06); color: #94a3b8; cursor: pointer; border: none; }
-.btn-indigo { background: linear-gradient(90deg,#6366f1,#8b5cf6); color: #fff; cursor: pointer; border: none; }
-.btn-indigo:disabled { background: rgba(255,255,255,0.04); color: #475569; cursor: not-allowed; }
-.btn-blue { background: linear-gradient(90deg,#0f4c75,#1a6fa8); color: #fff; cursor: pointer; border: none; }
-.btn-blue:disabled { background: rgba(0,0,0,0.10); color: #94a3b8; cursor: not-allowed; }
-.btn-amber { background: linear-gradient(90deg,#d97706,#f59e0b); color: #fff; cursor: pointer; border: none; }
-.btn-amber:disabled { background: rgba(255,255,255,0.04); color: #475569; cursor: not-allowed; }
+.btn-cancel { background: rgba(0,0,0,0.05); color: var(--muted); cursor: pointer; border: 1px solid var(--border); }
+.btn-indigo { background: var(--court); color: #fff; cursor: pointer; border: none; }
+.btn-indigo:disabled { background: rgba(0,0,0,0.06); color: var(--muted); cursor: not-allowed; }
+.btn-blue { background: var(--court); color: #fff; cursor: pointer; border: none; }
+.btn-blue:disabled { background: rgba(0,0,0,0.06); color: var(--muted); cursor: not-allowed; }
+.btn-amber { background: #d97706; color: #fff; cursor: pointer; border: none; }
+.btn-amber:disabled { background: rgba(0,0,0,0.06); color: var(--muted); cursor: not-allowed; }
 
-/* ── Form controls (dark) ─────────────────────────────────────────────────── */
+/* ── Form controls ────────────────────────────────────────────────────────── */
 .input-dark {
-  padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 700;
-  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
-  color: #e2e8f0; outline: none;
+  padding: 8px 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  background: #fff; border: 1px solid var(--border);
+  color: var(--ink); outline: none;
+  transition: border-color 0.15s;
 }
+.input-dark:focus { border-color: var(--court); }
 .select-dark {
-  width: 100%; padding: 8px 12px; border-radius: 10px; font-size: 14px; font-weight: 700;
-  background: #0f172a; border: 1px solid rgba(255,255,255,0.2); color: #e2e8f0; outline: none;
+  width: 100%; padding: 8px 12px; border-radius: 10px; font-size: 14px; font-weight: 600;
+  background: #fff; border: 1px solid var(--border); color: var(--ink); outline: none;
 }
 
 /* ── Inline notices ───────────────────────────────────────────────────────── */
 .notice-amber {
   border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.75rem;
-  color: #fbbf24; background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.2);
+  color: #92400e; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3);
 }
 .notice-red {
   border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.75rem;
-  color: #fca5a5; background: rgba(220,38,38,0.07); border: 1px solid rgba(220,38,38,0.2);
+  color: var(--red); background: rgba(220,38,38,0.06); border: 1px solid rgba(220,38,38,0.2);
+}
+
+/* ── Modal field label ───────────────────────────────────────────────────── */
+.modal-label {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin: 0 0 5px;
 }
 
 /* ── Court card done state ────────────────────────────────────────────────── */
-.card-done { background: #f0fdf4; border: 1px solid rgba(34,197,94,0.3); }
+.card-done {
+  background: var(--ball-bg);
+  border-top: 1px solid var(--ball-border);
+  border-right: 1px solid var(--ball-border);
+  border-bottom: 1px solid var(--ball-border);
+  border-left: 3px solid var(--ball);
+}
 
 /* ── Offline banner ───────────────────────────────────────────────────────── */
 .offline-banner {
@@ -67,7 +103,7 @@ input[type=number] { -moz-appearance: textfield; }
 /* ── Firebase error toast ─────────────────────────────────────────────────── */
 .firebase-error-toast {
   position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-  z-index: 100; background: #dc2626; color: #fff; font-size: 13px; font-weight: 700;
+  z-index: 100; background: var(--red); color: #fff; font-size: 13px; font-weight: 700;
   padding: 10px 20px; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.25);
   pointer-events: none; animation: fadeInUp 0.2s ease;
 }
@@ -81,6 +117,15 @@ input[type=number] { -moz-appearance: textfield; }
   display: flex; align-items: center; justify-content: space-between;
   cursor: pointer; user-select: none;
   padding: clamp(8px,2vw,12px) clamp(12px,3vw,18px);
-  background: rgba(34,197,94,0.05); border-bottom: 1px solid rgba(0,0,0,0.07);
+  background: var(--court-faint); border-bottom: 1px solid var(--border);
 }
-.accordion-header:hover { background: rgba(34,197,94,0.09); }
+.accordion-header:hover { background: var(--court-soft); }
+
+/* ── Live card pulse (landing page active tournament accent) ──────────────── */
+@keyframes live-border-pulse {
+  0%, 100% { border-left-color: var(--ball); }
+  50%       { border-left-color: rgba(200,232,78,0.25); }
+}
+.card-live {
+  animation: live-border-pulse 2.5s ease-in-out infinite;
+}

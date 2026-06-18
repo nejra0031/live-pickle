@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useClubMembers } from '../hooks/useClubMembers';
 
 const iS = {
@@ -139,7 +139,7 @@ export default function ClubMembersPanel({ clubId, onClose }: { clubId: string; 
                 fontSize: 13,
                 cursor: name.trim() ? 'pointer' : 'default',
                 background: name.trim()
-                  ? 'linear-gradient(90deg,#0f4c75,#1a6fa8)'
+                  ? 'linear-gradient(90deg,var(--court),var(--court))'
                   : 'rgba(255,255,255,0.06)',
                 color: name.trim() ? '#fff' : '#475569',
                 border: 'none',

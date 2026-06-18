@@ -145,11 +145,7 @@ export function useFirebaseSync({
   // Pending results listener — registered once
   useEffect(() => {
     const r = repo.pendingResultsRef();
-    onValue(r, (snap) => {
-      const d = snap.val();
-      if (!d) return;
-      onPendingResultsRef.current(d);
-    });
+    onValue(r, (snap) => onPendingResultsRef.current(snap.val()));
     return () => off(r);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -1,4 +1,4 @@
-import { useTeamLabel } from '../../context/TeamRegistryContext';
+import { useTeamLabel, useTeamById } from '../../context/TeamRegistryContext';
 
 interface Props {
   ranked: any[];
@@ -9,11 +9,11 @@ interface Props {
 }
 export default function TournamentFinished({ ranked, history, isAdmin, onResumeTournament, onReset }: Props) {
   const teamLabel = useTeamLabel();
+  const teamById = useTeamById();
   const top = ranked.slice(0, 3);
   const podium = [top[1], top[0], top[2]].filter(Boolean);
   const heights = [120, 160, 90];
   const medals = ['🥈', '🥇', '🥉'];
-  const placeFor = (t: (typeof top)[number]) => top.indexOf(t) + 1;
 
   return (
     <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
@@ -41,31 +41,34 @@ export default function TournamentFinished({ ranked, history, isAdmin, onResumeT
         style={{ gap: 'clamp(6px,1.5vw,12px)', padding: 'clamp(12px,3vw,20px) 0' }}
       >
         {podium.map((t, i) => {
-          const h = heights[i],
-            place = placeFor(t);
+          const h = heights[i];
+          const place = top.indexOf(t) + 1;
+          const team = teamById(t.id);
+          const bg = t.color || team?.color || '#64748b';
+          const fg = t.text || team?.text || '#ffffff';
+          const label = teamLabel(t.id) || t.name || t.id;
           return (
             <div
               key={t.id}
               className="flex flex-col items-center"
               style={{ flex: '1 1 0', minWidth: 0, maxWidth: 160 }}
             >
-              <div style={{ fontSize: 'clamp(22px,6vw,36px)', marginBottom: 4 }}>{medals[i]}</div>
               <div
                 className="rounded-full font-black inline-flex items-center justify-center"
                 style={{
-                  background: t.color,
-                  color: t.text,
+                  background: bg,
+                  color: fg,
                   padding: 'clamp(6px,1.5vw,10px) clamp(10px,2.5vw,16px)',
                   fontSize: 'clamp(12px,3vw,17px)',
                   border: '3px solid rgba(255,255,255,0.5)',
-                  boxShadow: `0 4px 16px ${t.color}55`,
+                  boxShadow: `0 4px 16px ${bg}55`,
                   maxWidth: '100%',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                 }}
               >
-                {teamLabel(t.id)}
+                {label}
               </div>
               <div
                 style={{
@@ -93,13 +96,10 @@ export default function TournamentFinished({ ranked, history, isAdmin, onResumeT
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#fff',
-                  fontWeight: 900,
                   fontSize: 'clamp(20px,5vw,32px)',
-                  textShadow: '0 2px 4px rgba(0,0,0,0.3)',
                 }}
               >
-                {place}
+                {medals[i]}
               </div>
             </div>
           );

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { playerDisplayName } from '../utils/nameDisplay';
 
 // Lets an admin/referee record that a different player actually played one of
@@ -41,11 +41,11 @@ export default function EditTPTSubsModal({
       <div
         className="flex-1 rounded-xl px-3 py-2.5"
         style={{
-          background: 'rgba(255,255,255,0.04)',
+          background: 'rgba(0,0,0,0.04)',
           border: '1.5px solid rgba(255,255,255,0.1)',
         }}
       >
-        <span className="font-bold text-sm" style={{ color: '#e2e8f0' }}>
+        <span className="font-bold text-sm" style={{ color: 'var(--ink)' }}>
           {pName(pid)}
         </span>
       </div>
@@ -58,9 +58,9 @@ export default function EditTPTSubsModal({
           borderRadius: 10,
           fontSize: 13,
           fontWeight: 700,
-          background: '#0f172a',
+          background: '#fff',
           border: '1px solid rgba(255,255,255,0.2)',
-          color: '#e2e8f0',
+          color: 'var(--ink)',
           outline: 'none',
         }}
       >
@@ -87,23 +87,23 @@ export default function EditTPTSubsModal({
   return (
     <div className="modal-overlay">
       <div
-        className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4 modal-box"
+        className="rounded-2xl p-6 w-full max-w-sm flex flex-col gap-5 my-4 modal-box"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">
+        <div style={{ fontSize: 13, fontWeight: 800, color: "var(--court)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
           {gameLabel} — Substitutes
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-600">
           If a different player actually played a slot, pick them below. Team results are unaffected
           — only player and partnership stats update.
         </p>
 
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{teamA.name}</p>
+          <p className="text-xs text-slate-600 font-bold uppercase tracking-wide">{teamA.name}</p>
           {(gameDef?.sideA || []).filter(Boolean).map(row)}
         </div>
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">{teamB.name}</p>
+          <p className="text-xs text-slate-600 font-bold uppercase tracking-wide">{teamB.name}</p>
           {(gameDef?.sideB || []).filter(Boolean).map(row)}
         </div>
 
@@ -119,3 +119,6 @@ export default function EditTPTSubsModal({
     </div>
   );
 }
+
+
+

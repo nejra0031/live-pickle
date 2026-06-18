@@ -65,9 +65,9 @@ export default function AddGameModal({
           fontWeight: 700,
           cursor: inUse ? 'not-allowed' : 'pointer',
           opacity: inUse ? 0.35 : 1,
-          background: active ? t.color + 'bb' : 'rgba(255,255,255,0.05)',
-          color: active ? t.text : '#64748b',
-          border: `2px solid ${active ? t.color : 'rgba(255,255,255,0.1)'}`,
+          background: active ? t.color + 'bb' : 'rgba(0,0,0,0.05)',
+          color: active ? t.text : 'var(--muted)',
+          border: `2px solid ${active ? t.color : 'var(--border)'}`,
         }}
       >
         {teamLabel(id)}
@@ -86,10 +86,10 @@ export default function AddGameModal({
   return (
     <div className="modal-overlay">
       <div
-        className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4 modal-box"
+        className="rounded-2xl p-6 w-full max-w-sm flex flex-col gap-5 my-4 modal-box"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">
+        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--court)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           ➕ Add Game{label ? ` — ${label}` : ''}
         </div>
 
@@ -100,7 +100,7 @@ export default function AddGameModal({
         )}
 
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">Team A</p>
+          <p className="modal-label">Team A</p>
           <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
             {allTeamIds.map((id) =>
               chip(id, teamAId === id, () => {
@@ -113,8 +113,8 @@ export default function AddGameModal({
             <div
               className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2.5"
               style={{
-                background: teamA ? `${teamA.color}22` : 'rgba(255,255,255,0.04)',
-                border: `1.5px solid ${teamA ? teamA.color : 'rgba(255,255,255,0.1)'}`,
+                background: teamA ? `${teamA.color}18` : 'rgba(0,0,0,0.04)',
+                border: `1.5px solid ${teamA ? teamA.color : 'var(--border)'}`,
               }}
             >
               {teamA && (
@@ -129,10 +129,10 @@ export default function AddGameModal({
           </div>
         </div>
 
-        <div className="text-center text-slate-600 text-xs font-bold">VS</div>
+        <div className="text-center text-xs font-bold" style={{ color: 'var(--muted)', letterSpacing: '0.1em' }}>VS</div>
 
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">Team B</p>
+          <p className="modal-label">Team B</p>
           <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1">
             {allTeamIds.map((id) =>
               chip(id, teamBId === id, () => {
@@ -145,8 +145,8 @@ export default function AddGameModal({
             <div
               className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2.5"
               style={{
-                background: teamB ? `${teamB.color}22` : 'rgba(255,255,255,0.04)',
-                border: `1.5px solid ${teamB ? teamB.color : 'rgba(255,255,255,0.1)'}`,
+                background: teamB ? `${teamB.color}18` : 'rgba(0,0,0,0.04)',
+                border: `1.5px solid ${teamB ? teamB.color : 'var(--border)'}`,
               }}
             >
               {teamB && (
@@ -162,7 +162,7 @@ export default function AddGameModal({
         </div>
 
         <div>
-          <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">Court</p>
+          <p className="modal-label">Court</p>
           {courtNumbers.length > 0 ? (
             <select
               value={courtNumber}
@@ -173,9 +173,9 @@ export default function AddGameModal({
                 borderRadius: 10,
                 fontSize: 14,
                 fontWeight: 700,
-                background: '#0f172a',
-                border: '1px solid rgba(255,255,255,0.2)',
-                color: '#e2e8f0',
+                background: '#fff',
+                border: '1px solid var(--border)',
+                color: 'var(--ink)',
                 outline: 'none',
               }}
             >
@@ -201,30 +201,30 @@ export default function AddGameModal({
                 borderRadius: 10,
                 fontSize: 14,
                 fontWeight: 700,
-                background: '#0f172a',
-                border: '1px solid rgba(255,255,255,0.2)',
-                color: '#e2e8f0',
+                background: '#fff',
+                border: '1px solid var(--border)',
+                color: 'var(--ink)',
                 outline: 'none',
               }}
             />
           )}
           {courtInUse && (
-            <p className="text-xs text-amber-400 mt-1">
+            <p className="text-xs mt-1" style={{ color: '#d97706' }}>
               Court {courtNumber} is already in use — pick another.
             </p>
           )}
         </div>
 
         {valid && winnerId && (
-          <p className="text-xs text-green-400 text-center">
+          <p className="text-xs text-center" style={{ color: '#16a34a' }}>
             → {teamLabel(winnerId)} wins {winnerScore}–{loserScore}
           </p>
         )}
         {!scoresValid && scoreA !== '' && scoreB !== '' && (
-          <p className="text-xs text-amber-400 text-center">Scores can't be equal.</p>
+          <p className="text-xs text-center" style={{ color: '#d97706' }}>Scores can't be equal.</p>
         )}
         {!teamsValid && teamAId && teamBId && (
-          <p className="text-xs text-amber-400 text-center">Teams must be different.</p>
+          <p className="text-xs text-center" style={{ color: '#d97706' }}>Teams must be different.</p>
         )}
 
         <div className="flex gap-2">

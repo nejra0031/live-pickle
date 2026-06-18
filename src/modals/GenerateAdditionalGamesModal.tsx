@@ -1,4 +1,4 @@
-// Lets the admin generate a fresh full round-robin schedule for the same
+﻿// Lets the admin generate a fresh full round-robin schedule for the same
 // roster — re-paired with different round/court groupings where the structure
 // allows — and choose how it merges with what's already there.
 interface Props { onChoose: (mode: string) => void; onClose: () => void }
@@ -6,13 +6,13 @@ export default function GenerateAdditionalGamesModal({ onChoose, onClose }: Prop
   return (
     <div className="modal-overlay">
       <div
-        className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 modal-box"
+        className="rounded-2xl p-6 w-full max-w-sm flex flex-col gap-5 modal-box"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-sm font-bold uppercase tracking-widest" style={{ color: '#fbbf24' }}>
           🔁 Generate Additional Games
         </div>
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-slate-600">
           Generates a fresh full round-robin for the same players/teams, re-paired with different
           round and court groupings. Choose how to merge it:
         </p>
@@ -21,14 +21,14 @@ export default function GenerateAdditionalGamesModal({ onChoose, onClose }: Prop
             onClick={() => onChoose('append')}
             className="w-full py-2.5 px-3 rounded-xl text-sm font-bold text-left"
             style={{
-              background: 'rgba(99,102,241,0.12)',
-              color: '#a5b4fc',
-              border: '1px solid rgba(99,102,241,0.35)',
+              background: 'var(--court-faint)',
+              color: 'var(--court)',
+              border: '1px solid var(--court-soft)',
               cursor: 'pointer',
             }}
           >
             ➕ Add more rounds
-            <div className="text-xs font-normal mt-1" style={{ color: '#94a3b8' }}>
+            <div className="text-xs font-normal mt-1" style={{ color: 'var(--muted)' }}>
               Keeps everything as-is and appends the new schedule to the end.
             </div>
           </button>
@@ -43,7 +43,7 @@ export default function GenerateAdditionalGamesModal({ onChoose, onClose }: Prop
             }}
           >
             🔄 Replace remaining rounds
-            <div className="text-xs font-normal mt-1" style={{ color: '#94a3b8' }}>
+            <div className="text-xs font-normal mt-1" style={{ color: 'var(--muted)' }}>
               Keeps completed rounds and history, swaps out everything not yet played.
             </div>
           </button>
@@ -55,3 +55,5 @@ export default function GenerateAdditionalGamesModal({ onChoose, onClose }: Prop
     </div>
   );
 }
+
+

@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+﻿import { useContext } from 'react';
 import { hasPermission } from '../../roleConfig';
 import CourtCard from '../../components/CourtCard';
 import MatchupVsBox from '../../components/MatchupVsBox';
@@ -6,6 +6,7 @@ import RoundTimer from '../../components/RoundTimer';
 import BreakBanner from './BreakBanner';
 import TournamentCompleteBlock from './TournamentCompleteBlock';
 import { scheduleProgress } from './scheduleProgress';
+import { chipStyle } from '../../utils/chipStyle';
 import { buildSidePresentation } from '../../algorithms/doublesRR';
 import { TeamRegistryContext } from '../../context/TeamRegistryContext';
 
@@ -147,7 +148,7 @@ export default function DoublesRRSection({
             border: '1px solid rgba(0,0,0,0.08)',
           }}
         >
-          <p style={{ fontWeight: 800, color: '#0f4c75', margin: 0 }}>No schedule yet</p>
+          <p style={{ fontWeight: 800, color: 'var(--court)', margin: 0 }}>No schedule yet</p>
           <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
             {isAdmin
               ? 'Add players in Tournament Settings to generate the schedule (needs a count like 4, 5, 8, 9, 12, 13…).'
@@ -162,9 +163,9 @@ export default function DoublesRRSection({
                 fontWeight: 700,
                 fontSize: 'clamp(12px,3vw,15px)',
                 cursor: 'pointer',
-                background: 'rgba(99,102,241,0.08)',
-                color: '#4338ca',
-                border: '1px solid rgba(99,102,241,0.25)',
+                background: 'var(--court-faint)',
+                color: 'var(--court)',
+                border: '1px solid var(--court-soft)',
               }}
             >
               ⚙️ Tournament Settings
@@ -177,11 +178,11 @@ export default function DoublesRRSection({
           style={{
             padding: 'clamp(10px,2.5vw,16px)',
             gap: 'clamp(4px,1vw,8px)',
-            background: 'rgba(15,76,117,0.05)',
-            border: '1px solid rgba(15,76,117,0.18)',
+            background: 'var(--court-faint)',
+            border: '1px solid var(--court-soft)',
           }}
         >
-          <p className="font-bold" style={{ color: '#0f4c75', fontSize: 'clamp(13px,3.5vw,17px)' }}>
+          <p className="font-bold" style={{ color: 'var(--court)', fontSize: 'clamp(13px,3.5vw,17px)' }}>
             Doubles Round Robin
           </p>
           <p style={{ color: '#64748b', fontSize: 'clamp(10px,2.5vw,13px)' }}>
@@ -197,7 +198,7 @@ export default function DoublesRRSection({
         <div className="flex flex-col" style={{ gap: 'clamp(8px,2vw,12px)' }}>
           <span
             style={{
-              color: '#0f4c75',
+              color: 'var(--court)',
               fontWeight: 800,
               fontSize: 'clamp(12px,3vw,15px)',
               textTransform: 'uppercase',
@@ -227,11 +228,10 @@ export default function DoublesRRSection({
                 >
                   <span>Bye:</span>
                   <span
-                    className="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold"
                     style={{
-                      background: byeSide.chipBackground ?? byeSide.color,
-                      color: byeSide.text,
-                      border: '2px solid rgba(255,255,255,0.15)',
+                      ...chipStyle(byeSide),
+                      fontSize: 'clamp(11px,2.8vw,14px)',
+                      padding: '3px 10px',
                     }}
                   >
                     {byeSide.name}
@@ -305,9 +305,9 @@ export default function DoublesRRSection({
             fontWeight: 700,
             fontSize: 'clamp(12px,3vw,15px)',
             cursor: 'pointer',
-            background: 'rgba(99,102,241,0.08)',
-            color: '#4338ca',
-            border: '1px solid rgba(99,102,241,0.25)',
+            background: 'var(--court-faint)',
+            color: 'var(--court)',
+            border: '1px solid var(--court-soft)',
           }}
         >
           ⚙️ Tournament Settings

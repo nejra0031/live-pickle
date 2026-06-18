@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import useDebounce from '../hooks/useDebounce';
 
@@ -156,7 +156,7 @@ export default function PlayerNameField({
               alignItems: 'center',
               gap: 6,
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(99,102,241,0.2)')}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--court-soft)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
             <span

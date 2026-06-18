@@ -1,4 +1,4 @@
-import type { RoleId, Permission } from './types';
+﻿import type { RoleId, Permission } from './types';
 
 // Role definitions — add or modify roles here without touching the rest of the codebase.
 // Each role needs: id, title, icon, firebasePinsPath, button styles, and a permissions map.
@@ -42,9 +42,9 @@ export const ROLES = [
     title: 'Referee',
     icon: '🏓',
     firebasePinsPath: 'refereePins',
-    btnBg: 'rgba(99,102,241,0.12)',
-    btnColor: '#4338ca',
-    btnBorder: 'rgba(99,102,241,0.35)',
+    btnBg: 'var(--court-faint)',
+    btnColor: 'var(--court)',
+    btnBorder: 'var(--court-soft)',
     permissions: {
       canSubmitResults: true,
       canPauseTeams: true,

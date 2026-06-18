@@ -1,4 +1,4 @@
-export default function RoundTimer({
+﻿export default function RoundTimer({
   secsLeft,
   totalSecs,
   roundNum,
@@ -26,7 +26,7 @@ export default function RoundTimer({
   const expired = secsLeft === 0;
 
   // Gradient: red grows left→right as time elapses; 0% red at start, 100% at expiry
-  const barBg = `linear-gradient(to right, #ef4444 ${elapsed * 100}%, #6366f1 ${elapsed * 100}%)`;
+  const barBg = `linear-gradient(to right, #ef4444 ${elapsed * 100}%, var(--court) ${elapsed * 100}%)`;
 
   return (
     <div

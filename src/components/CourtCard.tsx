@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import NumInput from './NumInput';
+import { chipStyle } from '../utils/chipStyle';
 
 export default function CourtCard({
   courtLabel,
@@ -25,8 +26,7 @@ export default function CourtCard({
 
   const confirm = () => {
     if (!valid || wIdx === null) return;
-    const w = teams[wIdx],
-      l = teams[1 - wIdx];
+    const w = teams[wIdx], l = teams[1 - wIdx];
     onResult({
       winnerId: w.id,
       loserId: l.id,
@@ -43,19 +43,23 @@ export default function CourtCard({
         className="rounded-2xl"
         style={{
           padding: 'clamp(10px,2.5vw,16px)',
-          background: '#f0fdf4',
-          border: '1px solid rgba(34,197,94,0.3)',
+          background: 'var(--ball-bg)',
+          borderTop: '1px solid var(--ball-border)',
+          borderRight: '1px solid var(--ball-border)',
+          borderBottom: '1px solid var(--ball-border)',
+          borderLeft: '3px solid var(--ball)',
         }}
       >
         <div className="flex items-center gap-2 flex-wrap">
-          <span style={{ color: '#16a34a', fontSize: 'clamp(16px,4vw,22px)', flexShrink: 0 }}>
+          <span style={{ color: 'var(--court)', fontSize: 'clamp(16px,4vw,22px)', flexShrink: 0, fontWeight: 800 }}>
             ✓
           </span>
           <span
             style={{
-              color: '#0f4c75',
-              fontWeight: 800,
-              fontSize: 'clamp(10px,2.5vw,13px)',
+              fontFamily: 'var(--font-display)',
+              color: 'var(--court)',
+              fontWeight: 700,
+              fontSize: 'clamp(12px,3vw,15px)',
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
               flexShrink: 0,
@@ -64,32 +68,20 @@ export default function CourtCard({
             {courtLabel}
           </span>
           {winner && loser && (
-            <div className="flex items-center gap-1 flex-1 flex-wrap" style={{ minWidth: 0 }}>
-              <span
-                style={{
-                  color: winner.color,
-                  fontWeight: 800,
-                  fontSize: 'clamp(12px,3vw,15px)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+            <div className="flex items-center gap-2 flex-1 flex-wrap" style={{ minWidth: 0 }}>
+              <span style={{ color: winner.color, fontWeight: 800, fontSize: 'clamp(12px,3vw,15px)' }}>
                 {winner.name}
               </span>
-              <span style={{ fontWeight: 900, color: '#1e293b', fontSize: 'clamp(13px,3vw,16px)' }}>
-                {pendingResult.winnerScore}
-              </span>
-              <span style={{ color: '#94a3b8', fontSize: 'clamp(12px,3vw,15px)' }}>–</span>
-              <span style={{ fontWeight: 900, color: '#1e293b', fontSize: 'clamp(13px,3vw,16px)' }}>
-                {pendingResult.loserScore}
-              </span>
-              <span
-                style={{
-                  color: loser.color,
-                  fontWeight: 800,
-                  fontSize: 'clamp(12px,3vw,15px)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: winner.color, fontSize: 'clamp(17px,4.5vw,23px)', lineHeight: 1, minWidth: '2ch', textAlign: 'right' }}>
+                  {pendingResult.winnerScore}
+                </span>
+                <span style={{ color: 'var(--muted)', fontSize: 'clamp(13px,3vw,16px)', fontWeight: 700 }}>–</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--muted)', fontSize: 'clamp(17px,4.5vw,23px)', lineHeight: 1, minWidth: '2ch', textAlign: 'left' }}>
+                  {pendingResult.loserScore}
+                </span>
+              </div>
+              <span style={{ color: loser.color, fontWeight: 800, fontSize: 'clamp(12px,3vw,15px)' }}>
                 {loser.name}
               </span>
             </div>
@@ -102,9 +94,9 @@ export default function CourtCard({
                 padding: '2px 8px',
                 borderRadius: 6,
                 cursor: 'pointer',
-                background: 'rgba(220,38,38,0.08)',
-                color: '#dc2626',
-                border: '1px solid rgba(220,38,38,0.2)',
+                background: 'var(--red-faint)',
+                color: 'var(--red)',
+                border: '1px solid var(--red-soft)',
                 flexShrink: 0,
                 marginLeft: 'auto',
               }}
@@ -123,24 +115,28 @@ export default function CourtCard({
       style={{
         padding: 'clamp(12px,3vw,20px)',
         gap: 'clamp(8px,2vw,14px)',
-        background: '#fff',
-        border: '1px solid rgba(0,0,0,0.1)',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+        background: 'var(--white)',
+        borderTop: '1px solid var(--border)',
+        borderRight: '1px solid var(--border)',
+        borderBottom: '1px solid var(--border)',
+        borderLeft: '3px solid var(--court)',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
       }}
     >
       <div className="flex items-center gap-2">
         <span
           style={{
-            color: '#0f4c75',
-            fontWeight: 800,
-            fontSize: 'clamp(10px,2.5vw,13px)',
+            fontFamily: 'var(--font-display)',
+            color: 'var(--court)',
+            fontWeight: 700,
+            fontSize: 'clamp(12px,3vw,15px)',
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
+            flex: 1,
           }}
         >
           {courtLabel}
         </span>
-        <div className="flex-1 h-px" style={{ background: 'rgba(0,0,0,0.08)' }} />
         {onEdit && (
           <button
             onClick={onEdit}
@@ -150,9 +146,9 @@ export default function CourtCard({
               borderRadius: 6,
               fontWeight: 600,
               cursor: 'pointer',
-              background: 'rgba(99,102,241,0.08)',
-              color: '#6366f1',
-              border: '1px solid rgba(99,102,241,0.25)',
+              background: 'var(--court-faint)',
+              color: 'var(--court)',
+              border: '1px solid var(--court-soft)',
               flexShrink: 0,
             }}
           >
@@ -168,9 +164,9 @@ export default function CourtCard({
               borderRadius: 6,
               fontWeight: 600,
               cursor: 'pointer',
-              background: 'rgba(220,38,38,0.08)',
-              color: '#dc2626',
-              border: '1px solid rgba(220,38,38,0.25)',
+              background: 'var(--red-faint)',
+              color: 'var(--red)',
+              border: '1px solid var(--red-soft)',
               flexShrink: 0,
             }}
           >
@@ -185,45 +181,26 @@ export default function CourtCard({
           <div key={team.id}>
             <div className="flex items-center" style={{ gap: 'clamp(6px,1.5vw,12px)' }}>
               <div
-                className="flex-1 flex items-center rounded-xl"
+                className="flex-1 flex items-center rounded-xl overflow-hidden"
                 style={{
-                  gap: 'clamp(6px,1.5vw,10px)',
+                  ...chipStyle(team, iw),
+                  display: 'flex',
+                  gap: 'clamp(8px,2vw,12px)',
                   padding: 'clamp(8px,2vw,14px) clamp(10px,2.5vw,16px)',
-                  background: iw ? (team.chipBackground ?? team.color) : 'rgba(0,0,0,0.03)',
-                  border: `1.5px solid ${iw ? team.color : 'rgba(0,0,0,0.08)'}`,
+                  borderLeft: `8px solid ${team.chipBackground ?? team.color}`,
                 }}
               >
-                <div
-                  style={{
-                    width: 'clamp(10px,2.5vw,14px)',
-                    height: 'clamp(10px,2.5vw,14px)',
-                    borderRadius: '50%',
-                    flexShrink: 0,
-                    background: team.chipBackground ?? team.color,
-                    boxShadow: iw ? 'none' : `0 0 0 2px ${team.color}44`,
-                  }}
-                />
                 <span
                   style={{
                     fontWeight: 800,
-                    fontSize: 'clamp(14px,3.5vw,20px)',
+                    fontSize: 'clamp(16px,4.5vw,26px)',
                     flex: 1,
-                    color: iw ? team.text : '#1e293b',
+                    color: iw ? team.text : 'var(--ink)',
+                    lineHeight: 1.1,
                   }}
                 >
                   {team.name}
                 </span>
-                {iw && (
-                  <span
-                    style={{
-                      fontSize: 'clamp(10px,2.5vw,13px)',
-                      fontWeight: 700,
-                      color: team.text,
-                    }}
-                  >
-                    WIN
-                  </span>
-                )}
               </div>
               <NumInput value={i === 0 ? s0 : s1} onChange={i === 0 ? setS0 : setS1} />
             </div>
@@ -231,13 +208,15 @@ export default function CourtCard({
               <div
                 style={{
                   textAlign: 'center',
-                  color: '#94a3b8',
-                  fontSize: 'clamp(10px,2.5vw,13px)',
+                  color: 'var(--muted)',
+                  fontSize: 'clamp(10px,2.5vw,12px)',
                   fontWeight: 700,
                   margin: 'clamp(3px,0.8vw,6px) 0',
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
                 }}
               >
-                VS
+                vs
               </div>
             )}
           </div>
@@ -259,7 +238,7 @@ export default function CourtCard({
           fontWeight: 800,
           fontSize: 'clamp(13px,3.5vw,18px)',
           cursor: valid ? 'pointer' : 'not-allowed',
-          background: valid ? 'linear-gradient(90deg,#0f4c75,#1a6fa8)' : 'rgba(0,0,0,0.05)',
+          background: valid ? 'var(--court)' : 'rgba(0,0,0,0.05)',
           color: valid ? '#fff' : '#94a3b8',
           border: valid ? 'none' : '1px solid rgba(0,0,0,0.07)',
         }}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+﻿import { useState, useMemo } from 'react';
 import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 import useKnownPlayers from '../hooks/useKnownPlayers';
 import PlayerNameField from '../components/PlayerNameField';
@@ -20,9 +20,9 @@ const iS = {
   borderRadius: 8,
   fontSize: 14,
   fontWeight: 700,
-  background: 'rgba(255,255,255,0.08)',
+  background: '#fff',
   border: '1px solid rgba(255,255,255,0.15)',
-  color: '#e2e8f0',
+  color: 'var(--ink)',
   outline: 'none',
   width: '100%',
 };
@@ -31,9 +31,9 @@ const fieldS = {
   borderRadius: 6,
   fontSize: 12,
   fontWeight: 700,
-  background: 'rgba(255,255,255,0.08)',
+  background: '#fff',
   border: '1px solid rgba(255,255,255,0.15)',
-  color: '#e2e8f0',
+  color: 'var(--ink)',
   outline: 'none',
   width: '100%',
 };
@@ -203,26 +203,26 @@ export default function ExportDUPRModal({
   return (
     <div className="modal-overlay">
       <div
-        className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 modal-box"
+        className="rounded-2xl p-6 w-full max-w-sm flex flex-col gap-5 modal-box"
         onClick={(e) => e.stopPropagation()}
         style={{ maxHeight: '85vh', overflowY: 'auto' }}
       >
-        <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">
+        <div style={{ fontSize: 13, fontWeight: 800, color: "var(--court)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
           📤 Export to DUPR
         </div>
 
         <div>
-          <p className="text-xs text-slate-500 mb-1 font-bold uppercase tracking-wide">
+          <p className="text-xs text-slate-600 mb-1 font-bold uppercase tracking-wide">
             Event name
           </p>
           <input value={eventName} onChange={(e) => setEventName(e.target.value)} style={iS} />
         </div>
         <div>
-          <p className="text-xs text-slate-500 mb-1 font-bold uppercase tracking-wide">Date</p>
+          <p className="text-xs text-slate-600 mb-1 font-bold uppercase tracking-wide">Date</p>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={iS} />
         </div>
         <div>
-          <p className="text-xs text-slate-500 mb-1 font-bold uppercase tracking-wide">Location</p>
+          <p className="text-xs text-slate-600 mb-1 font-bold uppercase tracking-wide">Location</p>
           <input
             value={location}
             onChange={(e) => setLocation(e.target.value)}
@@ -231,7 +231,7 @@ export default function ExportDUPRModal({
           />
         </div>
         <div>
-          <p className="text-xs text-slate-500 mb-1 font-bold uppercase tracking-wide">
+          <p className="text-xs text-slate-600 mb-1 font-bold uppercase tracking-wide">
             Score type
           </p>
           <div className="flex gap-2">
@@ -247,13 +247,13 @@ export default function ExportDUPRModal({
                 style={
                   scoreType === val
                     ? {
-                        background: 'rgba(99,102,241,0.9)',
+                        background: 'var(--court)',
                         color: '#fff',
-                        border: '1px solid rgba(99,102,241,0.9)',
+                        border: '1px solid var(--court)',
                       }
                     : {
-                        background: 'rgba(255,255,255,0.08)',
-                        color: '#e2e8f0',
+                        background: '#fff',
+                        color: 'var(--ink)',
                         border: '1px solid rgba(255,255,255,0.15)',
                       }
                 }
@@ -289,7 +289,7 @@ export default function ExportDUPRModal({
               const displayHint = p.nickname && p.nickname !== p.name ? ` (${p.nickname})` : '';
               return (
                 <div key={p.id} className="flex flex-col gap-1">
-                  <span className="text-xs font-bold" style={{ color: '#94a3b8' }}>
+                  <span className="text-xs font-bold" style={{ color: 'var(--muted)' }}>
                     {p.name || p.nickname || '(unnamed player)'}
                     {displayHint && !p.name ? ` · nickname: ${p.nickname}` : ''}
                   </span>
@@ -325,7 +325,7 @@ export default function ExportDUPRModal({
               const ov = doublesRROverrides[p.id] || p;
               return (
                 <div key={p.id} className="flex flex-col gap-1">
-                  <span className="text-xs font-bold" style={{ color: '#94a3b8' }}>
+                  <span className="text-xs font-bold" style={{ color: 'var(--muted)' }}>
                     {p.name || p.nickname || '(unnamed player)'}
                     {!p.name && p.nickname ? ` · nickname: ${p.nickname}` : ''}
                   </span>
@@ -361,7 +361,7 @@ export default function ExportDUPRModal({
               const pair = swissOverrides[t.id] || t.players || [BLANK_PLAYER, BLANK_PLAYER];
               return (
                 <div key={t.id} className="flex flex-col gap-1">
-                  <span className="text-xs font-bold" style={{ color: '#e2e8f0' }}>
+                  <span className="text-xs font-bold" style={{ color: 'var(--ink)' }}>
                     {teamLabel(t.id)}
                   </span>
                   {[0, 1].map((idx) => (
@@ -411,3 +411,6 @@ export default function ExportDUPRModal({
     </div>
   );
 }
+
+
+

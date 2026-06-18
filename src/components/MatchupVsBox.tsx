@@ -1,9 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 
-// Shared "no result yet" matchup display — a large colored box per side either
-// side of a "VS" divider. Gradient-aware: prefers `team.chipBackground` (e.g. a
-// Doubles RR side with two differently-colored players) over the solid `team.color`.
-// `compact` shrinks the sizing for denser per-game/per-court layouts (TPT, Doubles RR).
+// Shared "no result yet" matchup display — two chip-styled team blocks either
+// side of a "VS" divider. `compact` shrinks sizing for TPT/DoublesRR layouts.
 export default function MatchupVsBox({
   courtLabel,
   teamA,
@@ -27,25 +25,30 @@ export default function MatchupVsBox({
   const nameFontSize = compact ? 'clamp(14px,3.5vw,22px)' : 'clamp(18px,5vw,36px)';
   const vsFontSize = compact ? 'clamp(12px,3vw,18px)' : 'clamp(14px,3.5vw,22px)';
   const borderRadius = compact ? 'rounded-xl' : 'rounded-2xl';
+  const accentSize = compact ? 6 : 8;
 
-  const Side = ({ team, dim }: { team: any; dim: boolean }) => (
-    <div
-      className={`flex-1 flex items-center justify-center ${borderRadius}`}
-      style={{
-        padding: boxPadding,
-        background: team.chipBackground ?? team.color,
-        border: `2px solid ${team.color}`,
-        opacity: dim ? 0.4 : 1,
-      }}
-    >
-      <span
-        className="font-black text-center leading-tight"
-        style={{ fontSize: nameFontSize, color: team.text }}
+  const Side = ({ team, dim }: { team: any; dim: boolean }) => {
+    const bg = team.chipBackground ?? team.color;
+    return (
+      <div
+        className={`flex-1 flex items-center justify-center ${borderRadius} overflow-hidden`}
+        style={{
+          padding: boxPadding,
+          background: 'rgba(0,0,0,0.04)',
+          border: '1px solid rgba(0,0,0,0.08)',
+          borderLeft: `${accentSize}px solid ${bg}`,
+          opacity: dim ? 0.4 : 1,
+        }}
       >
-        {team.name}
-      </span>
-    </div>
-  );
+        <span
+          className="font-black text-center leading-tight"
+          style={{ fontSize: nameFontSize, color: 'var(--ink)' }}
+        >
+          {team.name}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col" style={{ gap: 'clamp(6px,1.5vw,10px)' }}>
@@ -55,7 +58,7 @@ export default function MatchupVsBox({
             <p
               style={{
                 fontSize: 'clamp(10px,2.5vw,13px)',
-                color: '#0f4c75',
+                color: 'var(--court)',
                 fontWeight: 800,
                 margin: 0,
                 textTransform: 'uppercase',

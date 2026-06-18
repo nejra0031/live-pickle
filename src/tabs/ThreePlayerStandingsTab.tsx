@@ -1,7 +1,8 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+﻿import { useContext, useEffect, useMemo, useState } from 'react';
 import { buildTPTStandings, formatTPTTeamLabel } from '../algorithms/threePlayerTeam';
 import { TeamRegistryContext } from '../context/TeamRegistryContext';
 import { playerDisplayName } from '../utils/nameDisplay';
+import { chipStyle } from '../utils/chipStyle';
 import { ORDINAL } from '../constants';
 
 interface Props {
@@ -69,7 +70,7 @@ export default function ThreePlayerStandingsTab({
       <div
         className="flex items-center font-bold uppercase tracking-widest"
         style={{
-          background: '#0f4c75',
+          background: 'var(--court)',
           color: '#fff',
           padding: 'clamp(8px,2vw,14px) clamp(10px,2.5vw,18px)',
           gap: 'clamp(6px,1.5vw,12px)',
@@ -119,14 +120,10 @@ export default function ThreePlayerStandingsTab({
               </span>
               <div className="flex-1 min-w-0">
                 <span
-                  className="inline-flex items-center rounded-full font-black"
                   style={{
-                    background: team.color,
-                    color: team.text,
+                    ...chipStyle(team),
                     fontSize: 'clamp(13px,3.5vw,20px)',
                     padding: 'clamp(4px,1vw,8px) clamp(10px,2.5vw,18px)',
-                    border: '2px solid rgba(255,255,255,0.25)',
-                    boxShadow: `0 2px 8px ${team.color}44`,
                   }}
                 >
                   {formatTPTTeamLabel(team, tptPlayers, teamNameDisplay)}

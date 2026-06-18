@@ -10,9 +10,9 @@ const settingsBtnStyle = {
   fontWeight: 700,
   fontSize: 'clamp(12px,3vw,15px)',
   cursor: 'pointer',
-  background: 'rgba(99,102,241,0.08)',
-  color: '#4338ca',
-  border: '1px solid rgba(99,102,241,0.25)',
+  background: 'var(--court-faint)',
+  color: 'var(--court)',
+  border: '1px solid var(--court-soft)',
 };
 
 interface Props {
@@ -83,14 +83,14 @@ export default function BetweenRounds({
           style={{
             padding: 'clamp(12px,3vw,18px)',
             gap: 'clamp(12px,3vw,16px)',
-            background: '#f8fafc',
-            border: '1px solid rgba(0,0,0,0.08)',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
           }}
         >
           <p
             style={{
               fontSize: 'clamp(9px,2vw,11px)',
-              color: '#94a3b8',
+              color: 'var(--muted)',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
@@ -112,33 +112,33 @@ export default function BetweenRounds({
                 label: '🔁',
                 sub: 'Round Robin',
                 onClick: onSelectRRTeams,
-                bg: 'rgba(99,102,241,0.08)',
-                color: '#4338ca',
-                border: 'rgba(99,102,241,0.25)',
+                bg: 'var(--court-faint)',
+                color: 'var(--court)',
+                border: 'var(--court-soft)',
               },
               {
                 label: '📌',
                 sub: 'Pre-set',
                 onClick: onPresetMatch,
-                bg: 'rgba(99,102,241,0.08)',
-                color: '#4338ca',
-                border: 'rgba(99,102,241,0.25)',
+                bg: 'var(--court-faint)',
+                color: 'var(--court)',
+                border: 'var(--court-soft)',
               },
               {
                 label: '☕',
                 sub: 'Break',
                 onClick: onBreakStart,
-                bg: 'rgba(217,119,6,0.08)',
-                color: '#92400e',
-                border: 'rgba(217,119,6,0.25)',
+                bg: 'var(--court-faint)',
+                color: 'var(--court)',
+                border: 'var(--court-soft)',
               },
               {
                 label: '🏁',
                 sub: 'Finish',
                 onClick: onFinishTournament,
-                bg: 'rgba(217,119,6,0.08)',
-                color: '#92400e',
-                border: 'rgba(217,119,6,0.25)',
+                bg: 'rgba(200,232,78,0.15)',
+                color: 'var(--ink)',
+                border: 'rgba(200,232,78,0.4)',
               },
             ].map(({ label, sub, onClick, bg, color, border }) => (
               <button
@@ -173,7 +173,7 @@ export default function BetweenRounds({
               padding: 'clamp(8px,2vw,10px) clamp(10px,2.5vw,14px)',
               borderRadius: 10,
               background: finalRound ? 'rgba(251,191,36,0.08)' : 'rgba(0,0,0,0.03)',
-              border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'rgba(0,0,0,0.07)'}`,
+              border: `1px solid ${finalRound ? 'rgba(251,191,36,0.35)' : 'var(--border)'}`,
             }}
           >
             <div>
@@ -181,7 +181,7 @@ export default function BetweenRounds({
                 style={{
                   fontSize: 'clamp(12px,3vw,14px)',
                   fontWeight: 700,
-                  color: finalRound ? '#92400e' : '#475569',
+                  color: finalRound ? '#92400e' : 'var(--muted)',
                 }}
               >
                 🏁 Final Round
@@ -189,7 +189,7 @@ export default function BetweenRounds({
               <div
                 style={{
                   fontSize: 'clamp(9px,2vw,11px)',
-                  color: isAutoFinal ? '#d97706' : '#94a3b8',
+                  color: isAutoFinal ? '#d97706' : 'var(--muted)',
                   marginTop: 2,
                 }}
               >
@@ -208,8 +208,8 @@ export default function BetweenRounds({
                 fontSize: 'clamp(11px,2.5vw,13px)',
                 cursor: 'pointer',
                 background: finalRound ? 'rgba(251,191,36,0.25)' : 'rgba(0,0,0,0.06)',
-                color: finalRound ? '#92400e' : '#64748b',
-                border: `1px solid ${finalRound ? 'rgba(251,191,36,0.5)' : 'rgba(0,0,0,0.1)'}`,
+                color: finalRound ? '#92400e' : 'var(--muted)',
+                border: `1px solid ${finalRound ? 'rgba(251,191,36,0.5)' : 'var(--border)'}`,
               }}
             >
               {finalRound ? 'On' : 'Off'}
@@ -221,14 +221,14 @@ export default function BetweenRounds({
               className="rounded-xl"
               style={{
                 padding: 'clamp(8px,2vw,12px)',
-                background: 'rgba(99,102,241,0.06)',
-                border: '1px solid rgba(99,102,241,0.2)',
+                background: 'var(--court-faint)',
+                border: '1px solid var(--court-soft)',
               }}
             >
               <p
                 style={{
                   fontSize: 'clamp(9px,2vw,11px)',
-                  color: '#4338ca',
+                  color: 'var(--court)',
                   fontWeight: 800,
                   textTransform: 'uppercase',
                   letterSpacing: '0.06em',
@@ -239,19 +239,18 @@ export default function BetweenRounds({
               </p>
               <div className="flex flex-col gap-1">
                 {nextRoundPresets.map((p, pi) => {
-                  const t1 = teamById(p.teamId1),
-                    t2 = teamById(p.teamId2);
+                  const t1 = teamById(p.teamId1), t2 = teamById(p.teamId2);
                   return (
                     <div
                       key={pi}
                       className="flex items-center"
                       style={{ gap: 'clamp(4px,1vw,8px)', fontSize: 'clamp(11px,2.5vw,13px)' }}
                     >
-                      <span style={{ color: '#94a3b8', minWidth: 50 }}>Court {p.courtNumber}</span>
+                      <span style={{ color: 'var(--muted)', minWidth: 50 }}>Court {p.courtNumber}</span>
                       <span style={{ color: t1?.color, fontWeight: 700 }}>
                         {t1 ? teamLabel(p.teamId1) : ''}
                       </span>
-                      <span style={{ color: '#cbd5e1' }}>vs</span>
+                      <span style={{ color: 'var(--muted)' }}>vs</span>
                       <span style={{ color: t2?.color, fontWeight: 700 }}>
                         {t2 ? teamLabel(p.teamId2) : ''}
                       </span>
@@ -276,11 +275,8 @@ export default function BetweenRounds({
                 fontWeight: 800,
                 fontSize: 'clamp(13px,3vw,15px)',
                 cursor: 'pointer',
-                background:
-                  finalRound || isAutoFinal
-                    ? 'linear-gradient(90deg,#d97706,#f59e0b)'
-                    : 'linear-gradient(90deg,#0f4c75,#1a6fa8)',
-                color: '#fff',
+                background: finalRound || isAutoFinal ? 'var(--ball)' : 'var(--court)',
+                color: finalRound || isAutoFinal ? 'var(--ink)' : '#fff',
                 border: 'none',
               }}
             >
@@ -303,14 +299,14 @@ export default function BetweenRounds({
           style={{
             padding: 'clamp(12px,3vw,18px)',
             gap: 'clamp(12px,3vw,16px)',
-            background: '#f8fafc',
-            border: '1px solid rgba(99,102,241,0.15)',
+            background: 'var(--surface)',
+            border: '1px solid var(--court-soft)',
           }}
         >
           <p
             style={{
               fontSize: 'clamp(9px,2vw,11px)',
-              color: '#6366f1',
+              color: 'var(--court)',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
@@ -332,9 +328,9 @@ export default function BetweenRounds({
                 fontWeight: 700,
                 fontSize: 'clamp(11px,2.5vw,13px)',
                 cursor: 'pointer',
-                background: 'rgba(99,102,241,0.08)',
-                color: '#4338ca',
-                border: '1px solid rgba(99,102,241,0.25)',
+                background: 'var(--court-faint)',
+                color: 'var(--court)',
+                border: '1px solid var(--court-soft)',
               }}
             >
               🔁 Switch to Round Robin
@@ -354,11 +350,8 @@ export default function BetweenRounds({
                   fontWeight: 800,
                   fontSize: 'clamp(13px,3vw,15px)',
                   cursor: 'pointer',
-                  background:
-                    finalRound || isAutoFinal
-                      ? 'linear-gradient(90deg,#d97706,#f59e0b)'
-                      : 'linear-gradient(90deg,#0f4c75,#1a6fa8)',
-                  color: '#fff',
+                  background: finalRound || isAutoFinal ? 'var(--ball)' : 'var(--court)',
+                  color: finalRound || isAutoFinal ? 'var(--ink)' : '#fff',
                   border: 'none',
                 }}
               >
@@ -378,16 +371,16 @@ export default function BetweenRounds({
       ) : (
         <div
           className="rounded-2xl p-10 text-center flex flex-col items-center gap-3"
-          style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.08)' }}
+          style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid var(--border)' }}
         >
           <div style={{ fontSize: 'clamp(28px,7vw,44px)' }}>{roundNum === 0 ? '🏓' : '⏳'}</div>
           <p
             className="font-bold"
-            style={{ color: '#0f4c75', fontSize: 'clamp(14px,3.5vw,20px)', margin: 0 }}
+            style={{ color: 'var(--court)', fontSize: 'clamp(14px,3.5vw,20px)', margin: 0 }}
           >
             {roundNum === 0 ? 'Waiting for Round 1…' : 'Waiting for next round…'}
           </p>
-          <p className="text-slate-500" style={{ fontSize: 'clamp(11px,2.5vw,14px)', margin: 0 }}>
+          <p style={{ fontSize: 'clamp(11px,2.5vw,14px)', color: 'var(--muted)', margin: 0 }}>
             {notEnoughTeams
               ? 'Waiting for the organizer to add teams in Tournament Settings.'
               : roundNum === 0

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 
 // Each option pairs an engine `format` with a `startMode` ('swiss' starts in
 // the round-by-round Swiss phase; 'roundrobin' generates the full schedule up
@@ -64,7 +64,7 @@ function FormatSelector({ value, onChange }: { value: string | null; onChange: (
             className="rounded-xl px-4 py-3 flex flex-col items-start text-left gap-1"
             style={{
               background: active
-                ? 'linear-gradient(135deg,#0f4c75,#1a6fa8)'
+                ? 'linear-gradient(135deg,var(--court),var(--court))'
                 : 'rgba(255,255,255,0.55)',
               color: active ? '#fff' : '#334155',
               border: '1px solid ' + (active ? 'transparent' : 'rgba(0,0,0,0.1)'),
@@ -83,8 +83,8 @@ function FormatSelector({ value, onChange }: { value: string | null; onChange: (
                 borderRadius: 999,
                 letterSpacing: '0.04em',
                 textTransform: 'uppercase',
-                background: active ? 'rgba(255,255,255,0.18)' : 'rgba(15,76,117,0.1)',
-                color: active ? '#e0f2fe' : '#0f4c75',
+                background: active ? 'rgba(255,255,255,0.18)' : 'var(--court-faint)',
+                color: active ? '#e0f2fe' : 'var(--court)',
               }}
             >
               {f.sub === 'Swiss' ? '🔄 Swiss' : '🔁 Round Robin'}

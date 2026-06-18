@@ -139,12 +139,17 @@ export function useSnapshotHandler({
         if (loc || st)
           writeTournamentMeta(clubId, tournamentIdRef.current, { location: loc, startTime: st });
       }
-      const isNew = s.roundNum !== lastSeenRoundNum.current;
-      if (isNew) {
-        lastSeenRoundNum.current = s.roundNum;
+      const isFirstLoad = lastSeenRoundNum.current === -1;
+      const isNewRound = !isFirstLoad && s.roundNum !== lastSeenRoundNum.current;
+      lastSeenRoundNum.current = s.roundNum;
+      if (isNewRound) {
         pendingRef.current = {};
         set('pending', {});
         setRoundKey((k) => k + 1);
+      } else if (isFirstLoad) {
+        const pr = s.pendingResults ?? {};
+        pendingRef.current = pr;
+        set('pending', pr);
       }
       const tRun = s.timerRunning || false,
         tSA = s.timerStartedAt || null,

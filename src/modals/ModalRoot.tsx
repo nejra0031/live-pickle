@@ -10,6 +10,7 @@ import { useTournamentState } from '../state/TournamentProvider';
 import { useModal } from '../state/ModalProvider';
 import { useAppCtx } from '../state/AppCtx';
 import PinModal from './PinModal';
+import LoginModal from './LoginModal';
 import ConfirmModal from './ConfirmModal';
 import BreakModal from './BreakModal';
 import TimerSettingsModal from './TimerSettingsModal';
@@ -176,7 +177,20 @@ export default function ModalRoot() {
 
   return (
     <>
-      {modal.open === 'pin' && (
+      {modal.open === 'pin' && pinPurpose === 'login' && (
+        <LoginModal
+          checkPin={pinCheckFn}
+          pinLoadError={pinLoadError}
+          currentRole={ctx.effectiveRole ?? null}
+          onPinSuccess={onPinSuccess}
+          onClearRole={ctx.onClearRole}
+          user={ctx.user}
+          onSignIn={ctx.onSignIn}
+          onSignOut={ctx.onSignOut}
+          onClose={closeModal}
+        />
+      )}
+      {modal.open === 'pin' && pinPurpose !== 'login' && (
         <PinModal
           title={pinTitle}
           checkPin={pinCheckFn}

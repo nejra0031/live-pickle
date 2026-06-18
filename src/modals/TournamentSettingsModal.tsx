@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { ROLES, hasPermission } from '../roleConfig';
 import { ALL_TEAMS } from '../constants';
 import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
@@ -11,10 +11,10 @@ const iS = {
   padding: '8px 10px',
   borderRadius: 8,
   fontSize: 14,
-  fontWeight: 700,
-  background: 'rgba(255,255,255,0.08)',
-  border: '1px solid rgba(255,255,255,0.15)',
-  color: '#e2e8f0',
+  fontWeight: 600,
+  background: '#fff',
+  border: '1px solid var(--border)',
+  color: 'var(--ink)',
   outline: 'none',
   width: '100%',
 };
@@ -23,10 +23,10 @@ const fS = {
   padding: '6px 10px',
   borderRadius: 8,
   fontSize: 13,
-  fontWeight: 700,
-  background: 'rgba(255,255,255,0.08)',
-  border: '1px solid rgba(255,255,255,0.15)',
-  color: '#e2e8f0',
+  fontWeight: 600,
+  background: '#fff',
+  border: '1px solid var(--border)',
+  color: 'var(--ink)',
   outline: 'none',
 };
 const uid = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
@@ -60,7 +60,7 @@ function Acc({
   danger?: any;
 }) {
   return (
-    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
       <button
         onClick={onToggle}
         style={{
@@ -68,30 +68,30 @@ function Acc({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '15px 20px',
+          padding: '14px 20px',
           background: 'none',
           border: 'none',
           cursor: 'pointer',
-          color: danger ? '#fca5a5' : '#e2e8f0',
+          color: danger ? 'var(--red)' : 'var(--ink)',
           fontSize: 15,
-          fontWeight: 800,
+          fontWeight: 700,
           textAlign: 'left',
           gap: 8,
         }}
       >
         <span>{title}</span>
-        <span style={{ fontSize: 13, color: open ? '#818cf8' : '#475569', flexShrink: 0 }}>
+        <span style={{ fontSize: 13, color: open ? 'var(--court)' : 'var(--muted)', flexShrink: 0 }}>
           {open ? '▾' : '▸'}
         </span>
       </button>
-      {open && <div style={{ padding: '0 20px 18px' }}>{children}</div>}
+      {open && <div style={{ padding: '0 20px 20px' }}>{children}</div>}
     </div>
   );
 }
 
 function FL({ children }: { children: any }) {
   return (
-    <p style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 4, marginTop: 0 }}>
+    <p className="modal-label" style={{ marginBottom: 4, marginTop: 0 }}>
       {children}
     </p>
   );
@@ -162,9 +162,9 @@ function AddPinForm({ roleId, onAddPin, onAdded }: { roleId: string; onAddPin: (
           fontSize: 13,
           flexShrink: 0,
           cursor: ready ? 'pointer' : 'not-allowed',
-          background: ready ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)',
-          color: ready ? '#a5b4fc' : '#475569',
-          border: '1px solid rgba(99,102,241,0.3)',
+          background: ready ? 'var(--court)' : 'rgba(0,0,0,0.05)',
+          color: ready ? '#fff' : 'var(--muted)',
+          border: '1px solid var(--court-soft)',
         }}
       >
         + Add
@@ -173,7 +173,7 @@ function AddPinForm({ roleId, onAddPin, onAdded }: { roleId: string; onAddPin: (
   );
 }
 
-const selS = { ...iS, width: 'auto', background: '#1e293b' };
+const selS = { ...iS, width: 'auto' };
 
 function StartTimePicker({ startTime, setStartTime }: { startTime: string; setStartTime: (v: string) => void }) {
   const { date, hour, min } = parseDT(startTime);
@@ -187,7 +187,7 @@ function StartTimePicker({ startTime, setStartTime }: { startTime: string; setSt
         onChange={(e) => setDT(e.target.value, hour, min)}
         onClick={(e) => e.currentTarget.showPicker?.()}
         onWheel={(e) => e.currentTarget.blur()}
-        style={{ ...iS, flex: '1 1 auto', minWidth: 110, background: '#1e293b' }}
+        style={{ ...iS, flex: '1 1 auto', minWidth: 110 }}
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <select
@@ -196,19 +196,19 @@ function StartTimePicker({ startTime, setStartTime }: { startTime: string; setSt
           style={selS}
         >
           {Array.from({ length: 24 }, (_, h) => (
-            <option key={h} value={h} style={{ background: '#1e293b' }}>
+            <option key={h} value={h}>
               {String(h).padStart(2, '0')}
             </option>
           ))}
         </select>
-        <span style={{ color: '#94a3b8', fontWeight: 900, fontSize: 15 }}>:</span>
+        <span style={{ color: 'var(--muted)', fontWeight: 900, fontSize: 15 }}>:</span>
         <select
           value={min}
           onChange={(e) => setDT(date, hour, Number(e.target.value))}
           style={selS}
         >
           {MINUTES.map((m) => (
-            <option key={m} value={m} style={{ background: '#1e293b' }}>
+            <option key={m} value={m}>
               {String(m).padStart(2, '0')}
             </option>
           ))}
@@ -456,11 +456,11 @@ export default function TournamentSettingsModal({
         <div
           style={{
             padding: '16px 20px',
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            borderBottom: '1px solid var(--border)',
             flexShrink: 0,
           }}
         >
-          <span className="text-sm font-bold text-indigo-300 uppercase tracking-widest">
+          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--court)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             Tournament Settings
           </span>
         </div>
@@ -505,7 +505,7 @@ export default function TournamentSettingsModal({
                       onChange={(e) => setDurationMins(Math.max(0, Number(e.target.value) || 0))}
                       style={{ ...iS, width: 80, textAlign: 'center' }}
                     />
-                    <span style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600 }}>minutes</span>
+                    <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 600 }}>minutes</span>
                   </div>
                 </div>
                 <div>
@@ -520,7 +520,7 @@ export default function TournamentSettingsModal({
                       onChange={(e) => setMaxPlayers(Math.max(0, Number(e.target.value) || 0))}
                       style={{ ...iS, width: 80, textAlign: 'center' }}
                     />
-                    <span style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600 }}>players</span>
+                    <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 600 }}>players</span>
                   </div>
                 </div>
               </div>
@@ -534,8 +534,8 @@ export default function TournamentSettingsModal({
                 className="rounded-xl"
                 style={{
                   padding: '10px 12px',
-                  background: 'rgba(99,102,241,0.08)',
-                  border: '1px solid rgba(99,102,241,0.2)',
+                  background: 'var(--court-faint)',
+                  border: '1px solid var(--court-soft)',
                 }}
               >
                 <TiebreakOrderEditor
@@ -582,7 +582,7 @@ export default function TournamentSettingsModal({
                             padding: '5px 12px',
                             fontSize: 13,
                             background: paused ? 'rgba(0,0,0,0.05)' : t.color,
-                            color: paused ? '#94a3b8' : t.text,
+                            color: paused ? 'var(--muted)' : t.text,
                             border: `2px solid ${paused ? 'rgba(0,0,0,0.08)' : t.color}`,
                             cursor: 'pointer',
                             opacity: paused ? 0.6 : 1,
@@ -612,14 +612,14 @@ export default function TournamentSettingsModal({
             <Acc title="Teams & players" open={sec.teams} onToggle={() => toggle('teams')}>
               {onTeamNameDisplayChange && (
                 <div style={{ marginBottom: 16 }}>
-                  <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">
+                  <p className="modal-label">
                     Chip display
                   </p>
                   <div
                     className="flex gap-1 rounded-xl p-1"
                     style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(0,0,0,0.05)',
+                      border: '1px solid var(--border)',
                     }}
                   >
                     {DISPLAY_MODE_OPTIONS.map((opt) => (
@@ -634,11 +634,11 @@ export default function TournamentSettingsModal({
                           fontWeight: 700,
                           cursor: 'pointer',
                           background:
-                            teamNameDisplay === opt.value ? 'rgba(99,102,241,0.3)' : 'transparent',
-                          color: teamNameDisplay === opt.value ? '#a5b4fc' : '#94a3b8',
+                            teamNameDisplay === opt.value ? 'var(--court-soft)' : 'transparent',
+                          color: teamNameDisplay === opt.value ? 'var(--court)' : 'var(--muted)',
                           border:
                             teamNameDisplay === opt.value
-                              ? '1px solid rgba(99,102,241,0.4)'
+                              ? '1px solid var(--court-soft)'
                               : '1px solid transparent',
                         }}
                       >
@@ -650,7 +650,7 @@ export default function TournamentSettingsModal({
               )}
 
               <div>
-                <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">
+                <p className="modal-label">
                   Rename
                 </p>
                 <div className="flex flex-col gap-2">
@@ -687,9 +687,9 @@ export default function TournamentSettingsModal({
                               cursor: 'pointer',
                               flexShrink: 0,
                               background:
-                                filled > 0 ? 'rgba(99,102,241,0.18)' : 'rgba(255,255,255,0.06)',
-                              color: filled > 0 ? '#a5b4fc' : '#94a3b8',
-                              border: '1px solid rgba(99,102,241,0.25)',
+                                filled > 0 ? 'var(--court-faint)' : 'rgba(0,0,0,0.05)',
+                              color: filled > 0 ? 'var(--court)' : 'var(--muted)',
+                              border: '1px solid var(--court-soft)',
                             }}
                           >
                             {expandedPlayerId === t.id ? '▲' : '▼'} 👤
@@ -729,14 +729,14 @@ export default function TournamentSettingsModal({
                             className="rounded-lg p-2 flex flex-col gap-2"
                             style={{
                               marginLeft: 20,
-                              background: 'rgba(255,255,255,0.04)',
-                              border: '1px solid rgba(255,255,255,0.08)',
+                              background: 'rgba(0,0,0,0.04)',
+                              border: '1px solid var(--border)',
                             }}
                           >
                             <p
                               style={{
                                 fontSize: 10,
-                                color: '#94a3b8',
+                                color: 'var(--muted)',
                                 fontWeight: 700,
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.05em',
@@ -774,7 +774,7 @@ export default function TournamentSettingsModal({
                 </div>
                 {available.length > 0 && (
                   <div style={{ marginTop: 14 }}>
-                    <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">
+                    <p className="modal-label">
                       Add a team
                     </p>
                     <button
@@ -797,9 +797,9 @@ export default function TournamentSettingsModal({
                         fontWeight: 700,
                         fontSize: 13,
                         cursor: 'pointer',
-                        background: 'rgba(99,102,241,0.25)',
-                        color: '#a5b4fc',
-                        border: '1px solid rgba(99,102,241,0.3)',
+                        background: 'var(--court-soft)',
+                        color: 'var(--court)',
+                        border: '1px solid var(--court-soft)',
                       }}
                     >
                       + Add team
@@ -819,14 +819,14 @@ export default function TournamentSettingsModal({
             <Acc title="Teams & players" open={sec.teams} onToggle={() => toggle('teams')}>
               {onTeamNameDisplayChange && (
                 <div style={{ marginBottom: 16 }}>
-                  <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">
+                  <p className="modal-label">
                     Chip display
                   </p>
                   <div
                     className="flex gap-1 rounded-xl p-1"
                     style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(0,0,0,0.05)',
+                      border: '1px solid var(--border)',
                     }}
                   >
                     {DISPLAY_MODE_OPTIONS.map((opt) => (
@@ -841,11 +841,11 @@ export default function TournamentSettingsModal({
                           fontWeight: 700,
                           cursor: 'pointer',
                           background:
-                            teamNameDisplay === opt.value ? 'rgba(99,102,241,0.3)' : 'transparent',
-                          color: teamNameDisplay === opt.value ? '#a5b4fc' : '#94a3b8',
+                            teamNameDisplay === opt.value ? 'var(--court-soft)' : 'transparent',
+                          color: teamNameDisplay === opt.value ? 'var(--court)' : 'var(--muted)',
                           border:
                             teamNameDisplay === opt.value
-                              ? '1px solid rgba(99,102,241,0.4)'
+                              ? '1px solid var(--court-soft)'
                               : '1px solid transparent',
                         }}
                       >
@@ -924,7 +924,7 @@ export default function TournamentSettingsModal({
               </div>
               {availableTPT.length > 0 && (
                 <div style={{ marginTop: 14 }}>
-                  <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">
+                  <p className="modal-label">
                     Add a team
                   </p>
                   <button
@@ -957,9 +957,9 @@ export default function TournamentSettingsModal({
                       fontWeight: 700,
                       fontSize: 13,
                       cursor: 'pointer',
-                      background: 'rgba(99,102,241,0.25)',
-                      color: '#a5b4fc',
-                      border: '1px solid rgba(99,102,241,0.3)',
+                      background: 'var(--court-soft)',
+                      color: 'var(--court)',
+                      border: '1px solid var(--court-soft)',
                     }}
                   >
                     + Add team
@@ -977,14 +977,14 @@ export default function TournamentSettingsModal({
             <Acc title="Players" open={sec.teams} onToggle={() => toggle('teams')}>
               {onTeamNameDisplayChange && (
                 <div style={{ marginBottom: 16 }}>
-                  <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">
+                  <p className="modal-label">
                     Chip display
                   </p>
                   <div
                     className="flex gap-1 rounded-xl p-1"
                     style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(0,0,0,0.05)',
+                      border: '1px solid var(--border)',
                     }}
                   >
                     {DISPLAY_MODE_OPTIONS.map((opt) => (
@@ -999,11 +999,11 @@ export default function TournamentSettingsModal({
                           fontWeight: 700,
                           cursor: 'pointer',
                           background:
-                            teamNameDisplay === opt.value ? 'rgba(99,102,241,0.3)' : 'transparent',
-                          color: teamNameDisplay === opt.value ? '#a5b4fc' : '#94a3b8',
+                            teamNameDisplay === opt.value ? 'var(--court-soft)' : 'transparent',
+                          color: teamNameDisplay === opt.value ? 'var(--court)' : 'var(--muted)',
                           border:
                             teamNameDisplay === opt.value
-                              ? '1px solid rgba(99,102,241,0.4)'
+                              ? '1px solid var(--court-soft)'
                               : '1px solid transparent',
                         }}
                       >
@@ -1048,7 +1048,7 @@ export default function TournamentSettingsModal({
                 ))}
               </div>
               <div style={{ marginTop: 14 }}>
-                <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">
+                <p className="modal-label">
                   Add a player
                 </p>
                 <div className="flex gap-2 items-start">
@@ -1091,10 +1091,10 @@ export default function TournamentSettingsModal({
                       flexShrink: 0,
                       cursor: newDRRDraft.name.trim() ? 'pointer' : 'not-allowed',
                       background: newDRRDraft.name.trim()
-                        ? 'rgba(99,102,241,0.25)'
-                        : 'rgba(255,255,255,0.04)',
-                      color: newDRRDraft.name.trim() ? '#a5b4fc' : '#475569',
-                      border: '1px solid rgba(99,102,241,0.3)',
+                        ? 'var(--court-soft)'
+                        : 'rgba(0,0,0,0.04)',
+                      color: newDRRDraft.name.trim() ? 'var(--court)' : 'var(--muted)',
+                      border: '1px solid var(--court-soft)',
                     }}
                   >
                     + Add
@@ -1150,7 +1150,7 @@ export default function TournamentSettingsModal({
                         style={{
                           minWidth: 0,
                           ...fS,
-                          border: `1px solid ${invalid ? '#ef4444' : 'rgba(255,255,255,0.15)'}`,
+                          border: `1px solid ${invalid ? '#ef4444' : 'var(--border)'}`,
                         }}
                       />
                       <button
@@ -1165,9 +1165,9 @@ export default function TournamentSettingsModal({
                           fontWeight: 700,
                           lineHeight: 1.2,
                           cursor: 'pointer',
-                          background: isSocial ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.06)',
-                          color: isSocial ? '#a5b4fc' : '#64748b',
-                          border: `1px solid ${isSocial ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                          background: isSocial ? 'var(--court-soft)' : 'rgba(0,0,0,0.05)',
+                          color: isSocial ? 'var(--court)' : 'var(--muted)',
+                          border: `1px solid ${isSocial ? 'var(--court-soft)' : 'var(--border)'}`,
                         }}
                       >
                         Warm up / Social
@@ -1211,9 +1211,9 @@ export default function TournamentSettingsModal({
                   fontSize: 13,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  background: 'rgba(99,102,241,0.15)',
-                  color: '#a5b4fc',
-                  border: '1px solid rgba(99,102,241,0.3)',
+                  background: 'var(--court-soft)',
+                  color: 'var(--court)',
+                  border: '1px solid var(--court-soft)',
                 }}
               >
                 + Add court
@@ -1229,13 +1229,13 @@ export default function TournamentSettingsModal({
           {/* ── Access PINs ── */}
           {isOwner && (
             <Acc title="Access PINs" open={sec.pins} onToggle={() => toggle('pins')}>
-              <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
+              <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
                 Create PINs that let admins and referees access this tournament without a Google
                 login. Add as many as you like and revoke any of them at any time.
               </p>
               {ROLES.map((r) => (
                 <div key={r.id} style={{ marginBottom: 16 }}>
-                  <p className="text-xs text-slate-500 mb-2 font-bold uppercase tracking-wide">
+                  <p className="modal-label">
                     {r.title} PINs
                   </p>
                   <div className="flex flex-col gap-2" style={{ marginBottom: 8 }}>
@@ -1246,10 +1246,10 @@ export default function TournamentSettingsModal({
                     )}
                     {(pins?.[r.id] || []).map((p: any) => (
                       <div key={p.id} className="flex items-center gap-2">
-                        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
                           {p.label || 'Unnamed'}
                           {sessionPins[p.id] && (
-                            <span style={{ color: '#a5b4fc', fontWeight: 800 }}>
+                            <span style={{ color: 'var(--court)', fontWeight: 800 }}>
                               {' '}
                               · {sessionPins[p.id]}
                             </span>
@@ -1288,7 +1288,7 @@ export default function TournamentSettingsModal({
             <Acc title="Reset tournament" open={sec.reset} onToggle={() => toggle('reset')} danger>
               {!resetConfirm ? (
                 <>
-                  <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
+                  <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
                     Ends the current tournament and resets all match data. Teams and courts are
                     preserved.
                   </p>
@@ -1329,9 +1329,9 @@ export default function TournamentSettingsModal({
                         fontWeight: 700,
                         fontSize: 13,
                         cursor: 'pointer',
-                        background: 'rgba(255,255,255,0.06)',
-                        color: '#94a3b8',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'rgba(0,0,0,0.05)',
+                        color: 'var(--muted)',
+                        border: '1px solid var(--border)',
                       }}
                     >
                       Cancel
@@ -1362,7 +1362,7 @@ export default function TournamentSettingsModal({
         {/* Fixed footer */}
         <div
           style={{
-            borderTop: '1px solid rgba(255,255,255,0.08)',
+            borderTop: '1px solid var(--border)',
             padding: '12px 20px',
             flexShrink: 0,
           }}
@@ -1386,3 +1386,5 @@ export default function TournamentSettingsModal({
     </div>
   );
 }
+
+

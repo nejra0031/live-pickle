@@ -1,20 +1,11 @@
-// Fixed-position overlays: the multi-admin warning (top) and the Firebase error
-// toast (bottom, with optional Retry for critical/persistent errors).
+// Fixed-position overlays: the Firebase error toast (bottom, with optional Retry).
 export default function StatusBanners({
-  isAdmin,
-  multiAdminCount,
-  multiAdminDismissed,
-  onDismissMultiAdmin,
   firebaseError,
   firebaseErrorPersist,
   canRetry,
   onRetry,
   onDismissError,
 }: {
-  isAdmin: boolean;
-  multiAdminCount: number;
-  multiAdminDismissed: boolean;
-  onDismissMultiAdmin: () => void;
   firebaseError: string | null;
   firebaseErrorPersist: boolean;
   canRetry: boolean;
@@ -23,47 +14,6 @@ export default function StatusBanners({
 }) {
   return (
     <>
-      {isAdmin && !multiAdminDismissed && multiAdminCount > 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 99,
-            padding: '6px 16px',
-            background: '#d97706',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: 13,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-          }}
-        >
-          <span>
-            ⚠️ {multiAdminCount} other admin session{multiAdminCount > 1 ? 's' : ''} active —
-            results from multiple admins are now handled safely.
-          </span>
-          <button
-            onClick={onDismissMultiAdmin}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#fff',
-              cursor: 'pointer',
-              fontWeight: 900,
-              fontSize: 18,
-              lineHeight: 1,
-              padding: '0 2px',
-              flexShrink: 0,
-            }}
-          >
-            ×
-          </button>
-        </div>
-      )}
       {firebaseError && (
         <div
           style={{

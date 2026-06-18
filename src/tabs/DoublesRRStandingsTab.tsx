@@ -1,8 +1,9 @@
-import { useContext } from 'react';
+﻿import { useContext } from 'react';
 import { ORDINAL } from '../constants';
 import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
 import { TeamRegistryContext } from '../context/TeamRegistryContext';
 import { formatPlayerName } from '../algorithms/doublesRR';
+import { chipStyle } from '../utils/chipStyle';
 
 interface Props {
   doublesRRPlayers?: Record<string, any>;
@@ -38,13 +39,13 @@ export default function DoublesRRStandingsTab({
           style={{
             padding: 'clamp(10px,2.5vw,16px)',
             gap: 'clamp(6px,1.5vw,10px)',
-            background: 'rgba(99,102,241,0.06)',
-            border: '1px solid rgba(99,102,241,0.2)',
+            background: 'var(--court-faint)',
+            border: '1px solid var(--court-soft)',
           }}
         >
           <p
             style={{
-              color: '#4338ca',
+              color: 'var(--court)',
               fontWeight: 800,
               fontSize: 'clamp(11px,2.5vw,13px)',
               textTransform: 'uppercase',
@@ -67,7 +68,7 @@ export default function DoublesRRStandingsTab({
         <div
           className="flex items-center font-bold uppercase tracking-widest"
           style={{
-            background: '#0f4c75',
+            background: 'var(--court)',
             color: '#fff',
             padding: 'clamp(8px,2vw,14px) clamp(10px,2.5vw,18px)',
             gap: 'clamp(6px,1.5vw,10px)',
@@ -104,13 +105,10 @@ export default function DoublesRRStandingsTab({
               </span>
               <div className="flex-1 min-w-0">
                 <span
-                  className="inline-flex items-center rounded-full font-black"
                   style={{
-                    background: p.color || '#475569',
-                    color: p.text || '#fff',
+                    ...chipStyle({ color: p.color || '#475569', text: p.text || '#fff' }),
                     fontSize: 'clamp(13px,3.5vw,20px)',
                     padding: 'clamp(4px,1vw,8px) clamp(10px,2.5vw,18px)',
-                    border: '2px solid rgba(255,255,255,0.25)',
                   }}
                 >
                   {formatPlayerName((doublesRRPlayers as any)[p.id] || p, teamNameDisplay)}

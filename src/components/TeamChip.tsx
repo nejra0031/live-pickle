@@ -1,4 +1,5 @@
 import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
+import { chipStyle } from '../utils/chipStyle';
 
 export default function TeamChip({ teamId }: { teamId: string }) {
   const teamById = useTeamById();
@@ -6,10 +7,7 @@ export default function TeamChip({ teamId }: { teamId: string }) {
   const t = teamById(teamId);
   if (!t) return null;
   return (
-    <span
-      className="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold"
-      style={{ background: t.color, color: t.text, border: '2px solid rgba(255,255,255,0.15)' }}
-    >
+    <span style={{ ...chipStyle(t), fontSize: 'clamp(11px,3vw,14px)', padding: 'clamp(3px,0.8vw,5px) clamp(8px,2vw,12px)' }}>
       {teamLabel(teamId)}
     </span>
   );

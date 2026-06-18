@@ -1,10 +1,10 @@
-const CRITERION_LABELS = {
+const CRITERION_LABELS: Record<string, string> = {
   wins: 'Wins',
   scoreDiff: 'Score differential',
   headToHead: 'Head-to-head',
 };
 
-export default function TiebreakOrderEditor({ order, onChange, dark = false }: { order: string[]; onChange: (v: string[]) => void; dark?: boolean }) {
+export default function TiebreakOrderEditor({ order, onChange }: { order: string[]; onChange: (v: string[]) => void; dark?: boolean }) {
   const move = (i: number, dir: number) => {
     const j = i + dir;
     if (j < 0 || j >= order.length) return;
@@ -15,58 +15,76 @@ export default function TiebreakOrderEditor({ order, onChange, dark = false }: {
 
   return (
     <div className="flex flex-col" style={{ gap: 6 }}>
-      {order.map((criterion: string, i: number) => (
-        <div key={criterion} className="flex items-center" style={{ gap: 8 }}>
+      {order.map((criterion, i) => (
+        <div
+          key={criterion}
+          className="flex items-center rounded-xl"
+          style={{
+            gap: 10,
+            padding: '10px 12px',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+          }}
+        >
           <span
             style={{
-              width: 22,
-              fontSize: 13,
-              fontWeight: 900,
-              color: dark ? '#64748b' : '#94a3b8',
+              width: 20,
+              fontSize: 11,
+              fontWeight: 800,
+              color: 'var(--court)',
+              textAlign: 'center',
+              flexShrink: 0,
+              letterSpacing: '0.04em',
             }}
           >
-            {i + 1}.
+            {i + 1}
           </span>
           <span
-            className="flex-1 font-semibold"
-            style={{ color: dark ? '#e2e8f0' : '#334155', fontSize: 'clamp(12px,3vw,14px)' }}
+            className="flex-1"
+            style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 600 }}
           >
-            {(CRITERION_LABELS as Record<string, string>)[criterion] || criterion}
+            {CRITERION_LABELS[criterion] || criterion}
           </span>
-          <button
-            onClick={() => move(i, -1)}
-            disabled={i === 0}
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              fontWeight: 700,
-              cursor: i === 0 ? 'default' : 'pointer',
-              opacity: i === 0 ? 0.35 : 1,
-              background: dark ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.1)',
-              color: dark ? '#a5b4fc' : '#4338ca',
-              border: `1px solid ${dark ? 'rgba(99,102,241,0.4)' : 'rgba(99,102,241,0.25)'}`,
-            }}
-          >
-            ↑
-          </button>
-          <button
-            onClick={() => move(i, 1)}
-            disabled={i === order.length - 1}
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              fontWeight: 700,
-              cursor: i === order.length - 1 ? 'default' : 'pointer',
-              opacity: i === order.length - 1 ? 0.35 : 1,
-              background: dark ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.1)',
-              color: dark ? '#a5b4fc' : '#4338ca',
-              border: `1px solid ${dark ? 'rgba(99,102,241,0.4)' : 'rgba(99,102,241,0.25)'}`,
-            }}
-          >
-            ↓
-          </button>
+          <div className="flex" style={{ gap: 4, flexShrink: 0 }}>
+            <button
+              onClick={() => move(i, -1)}
+              disabled={i === 0}
+              title="Move up"
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: i === 0 ? 'default' : 'pointer',
+                opacity: i === 0 ? 0.3 : 1,
+                background: 'var(--white)',
+                color: 'var(--court)',
+                border: '1px solid var(--court-soft)',
+              }}
+            >
+              ↑
+            </button>
+            <button
+              onClick={() => move(i, 1)}
+              disabled={i === order.length - 1}
+              title="Move down"
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: i === order.length - 1 ? 'default' : 'pointer',
+                opacity: i === order.length - 1 ? 0.3 : 1,
+                background: 'var(--white)',
+                color: 'var(--court)',
+                border: '1px solid var(--court-soft)',
+              }}
+            >
+              ↓
+            </button>
+          </div>
         </div>
       ))}
     </div>

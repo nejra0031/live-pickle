@@ -13,9 +13,6 @@ export function useAccessControl({
   const [role, setRole] = useState<string | null>(initialRole ?? null);
   const roleRef = useRef<string | null>(null);
 
-  const [multiAdminDismissed, setMultiAdminDismissed] = useState(false);
-  const prevOtherAdminCountRef = useRef(0);
-
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [firebaseErrorPersist, setFirebaseErrorPersist] = useState(false);
   const retrySnapshotRef = useRef(null);
@@ -84,9 +81,6 @@ export function useAccessControl({
     role,
     setRole,
     roleRef,
-    multiAdminDismissed,
-    setMultiAdminDismissed,
-    prevOtherAdminCountRef,
     firebaseError,
     setFirebaseError,
     firebaseErrorPersist,

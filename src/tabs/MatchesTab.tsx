@@ -5,6 +5,7 @@ import { getTPTGamesForMatchup, formatTPTTeamLabel } from '../algorithms/threePl
 import { buildSidePresentation } from '../algorithms/doublesRR';
 import { playerDisplayName } from '../utils/nameDisplay';
 import { hasPermission } from '../roleConfig';
+import { chipStyle } from '../utils/chipStyle';
 import { useTournamentState } from '../state/TournamentProvider';
 import { useModal } from '../state/ModalProvider';
 import { useAppCtx } from '../state/AppCtx';
@@ -82,15 +83,12 @@ export default function MatchesTab() {
     return (
       <span
         key={id}
-        className="inline-flex items-center rounded-full font-bold"
         style={{
-          background: t.color,
-          color: t.text,
+          ...chipStyle(t),
           fontSize: 'clamp(11px,3vw,15px)',
           padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)',
           opacity: faded ? 0.5 : 1,
           textDecoration: faded ? 'line-through' : 'none',
-          border: '2px solid rgba(255,255,255,0.2)',
         }}
       >
         {teamLabel(id)}
@@ -108,22 +106,22 @@ export default function MatchesTab() {
         className="rounded-2xl"
         style={{
           background: '#fff',
-          border: '1px solid rgba(99,102,241,0.35)',
+          border: '1px solid var(--court-soft)',
           overflow: 'hidden',
-          boxShadow: '0 2px 12px rgba(99,102,241,0.08)',
+          boxShadow: '0 2px 12px rgba(27,122,120,0.08)',
         }}
       >
         <div
           style={{
             padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)',
-            background: 'linear-gradient(90deg,rgba(99,102,241,0.12),rgba(139,92,246,0.12))',
-            borderBottom: '1px solid rgba(99,102,241,0.2)',
+            background: 'var(--court-faint)',
+            borderBottom: '1px solid var(--court-soft)',
           }}
         >
           <span
             style={{
               fontSize: 'clamp(10px,2.5vw,13px)',
-              color: '#4338ca',
+              color: 'var(--court)',
               fontWeight: 800,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
@@ -201,7 +199,7 @@ export default function MatchesTab() {
               <div
                 className="flex items-center font-bold uppercase tracking-widest"
                 style={{
-                  background: 'rgba(15,76,117,0.08)',
+                  background: 'var(--court-faint)',
                   color: '#475569',
                   padding: 'clamp(5px,1.2vw,8px) clamp(8px,2vw,12px)',
                   gap: 'clamp(4px,1vw,8px)',
@@ -253,13 +251,12 @@ export default function MatchesTab() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <span
-                        className="inline-flex items-center rounded-full font-bold"
                         style={{
-                          background: team.color,
-                          color: team.text,
+                          ...chipStyle({ color: team.color ?? '#475569', text: team.text ?? '#fff' }),
                           fontSize: 'clamp(10px,2.5vw,13px)',
                           padding: 'clamp(2px,0.5vw,4px) clamp(7px,1.7vw,12px)',
                           textDecoration: dropped ? 'line-through' : 'none',
+                          opacity: dropped ? 0.6 : 1,
                         }}
                       >
                         {teamLabel(team.id)}
@@ -329,11 +326,11 @@ export default function MatchesTab() {
     if (!roundRobinEndSnapshot) return null;
     const { endRoundNum: ern, endReason } = roundRobinEndSnapshot;
     const completed = endReason === 'completed';
-    const accent = completed ? 'rgba(99,102,241,0.35)' : 'rgba(220,38,38,0.3)';
+    const accent = completed ? 'var(--court-soft)' : 'rgba(220,38,38,0.3)';
     const bg = completed
-      ? 'linear-gradient(90deg,rgba(99,102,241,0.12),rgba(139,92,246,0.12))'
+      ? 'var(--court-faint)'
       : 'linear-gradient(90deg,rgba(220,38,38,0.08),rgba(239,68,68,0.08))';
-    const textCol = completed ? '#4338ca' : '#b91c1c';
+    const textCol = completed ? 'var(--court)' : '#b91c1c';
     return (
       <div
         className="rounded-2xl"
@@ -430,8 +427,8 @@ export default function MatchesTab() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        {canFullEdit && hasAnyHistory ? (
+      <div className="flex items-center gap-2 flex-wrap">
+        {canFullEdit && hasAnyHistory && (
           <button
             onClick={onRevertToBeginning}
             style={{
@@ -447,10 +444,8 @@ export default function MatchesTab() {
           >
             ↩ Revert to Beginning
           </button>
-        ) : (
-          <span />
         )}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" style={{ marginLeft: 'auto' }}>
           {hasAnyHistory && onExportDUPR && (
             <button
               onClick={onExportDUPR}
@@ -460,29 +455,45 @@ export default function MatchesTab() {
                 borderRadius: 8,
                 fontWeight: 700,
                 cursor: 'pointer',
-                background: 'rgba(99,102,241,0.1)',
-                color: '#4338ca',
-                border: '1px solid rgba(99,102,241,0.3)',
+                background: 'var(--court-faint)',
+                color: 'var(--court)',
+                border: '1px solid var(--court-soft)',
               }}
             >
-              ⬇ Export to DUPR
+              ⬇ Export DUPR
             </button>
           )}
-          <button
-            onClick={() => setNewestFirst((p) => !p)}
-            style={{
-              fontSize: 12,
-              padding: '4px 10px',
-              borderRadius: 8,
-              fontWeight: 700,
-              cursor: 'pointer',
-              background: 'rgba(0,0,0,0.06)',
-              color: '#475569',
-              border: '1px solid rgba(0,0,0,0.1)',
-            }}
-          >
-            {newestFirst ? '↓ Newest first' : '↑ Oldest first'}
-          </button>
+          <div className="flex items-center rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+            <button
+              onClick={() => setNewestFirst(false)}
+              style={{
+                fontSize: 12,
+                padding: '4px 10px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                background: !newestFirst ? 'var(--court)' : 'transparent',
+                color: !newestFirst ? '#fff' : 'var(--muted)',
+                border: 'none',
+                borderRight: '1px solid var(--border)',
+              }}
+            >
+              ↑ Oldest
+            </button>
+            <button
+              onClick={() => setNewestFirst(true)}
+              style={{
+                fontSize: 12,
+                padding: '4px 10px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                background: newestFirst ? 'var(--court)' : 'transparent',
+                color: newestFirst ? '#fff' : 'var(--muted)',
+                border: 'none',
+              }}
+            >
+              ↓ Newest
+            </button>
+          </div>
         </div>
       </div>
 
@@ -566,22 +577,36 @@ export default function MatchesTab() {
             <div
               className="flex items-center justify-between"
               style={{
-                padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)',
+                padding: 'clamp(8px,2vw,11px) clamp(12px,3vw,18px)',
                 background: 'rgba(0,0,0,0.03)',
                 borderBottom: '1px solid rgba(0,0,0,0.06)',
               }}
             >
-              <span
-                style={{
-                  fontSize: 'clamp(10px,2.5vw,13px)',
-                  color: '#64748b',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                }}
-              >
-                Round {roundNum}
-              </span>
+              <div className="flex items-baseline" style={{ gap: 6 }}>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 'clamp(9px,2vw,11px)',
+                    color: '#94a3b8',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.12em',
+                  }}
+                >
+                  Round
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 'clamp(20px,5vw,30px)',
+                    color: '#94a3b8',
+                    fontWeight: 900,
+                    lineHeight: 1,
+                  }}
+                >
+                  {roundNum}
+                </span>
+              </div>
               <span
                 style={{
                   fontSize: 'clamp(9px,2vw,11px)',
@@ -683,10 +708,8 @@ export default function MatchesTab() {
                         style={{ marginBottom: 'clamp(5px,1.2vw,8px)' }}
                       >
                         <span
-                          className="inline-flex items-center rounded-full font-black"
                           style={{
-                            background: teamA.color,
-                            color: teamA.text,
+                            ...chipStyle(teamA),
                             fontSize: 'clamp(11px,2.8vw,14px)',
                             padding: '3px 10px',
                           }}
@@ -695,10 +718,8 @@ export default function MatchesTab() {
                         </span>
                         <span style={{ color: '#94a3b8', fontWeight: 700 }}>vs</span>
                         <span
-                          className="inline-flex items-center rounded-full font-black"
                           style={{
-                            background: teamB.color,
-                            color: teamB.text,
+                            ...chipStyle(teamB),
                             fontSize: 'clamp(11px,2.8vw,14px)',
                             padding: '3px 10px',
                           }}
@@ -732,26 +753,20 @@ export default function MatchesTab() {
                                 {gameLabel}
                               </span>
                               <span
-                                className="inline-flex items-center rounded-full font-bold"
                                 style={{
-                                  background: teamA.color,
-                                  color: teamA.text,
+                                  ...chipStyle(teamA),
                                   fontSize: 'clamp(10px,2.5vw,13px)',
                                   padding: '2px 8px',
-                                  whiteSpace: 'nowrap',
                                 }}
                               >
                                 {sideLabel(def.sideA)}
                               </span>
                               <span style={{ color: '#cbd5e1', fontWeight: 700 }}>vs</span>
                               <span
-                                className="inline-flex items-center rounded-full font-bold"
                                 style={{
-                                  background: teamB.color,
-                                  color: teamB.text,
+                                  ...chipStyle(teamB),
                                   fontSize: 'clamp(10px,2.5vw,13px)',
                                   padding: '2px 8px',
-                                  whiteSpace: 'nowrap',
                                 }}
                               >
                                 {sideLabel(def.sideB)}
@@ -775,10 +790,8 @@ export default function MatchesTab() {
                       Bye:
                     </span>
                     <span
-                      className="inline-flex items-center rounded-full font-bold"
                       style={{
-                        background: byeTeam.color,
-                        color: byeTeam.text,
+                        ...chipStyle(byeTeam),
                         fontSize: 'clamp(11px,3vw,14px)',
                         padding: '2px 10px',
                       }}
@@ -823,26 +836,20 @@ export default function MatchesTab() {
                       Court {ci + 1}
                     </span>
                     <span
-                      className="inline-flex items-center rounded-full font-bold"
                       style={{
-                        background: sideA.chipBackground ?? sideA.color,
-                        color: sideA.text,
+                        ...chipStyle(sideA),
                         fontSize: 'clamp(11px,2.8vw,14px)',
                         padding: '3px 10px',
-                        whiteSpace: 'nowrap',
                       }}
                     >
                       {sideA.name}
                     </span>
                     <span style={{ color: '#cbd5e1', fontWeight: 700 }}>vs</span>
                     <span
-                      className="inline-flex items-center rounded-full font-bold"
                       style={{
-                        background: sideB.chipBackground ?? sideB.color,
-                        color: sideB.text,
+                        ...chipStyle(sideB),
                         fontSize: 'clamp(11px,2.8vw,14px)',
                         padding: '3px 10px',
-                        whiteSpace: 'nowrap',
                       }}
                     >
                       {sideB.name}
@@ -869,13 +876,10 @@ export default function MatchesTab() {
                         Bye:
                       </span>
                       <span
-                        className="inline-flex items-center rounded-full font-bold"
                         style={{
-                          background: byeSide.chipBackground ?? byeSide.color,
-                          color: byeSide.text,
+                          ...chipStyle(byeSide),
                           fontSize: 'clamp(11px,2.8vw,14px)',
                           padding: '3px 10px',
-                          whiteSpace: 'nowrap',
                         }}
                       >
                         {byeSide.name}
@@ -906,21 +910,37 @@ export default function MatchesTab() {
             >
               <div
                 style={{
-                  padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)',
-                  background: 'rgba(15,76,117,0.06)',
+                  padding: 'clamp(8px,2vw,11px) clamp(12px,3vw,18px)',
+                  background: 'var(--court-faint)',
                   borderBottom: '1px solid rgba(0,0,0,0.07)',
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  gap: 6,
                 }}
               >
                 <span
                   style={{
-                    fontSize: 'clamp(10px,2.5vw,13px)',
-                    color: '#0f4c75',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 'clamp(9px,2vw,11px)',
+                    color: 'var(--court)',
                     fontWeight: 800,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
+                    letterSpacing: '0.12em',
+                    opacity: 0.75,
                   }}
                 >
-                  Round {h.roundNum}
+                  Round
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 'clamp(22px,5.5vw,32px)',
+                    color: 'var(--court)',
+                    fontWeight: 900,
+                    lineHeight: 1,
+                  }}
+                >
+                  {h.roundNum}
                 </span>
               </div>
               <div
@@ -968,14 +988,11 @@ export default function MatchesTab() {
                   );
                   const sideChip = (pids: string[], team: any, won: boolean, subs: Record<string, any> = {}) => (
                     <span
-                      className="inline-flex items-center rounded-full font-bold"
                       style={{
-                        background: team.color,
-                        color: team.text,
+                        ...chipStyle(team, won),
+                        whiteSpace: 'normal',
                         fontSize: 'clamp(11px,2.8vw,14px)',
                         padding: '3px 10px',
-                        whiteSpace: 'nowrap',
-                        opacity: won ? 1 : 0.6,
                       }}
                     >
                       {sideLabel(pids, subs)}
@@ -996,10 +1013,8 @@ export default function MatchesTab() {
                         style={{ marginBottom: 'clamp(6px,1.5vw,10px)' }}
                       >
                         <span
-                          className="inline-flex items-center rounded-full font-black"
                           style={{
-                            background: teamA.color,
-                            color: teamA.text,
+                            ...chipStyle(teamA),
                             fontSize: 'clamp(11px,2.8vw,14px)',
                             padding: '3px 10px',
                           }}
@@ -1008,10 +1023,8 @@ export default function MatchesTab() {
                         </span>
                         <span style={{ color: '#94a3b8', fontWeight: 700 }}>vs</span>
                         <span
-                          className="inline-flex items-center rounded-full font-black"
                           style={{
-                            background: teamB.color,
-                            color: teamB.text,
+                            ...chipStyle(teamB),
                             fontSize: 'clamp(11px,2.8vw,14px)',
                             padding: '3px 10px',
                           }}
@@ -1036,8 +1049,12 @@ export default function MatchesTab() {
                             }}
                           >
                             <div
-                              className="flex items-center flex-wrap"
-                              style={{ gap: 'clamp(4px,1vw,8px)' }}
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'auto 1fr auto 1fr auto',
+                                alignItems: 'center',
+                                gap: 'clamp(4px,1vw,8px)',
+                              }}
                             >
                               <span
                                 style={{
@@ -1045,65 +1062,36 @@ export default function MatchesTab() {
                                   color: gi === 0 ? '#1d4ed8' : '#be185d',
                                   fontWeight: 700,
                                   minWidth: 'clamp(52px,12vw,72px)',
-                                  flexShrink: 0,
                                 }}
                               >
                                 {gameLabel}
                               </span>
-                              {sideChip(def?.sideA || [], teamA, aWon, subs)}
-                              <span
-                                style={{
-                                  fontWeight: 800,
-                                  color: '#1e293b',
-                                  fontSize: 'clamp(12px,3vw,15px)',
-                                }}
-                              >
-                                {scoreA}
-                              </span>
-                              <span style={{ color: '#94a3b8' }}>–</span>
-                              <span
-                                style={{
-                                  fontWeight: 800,
-                                  color: '#1e293b',
-                                  fontSize: 'clamp(12px,3vw,15px)',
-                                }}
-                              >
-                                {scoreB}
-                              </span>
-                              {sideChip(def?.sideB || [], teamB, !aWon, subs)}
-                              {canEditScores && (
-                                <button
-                                  onClick={() => onEditTPTGame?.(ri, mi, gi)}
-                                  style={{
-                                    fontSize: 'clamp(10px,2.5vw,13px)',
-                                    padding: 'clamp(2px,0.5vw,4px) clamp(5px,1.2vw,8px)',
-                                    borderRadius: 8,
-                                    background: 'rgba(15,76,117,0.08)',
-                                    color: '#0f4c75',
-                                    border: '1px solid rgba(15,76,117,0.2)',
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  ✏️
-                                </button>
-                              )}
-                              {canEditScores && (
-                                <button
-                                  onClick={() => onEditTPTSubs?.(ri, mi, gi)}
-                                  title="Edit substitute players"
-                                  style={{
-                                    fontSize: 'clamp(10px,2.5vw,13px)',
-                                    padding: 'clamp(2px,0.5vw,4px) clamp(5px,1.2vw,8px)',
-                                    borderRadius: 8,
-                                    background: 'rgba(15,76,117,0.08)',
-                                    color: '#0f4c75',
-                                    border: '1px solid rgba(15,76,117,0.2)',
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  🔁
-                                </button>
-                              )}
+                              <div className="flex justify-end">{sideChip(def?.sideA || [], teamA, aWon, subs)}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'clamp(3px,0.8vw,5px)', flexShrink: 0 }}>
+                                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)', minWidth: '2ch', textAlign: 'right' }}>{scoreA}</span>
+                                <span style={{ color: '#94a3b8' }}>–</span>
+                                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)', minWidth: '2ch', textAlign: 'left' }}>{scoreB}</span>
+                              </div>
+                              <div className="flex justify-start">{sideChip(def?.sideB || [], teamB, !aWon, subs)}</div>
+                              <div className="flex gap-1">
+                                {canEditScores && (
+                                  <button
+                                    onClick={() => onEditTPTGame?.(ri, mi, gi)}
+                                    style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(2px,0.5vw,4px) clamp(5px,1.2vw,8px)', borderRadius: 8, background: 'var(--court-faint)', color: 'var(--court)', border: '1px solid var(--court-soft)', cursor: 'pointer' }}
+                                  >
+                                    ✏️
+                                  </button>
+                                )}
+                                {canEditScores && (
+                                  <button
+                                    onClick={() => onEditTPTSubs?.(ri, mi, gi)}
+                                    title="Edit substitute players"
+                                    style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(2px,0.5vw,4px) clamp(5px,1.2vw,8px)', borderRadius: 8, background: 'var(--court-faint)', color: 'var(--court)', border: '1px solid var(--court-soft)', cursor: 'pointer' }}
+                                  >
+                                    🔁
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
@@ -1123,10 +1111,8 @@ export default function MatchesTab() {
                       Bye:
                     </span>
                     <span
-                      className="inline-flex items-center rounded-full font-bold"
                       style={{
-                        background: byeTeam.color,
-                        color: byeTeam.text,
+                        ...chipStyle(byeTeam),
                         fontSize: 'clamp(11px,3vw,14px)',
                         padding: '2px 10px',
                       }}
@@ -1145,14 +1131,11 @@ export default function MatchesTab() {
             const side = buildSidePresentation(pids || [], doublesRRPlayersMap, teamNameDisplay);
             return (
               <span
-                className="inline-flex items-center rounded-full font-bold"
                 style={{
-                  background: side.chipBackground ?? side.color,
-                  color: side.text,
+                  ...chipStyle(side, won),
+                  whiteSpace: 'normal',
                   fontSize: 'clamp(11px,2.8vw,14px)',
                   padding: '3px 10px',
-                  whiteSpace: 'nowrap',
-                  opacity: won ? 1 : 0.6,
                 }}
               >
                 {side.name}
@@ -1171,21 +1154,37 @@ export default function MatchesTab() {
             >
               <div
                 style={{
-                  padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)',
-                  background: 'rgba(15,76,117,0.06)',
+                  padding: 'clamp(8px,2vw,11px) clamp(12px,3vw,18px)',
+                  background: 'var(--court-faint)',
                   borderBottom: '1px solid rgba(0,0,0,0.07)',
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  gap: 6,
                 }}
               >
                 <span
                   style={{
-                    fontSize: 'clamp(10px,2.5vw,13px)',
-                    color: '#0f4c75',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 'clamp(9px,2vw,11px)',
+                    color: 'var(--court)',
                     fontWeight: 800,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
+                    letterSpacing: '0.12em',
+                    opacity: 0.75,
                   }}
                 >
-                  Round {h.roundNum}
+                  Round
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 'clamp(22px,5.5vw,32px)',
+                    color: 'var(--court)',
+                    fontWeight: 900,
+                    lineHeight: 1,
+                  }}
+                >
+                  {h.roundNum}
                 </span>
               </div>
               <div
@@ -1204,8 +1203,10 @@ export default function MatchesTab() {
                   return (
                     <div
                       key={ci}
-                      className="flex items-center flex-wrap"
                       style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'auto 1fr auto 1fr auto',
+                        alignItems: 'center',
                         gap: 'clamp(4px,1vw,8px)',
                         padding: 'clamp(4px,1vw,6px) 0',
                         borderTop: ci > 0 ? '1px solid rgba(0,0,0,0.05)' : undefined,
@@ -1214,51 +1215,30 @@ export default function MatchesTab() {
                       <span
                         style={{
                           fontSize: 'clamp(9px,2vw,11px)',
-                          color: '#0f4c75',
+                          color: 'var(--court)',
                           fontWeight: 700,
                           minWidth: 'clamp(48px,11vw,64px)',
-                          flexShrink: 0,
                         }}
                       >
                         Court {ci + 1}
                       </span>
-                      {sideChip(court.teamA, aWon)}
-                      <span
-                        style={{
-                          fontWeight: 800,
-                          color: '#1e293b',
-                          fontSize: 'clamp(12px,3vw,15px)',
-                        }}
-                      >
-                        {scoreA}
-                      </span>
-                      <span style={{ color: '#94a3b8' }}>–</span>
-                      <span
-                        style={{
-                          fontWeight: 800,
-                          color: '#1e293b',
-                          fontSize: 'clamp(12px,3vw,15px)',
-                        }}
-                      >
-                        {scoreB}
-                      </span>
-                      {sideChip(court.teamB, !aWon)}
-                      {canEditScores && (
-                        <button
-                          onClick={() => onEditDoublesRRGame?.(ri, ci)}
-                          style={{
-                            fontSize: 'clamp(10px,2.5vw,13px)',
-                            padding: 'clamp(2px,0.5vw,4px) clamp(5px,1.2vw,8px)',
-                            borderRadius: 8,
-                            background: 'rgba(15,76,117,0.08)',
-                            color: '#0f4c75',
-                            border: '1px solid rgba(15,76,117,0.2)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          ✏️
-                        </button>
-                      )}
+                      <div className="flex justify-end">{sideChip(court.teamA, aWon)}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'clamp(3px,0.8vw,5px)', flexShrink: 0 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)', minWidth: '2ch', textAlign: 'right' }}>{scoreA}</span>
+                        <span style={{ color: '#94a3b8' }}>–</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#1e293b', fontSize: 'clamp(12px,3vw,15px)', minWidth: '2ch', textAlign: 'left' }}>{scoreB}</span>
+                      </div>
+                      <div className="flex justify-start">{sideChip(court.teamB, !aWon)}</div>
+                      <div>
+                        {canEditScores && (
+                          <button
+                            onClick={() => onEditDoublesRRGame?.(ri, ci)}
+                            style={{ fontSize: 'clamp(10px,2.5vw,13px)', padding: 'clamp(2px,0.5vw,4px) clamp(5px,1.2vw,8px)', borderRadius: 8, background: 'var(--court-faint)', color: 'var(--court)', border: '1px solid var(--court-soft)', cursor: 'pointer' }}
+                          >
+                            ✏️
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -1281,13 +1261,10 @@ export default function MatchesTab() {
                           Bye:
                         </span>
                         <span
-                          className="inline-flex items-center rounded-full font-bold"
                           style={{
-                            background: byeSide.chipBackground ?? byeSide.color,
-                            color: byeSide.text,
+                            ...chipStyle(byeSide),
                             fontSize: 'clamp(11px,2.8vw,14px)',
                             padding: '3px 10px',
-                            whiteSpace: 'nowrap',
                           }}
                         >
                           {byeSide.name}
@@ -1335,22 +1312,37 @@ export default function MatchesTab() {
               <div
                 className="flex items-center justify-between"
                 style={{
-                  padding: 'clamp(8px,2vw,12px) clamp(12px,3vw,18px)',
-                  background: 'rgba(15,76,117,0.06)',
+                  padding: 'clamp(8px,2vw,11px) clamp(12px,3vw,18px)',
+                  background: 'var(--court-faint)',
                   borderBottom: '1px solid rgba(0,0,0,0.07)',
                 }}
               >
-                <span
-                  style={{
-                    fontSize: 'clamp(10px,2.5vw,13px)',
-                    color: '#0f4c75',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                  }}
-                >
-                  Round {h.roundNum}
-                </span>
+                <div className="flex items-baseline" style={{ gap: 6 }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 'clamp(9px,2vw,11px)',
+                      color: 'var(--court)',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.12em',
+                      opacity: 0.75,
+                    }}
+                  >
+                    Round
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 'clamp(22px,5.5vw,32px)',
+                      color: 'var(--court)',
+                      fontWeight: 900,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {h.roundNum}
+                  </span>
+                </div>
                 {canFullEdit && (
                   <div className="flex items-center gap-1">
                     {backupRoundNumsSet.has(h.roundNum) && (
@@ -1378,9 +1370,9 @@ export default function MatchesTab() {
                         borderRadius: 8,
                         fontWeight: 700,
                         cursor: 'pointer',
-                        background: 'rgba(99,102,241,0.1)',
-                        color: '#4338ca',
-                        border: '1px solid rgba(99,102,241,0.3)',
+                        background: 'var(--court-faint)',
+                        color: 'var(--court)',
+                        border: '1px solid var(--court-soft)',
                       }}
                     >
                       ➕ Add Game
@@ -1398,8 +1390,7 @@ export default function MatchesTab() {
                       key={gi}
                       style={{
                         display: 'grid',
-                        gridTemplateColumns:
-                          'clamp(22px,5vw,36px) 1fr clamp(22px,5vw,34px) clamp(10px,2vw,14px) clamp(22px,5vw,34px) 1fr auto',
+                        gridTemplateColumns: 'clamp(22px,5vw,36px) 1fr auto 1fr auto',
                         alignItems: 'center',
                         gap: 'clamp(4px,1vw,8px)',
                         marginBottom: gi < h.games.length - 1 ? 'clamp(6px,1.5vw,10px)' : 0,
@@ -1453,56 +1444,33 @@ export default function MatchesTab() {
                       </div>
                       <div className="flex justify-end">
                         <span
-                          className="inline-flex items-center rounded-full font-bold"
                           style={{
-                            background: w?.color,
-                            color: w?.text,
+                            ...(w ? chipStyle(w, true) : {}),
+                            whiteSpace: 'normal',
                             fontSize: 'clamp(11px,3vw,15px)',
                             padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)',
-                            whiteSpace: 'nowrap',
+                            textAlign: 'right',
                           }}
                         >
                           {w ? teamLabel(w.id) : ''}
                         </span>
                       </div>
-                      <span
-                        style={{
-                          fontWeight: 800,
-                          textAlign: 'right',
-                          color: w?.color,
-                          fontSize: 'clamp(13px,3vw,17px)',
-                        }}
-                      >
-                        {game.winnerScore}
-                      </span>
-                      <span
-                        style={{
-                          color: '#cbd5e1',
-                          fontSize: 'clamp(10px,2.5vw,13px)',
-                          textAlign: 'center',
-                        }}
-                      >
-                        –
-                      </span>
-                      <span
-                        style={{
-                          fontWeight: 800,
-                          textAlign: 'left',
-                          color: l?.color,
-                          fontSize: 'clamp(13px,3vw,17px)',
-                        }}
-                      >
-                        {game.loserScore}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'clamp(3px,0.8vw,5px)', flexShrink: 0 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: w?.color, fontSize: 'clamp(16px,4vw,22px)', lineHeight: 1, minWidth: '2ch', textAlign: 'right' }}>
+                          {game.winnerScore}
+                        </span>
+                        <span style={{ color: '#cbd5e1', fontSize: 'clamp(12px,3vw,16px)', fontWeight: 700 }}>–</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--muted)', fontSize: 'clamp(16px,4vw,22px)', lineHeight: 1, minWidth: '2ch', textAlign: 'left' }}>
+                          {game.loserScore}
+                        </span>
+                      </div>
                       <div className="flex justify-start">
                         <span
-                          className="inline-flex items-center rounded-full font-bold"
                           style={{
-                            background: l?.color,
-                            color: l?.text,
+                            ...(l ? chipStyle(l, false) : {}),
+                            whiteSpace: 'normal',
                             fontSize: 'clamp(11px,3vw,15px)',
                             padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)',
-                            whiteSpace: 'nowrap',
                           }}
                         >
                           {l ? teamLabel(l.id) : ''}
@@ -1516,9 +1484,9 @@ export default function MatchesTab() {
                               fontSize: 'clamp(10px,2.5vw,13px)',
                               padding: 'clamp(3px,0.8vw,6px) clamp(6px,1.5vw,10px)',
                               borderRadius: 8,
-                              background: 'rgba(15,76,117,0.08)',
-                              color: '#0f4c75',
-                              border: '1px solid rgba(15,76,117,0.2)',
+                              background: 'var(--court-faint)',
+                              color: 'var(--court)',
+                              border: '1px solid var(--court-soft)',
                               cursor: 'pointer',
                               whiteSpace: 'nowrap',
                             }}
@@ -1615,10 +1583,8 @@ export default function MatchesTab() {
                       return (
                         <span
                           key={id}
-                          className="inline-flex items-center rounded-full font-bold"
                           style={{
-                            background: t.color,
-                            color: t.text,
+                            ...chipStyle(t),
                             fontSize: 'clamp(11px,3vw,15px)',
                             padding: 'clamp(3px,0.8vw,6px) clamp(8px,2vw,14px)',
                           }}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 
 interface Props {
@@ -41,10 +41,10 @@ export default function SelectRoundRobinTeamsModal({
   return (
     <div className="modal-overlay">
       <div
-        className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4 my-4 modal-box"
+        className="rounded-2xl p-6 w-full max-w-sm flex flex-col gap-5 my-4 modal-box"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-sm font-bold text-indigo-300 uppercase tracking-widest">
+        <div style={{ fontSize: 13, fontWeight: 800, color: "var(--court)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
           🔁 Start Round Robin
         </div>
 
@@ -65,11 +65,11 @@ export default function SelectRoundRobinTeamsModal({
                   style={{
                     padding: '8px 12px',
                     cursor: 'pointer',
-                    background: sel ? `${t.color}22` : 'rgba(255,255,255,0.04)',
-                    border: `1.5px solid ${sel ? t.color : 'rgba(255,255,255,0.1)'}`,
+                    background: sel ? `${t.color}22` : 'rgba(0,0,0,0.04)',
+                    border: `1.5px solid ${sel ? t.color : 'var(--border)'}`,
                   }}
                 >
-                  <span className="font-bold text-slate-500" style={{ width: 24, fontSize: 12 }}>
+                  <span className="font-bold text-slate-600" style={{ width: 24, fontSize: 12 }}>
                     #{i + 1}
                   </span>
                   <span
@@ -79,7 +79,7 @@ export default function SelectRoundRobinTeamsModal({
                       borderRadius: 4,
                       flexShrink: 0,
                       background: sel ? t.color : 'transparent',
-                      border: `2px solid ${sel ? t.color : 'rgba(255,255,255,0.25)'}`,
+                      border: `2px solid ${sel ? t.color : 'var(--border)'}`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -106,7 +106,7 @@ export default function SelectRoundRobinTeamsModal({
               );
             })}
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-600 mt-1">
             {teamCount} of {rankedTeamIds.length} team{rankedTeamIds.length !== 1 ? 's' : ''}{' '}
             selected
           </p>
@@ -128,9 +128,9 @@ export default function SelectRoundRobinTeamsModal({
                     padding: '5px 12px',
                     fontSize: 12,
                     cursor: 'pointer',
-                    background: sel ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)',
+                    background: sel ? 'var(--court-soft)' : 'rgba(0,0,0,0.04)',
                     color: sel ? '#a5b4fc' : '#64748b',
-                    border: `2px solid ${sel ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                    border: `2px solid ${sel ? 'var(--court-soft)' : 'var(--border)'}`,
                   }}
                 >
                   {c}
@@ -138,14 +138,14 @@ export default function SelectRoundRobinTeamsModal({
               );
             })}
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-600 mt-1">
             {courtCount} of {tournamentCourts.length} court
             {tournamentCourts.length !== 1 ? 's' : ''} selected
           </p>
         </div>
 
         {!canConfirm && (
-          <p className="text-xs text-amber-400 text-center">
+          <p className="text-xs  text-center">
             {teamCount < 2 ? 'Need at least 2 teams.' : 'Need at least 1 court.'}
           </p>
         )}
@@ -160,8 +160,8 @@ export default function SelectRoundRobinTeamsModal({
             className="flex-1 py-2 rounded-xl text-sm font-bold"
             style={{
               background: canConfirm
-                ? 'linear-gradient(90deg,#6366f1,#8b5cf6)'
-                : 'rgba(255,255,255,0.04)',
+                ? 'linear-gradient(90deg,var(--court),#8b5cf6)'
+                : 'rgba(0,0,0,0.04)',
               color: canConfirm ? '#fff' : '#475569',
               cursor: canConfirm ? 'pointer' : 'not-allowed',
               border: 'none',
@@ -174,3 +174,5 @@ export default function SelectRoundRobinTeamsModal({
     </div>
   );
 }
+
+

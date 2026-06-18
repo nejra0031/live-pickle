@@ -150,9 +150,6 @@ function AppInner({
     role,
     setRole,
     roleRef,
-    multiAdminDismissed,
-    setMultiAdminDismissed,
-    prevOtherAdminCountRef,
     firebaseError,
     setFirebaseError,
     firebaseErrorPersist,
@@ -229,11 +226,8 @@ function AppInner({
   });
 
   const handlePendingResults = useCallback(
-    (d: Record<string, any>) => {
-      const m = { ...pendingRef.current };
-      Object.keys(d).forEach((k) => {
-        if (!m[k]) m[k] = d[k];
-      });
+    (d: Record<string, any> | null) => {
+      const m = d ?? {};
       pendingRef.current = m;
       set('pending', m);
     },
@@ -260,12 +254,6 @@ function AppInner({
     onTournamentSwap: useCallback(() => openModal('tournamentSwapped'), [openModal]),
     onFirebaseError: setFirebaseError,
   });
-
-  useEffect(() => {
-    const otherCount = Math.max(0, (presence['admin'] ?? 0) - 1);
-    if (otherCount > prevOtherAdminCountRef.current) setMultiAdminDismissed(false);
-    prevOtherAdminCountRef.current = otherCount;
-  }, [presence]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Round management ──────────────────────────────────────────────────────
   const {
@@ -636,6 +624,10 @@ function AppInner({
 
   // ── AppCtx value ──────────────────────────────────────────────────────────
   const appCtxValue = {
+    user,
+    onSignIn,
+    onSignOut,
+    onClearRole: () => setRole(null),
     pins,
     pinsLoaded,
     pinsLoadError,
@@ -680,7 +672,7 @@ function AppInner({
     handleUndoDoublesRRResult,
     handleExitRoundRobin,
     doExitRoundRobin,
-    handleStartRoundRobin,
+    onStartRoundRobin: handleStartRoundRobin,
     handleGenerateAdditionalRoundRobin,
     handleGenerateAdditionalDoublesRR,
     onPinSuccess: handlePinSuccess,
@@ -752,22 +744,13 @@ function AppInner({
             presence={presence}
             online={online}
             user={user}
-            onSignIn={onSignIn}
-            onSignOut={onSignOut}
             isOwner={isOwner}
-            onLoginToggle={() => {
-              if (role) setRole(null);
-              else openModal('pin', { purpose: 'login' });
-            }}
+            onLoginToggle={() => openModal('pin', { purpose: 'login' })}
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onBack={onBack}
           />
           <StatusBanners
-            isAdmin={isAdmin}
-            multiAdminCount={Math.max(0, (presence['admin'] ?? 0) - 1)}
-            multiAdminDismissed={multiAdminDismissed}
-            onDismissMultiAdmin={() => setMultiAdminDismissed(true)}
             firebaseError={firebaseError}
             firebaseErrorPersist={firebaseErrorPersist}
             canRetry={!!retrySnapshotRef.current}

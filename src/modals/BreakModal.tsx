@@ -10,65 +10,40 @@ export default function BreakModal({ onStart, onClose }: Props) {
   return (
     <div className="modal-overlay">
       <div
-        className="rounded-2xl p-5 w-full max-w-sm flex flex-col gap-4"
-        style={{ background: '#1e293b', border: '1px solid rgba(251,191,36,0.4)' }}
+        className="rounded-2xl p-6 w-full max-w-sm flex flex-col gap-5 modal-box"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-sm font-bold uppercase tracking-widest" style={{ color: '#fbbf24' }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           ☕ Start Break
         </div>
-        <div>
-          <p className="text-xs text-slate-400 mb-2 font-bold uppercase tracking-wide">
-            Message (shown above games)
-          </p>
+        <div className="flex flex-col gap-1">
+          <p className="modal-label">Message shown above games</p>
           <input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Break message…"
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: 10,
-              fontSize: 14,
-              background: 'rgba(255,255,255,0.07)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              color: '#e2e8f0',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
+            className="input-dark"
           />
         </div>
-        <div>
-          <p className="text-xs text-slate-400 mb-2 font-bold uppercase tracking-wide">
-            Duration (minutes)
-          </p>
+        <div className="flex flex-col gap-1">
+          <p className="modal-label">Duration (minutes)</p>
           <input
             type="number"
             value={minsRaw}
             min={1}
             max={120}
             onChange={(e) => setMinsRaw(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: 10,
-              fontSize: 14,
-              background: 'rgba(255,255,255,0.07)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              color: '#e2e8f0',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
+            className="input-dark"
           />
         </div>
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-bold btn-cancel">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-bold btn-cancel">
             Cancel
           </button>
           <button
             onClick={() => valid && onStart(message.trim(), minsNum * 60)}
             disabled={!valid}
-            className="flex-1 py-2 rounded-xl text-sm font-bold btn-amber"
+            className="flex-1 py-2.5 rounded-xl text-sm font-bold btn-amber"
           >
             Start Break ☕
           </button>

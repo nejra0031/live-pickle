@@ -1,69 +1,74 @@
-import { useTeamLabel } from '../context/TeamRegistryContext';
+import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 import { ORDINAL } from '../constants';
+import { chipStyle } from '../utils/chipStyle';
+
+const RANK_COLOR = (i: number) =>
+  i === 0 ? '#F59E0B' : i === 1 ? '#94A3B8' : i === 2 ? '#C97D3A' : 'rgba(0,0,0,0.1)';
 
 interface Props { ranked: any[]; pausedIds?: string[] }
 export default function StandingsTab({ ranked, pausedIds }: Props) {
+  const teamById = useTeamById();
   const teamLabel = useTeamLabel();
 
   return (
     <div
       className="rounded-2xl overflow-hidden"
-      style={{ border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}
+      style={{ border: '1px solid var(--border)', boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}
     >
+      {/* Column labels */}
       <div
-        className="flex items-center font-bold uppercase tracking-widest"
+        className="flex items-center"
         style={{
-          background: '#0f4c75',
-          color: '#fff',
-          padding: 'clamp(8px,2vw,14px) clamp(10px,2.5vw,18px)',
+          padding: 'clamp(6px,1.5vw,9px) clamp(10px,2.5vw,18px)',
+          borderLeft: '4px solid transparent',
+          background: 'var(--surface)',
+          borderBottom: '1px solid var(--border)',
           gap: 'clamp(6px,1.5vw,12px)',
-          fontSize: 'clamp(9px,2vw,12px)',
         }}
       >
-        <span style={{ width: 'clamp(28px,6vw,50px)' }}>Rank</span>
-        <span className="flex-1">Team</span>
-        <span style={{ width: 'clamp(26px,5.5vw,42px)', textAlign: 'center' }}>GP</span>
-        <span style={{ width: 'clamp(26px,5.5vw,42px)', textAlign: 'center', color: '#86efac' }}>
-          W
-        </span>
-        <span style={{ width: 'clamp(26px,5.5vw,42px)', textAlign: 'center', color: '#fca5a5' }}>
-          L
-        </span>
-        <span style={{ width: 'clamp(30px,6.5vw,50px)', textAlign: 'center', color: '#7dd3fc' }}>
-          +/−
-        </span>
+        <span style={{ width: 'clamp(36px,8vw,58px)', fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>POS</span>
+        <span className="flex-1" style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>PLAYER</span>
+        <span style={{ width: 'clamp(26px,5.5vw,42px)', textAlign: 'center', fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>GP</span>
+        <span style={{ width: 'clamp(26px,5.5vw,42px)', textAlign: 'center', fontSize: 10, color: '#16a34a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>W</span>
+        <span style={{ width: 'clamp(26px,5.5vw,42px)', textAlign: 'center', fontSize: 10, color: '#dc2626', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>L</span>
+        <span style={{ width: 'clamp(36px,7.5vw,54px)', textAlign: 'center', fontSize: 10, color: 'var(--court)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>+/-</span>
       </div>
+
       {ranked.map((team, i) => {
-        const diff = team.scoreDiff,
-          paused = (pausedIds || []).includes(team.id);
+        const diff = team.scoreDiff, paused = (pausedIds || []).includes(team.id);
+        const rankColor = RANK_COLOR(i);
         return (
           <div
             key={team.id}
             className="flex items-center"
             style={{
-              padding: 'clamp(10px,2.5vw,18px) clamp(10px,2.5vw,18px)',
+              padding: 'clamp(10px,2.5vw,16px) clamp(10px,2.5vw,18px)',
               gap: 'clamp(6px,1.5vw,12px)',
-              background: i % 2 === 0 ? '#fff' : '#f8fafc',
-              borderTop: '1px solid rgba(0,0,0,0.05)',
+              background: 'var(--white)',
+              borderTop: '1px solid var(--border)',
+              borderLeft: `4px solid ${rankColor}`,
               opacity: paused ? 0.45 : 1,
             }}
           >
             <span
-              className="font-black text-slate-500"
-              style={{ width: 'clamp(28px,6vw,50px)', fontSize: 'clamp(14px,3.5vw,22px)' }}
+              style={{
+                width: 'clamp(32px,7vw,54px)',
+                fontFamily: 'var(--font-display)',
+                fontWeight: 900,
+                fontSize: 'clamp(16px,4vw,24px)',
+                color: rankColor === 'rgba(0,0,0,0.1)' ? 'var(--muted)' : rankColor,
+                lineHeight: 1,
+                flexShrink: 0,
+              }}
             >
               {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : ORDINAL(i + 1)}
             </span>
             <div className="flex-1 min-w-0">
               <span
-                className="inline-flex items-center rounded-full font-black"
                 style={{
-                  background: team.color,
-                  color: team.text,
+                  ...chipStyle(teamById(team.id) ?? team),
                   fontSize: 'clamp(13px,3.5vw,20px)',
                   padding: 'clamp(4px,1vw,8px) clamp(10px,2.5vw,18px)',
-                  border: '2px solid rgba(255,255,255,0.25)',
-                  boxShadow: `0 2px 8px ${team.color}44`,
                 }}
               >
                 {teamLabel(team.id)}
@@ -71,10 +76,11 @@ export default function StandingsTab({ ranked, pausedIds }: Props) {
             </div>
             <span
               style={{
+                fontFamily: 'var(--font-mono)',
                 width: 'clamp(26px,5.5vw,42px)',
                 textAlign: 'center',
-                color: '#475569',
-                fontSize: 'clamp(14px,3.5vw,22px)',
+                color: 'var(--muted)',
+                fontSize: 'clamp(15px,3.5vw,20px)',
                 fontWeight: 700,
               }}
             >
@@ -82,37 +88,39 @@ export default function StandingsTab({ ranked, pausedIds }: Props) {
             </span>
             <span
               style={{
+                fontFamily: 'var(--font-mono)',
                 width: 'clamp(26px,5.5vw,42px)',
                 textAlign: 'center',
                 color: '#16a34a',
-                fontWeight: 900,
-                fontSize: 'clamp(16px,4vw,24px)',
+                fontWeight: 700,
+                fontSize: 'clamp(15px,3.5vw,20px)',
               }}
             >
               {team.wins}
             </span>
             <span
               style={{
+                fontFamily: 'var(--font-mono)',
                 width: 'clamp(26px,5.5vw,42px)',
                 textAlign: 'center',
                 color: '#dc2626',
-                fontWeight: 900,
-                fontSize: 'clamp(16px,4vw,24px)',
+                fontWeight: 700,
+                fontSize: 'clamp(15px,3.5vw,20px)',
               }}
             >
               {team.losses}
             </span>
             <span
               style={{
-                width: 'clamp(30px,6.5vw,50px)',
+                fontFamily: 'var(--font-mono)',
+                width: 'clamp(36px,7.5vw,54px)',
                 textAlign: 'center',
-                fontWeight: 900,
-                fontSize: 'clamp(14px,3.5vw,22px)',
-                color: diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : '#94a3b8',
+                fontWeight: 700,
+                fontSize: 'clamp(15px,3.5vw,20px)',
+                color: diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : 'var(--muted)',
               }}
             >
-              {diff > 0 ? '+' : ''}
-              {diff}
+              {diff > 0 ? '+' : ''}{diff}
             </span>
           </div>
         );
