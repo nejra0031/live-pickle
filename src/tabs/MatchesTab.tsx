@@ -414,7 +414,16 @@ export default function MatchesTab() {
   const showSnapshotAtTop =
     !!roundRobinStartSnapshot &&
     history.every((h) => h.roundNum < (roundRobinStartSnapshot.startRoundNum || 0));
-  const showEndAtTop = !!roundRobinEndSnapshot && roundRobinEndSnapshot.endRoundNum == null;
+  // Effective round to anchor the end-snapshot to: the last RR round if rounds were played,
+  // otherwise the last Swiss round before RR (startRoundNum - 1). Null means no anchor exists.
+  const rrEndAnchorRound = roundRobinEndSnapshot
+    ? roundRobinEndSnapshot.endRoundNum != null
+      ? roundRobinEndSnapshot.endRoundNum
+      : roundRobinStartSnapshot && roundRobinStartSnapshot.startRoundNum > 1
+        ? roundRobinStartSnapshot.startRoundNum - 1
+        : null
+    : null;
+  const showEndAtTop = !!roundRobinEndSnapshot && rrEndAnchorRound == null;
   const displayEntries = newestFirst ? [...allEntries].reverse() : allEntries;
   const isEmpty =
     history.length === 0 &&
@@ -1293,14 +1302,10 @@ export default function MatchesTab() {
         const hasBye = h.bye?.length > 0;
         const isFirstRR =
           roundRobinStartSnapshot && h.roundNum === roundRobinStartSnapshot.startRoundNum;
-        const isLastRR =
-          roundRobinEndSnapshot &&
-          roundRobinEndSnapshot.endRoundNum != null &&
-          h.roundNum === roundRobinEndSnapshot.endRoundNum;
+        const isLastRR = rrEndAnchorRound != null && h.roundNum === rrEndAnchorRound;
 
         return (
           <div key={ri} className="flex flex-col gap-3">
-            {newestFirst && isLastRR && renderRREndSnapshot()}
             <div
               className="rounded-2xl"
               style={{
@@ -1657,8 +1662,8 @@ export default function MatchesTab() {
                 </div>
               </div>
             </div>
+            {isLastRR && renderRREndSnapshot()}
             {newestFirst && isFirstRR && renderRRSnapshot()}
-            {!newestFirst && isLastRR && renderRREndSnapshot()}
             {!newestFirst && isFirstRR && renderRRSnapshot()}
           </div>
         );

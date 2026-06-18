@@ -617,6 +617,23 @@ function AppInner({
         gamesPerTeam: gpt,
       });
       gatedUpdate('canEditTimer', { timerDuration: tm * 60, timerDefaultMins: tm > 0 ? tm : 0 });
+      // If gamesPerTeam changed, re-evaluate whether finalRound should still be set
+      const s = stateRef.current;
+      if (gpt > 0 && s.finalRound && s.activeTeamIds.length > 0) {
+        const counts: Record<string, number> = {};
+        for (const id of s.activeTeamIds) counts[id] = 0;
+        for (const r of s.history) {
+          for (const g of (r.games || [])) {
+            if (g.winnerId in counts) counts[g.winnerId]++;
+            if (g.loserId in counts) counts[g.loserId]++;
+          }
+        }
+        const minPlayed = Math.min(...s.activeTeamIds.map((id: string) => counts[id] ?? 0));
+        if (minPlayed < gpt - 1) {
+          set('finalRound', false);
+          gatedUpdate('canSetFinalRound', { finalRound: false });
+        }
+      }
       if (clubId && tournamentIdRef.current)
         writeTournamentMeta(clubId, tournamentIdRef.current, {
           title: t,

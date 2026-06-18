@@ -79,6 +79,9 @@ function TournamentCard({ t, onClick, onDelete }: { t: any; onClick: () => void;
   const modeLabel = MODE_LABELS[t.mode] ?? t.mode ?? '';
   const isActive = t.status === 'active';
   const isSetup = t.status === 'setup';
+  const now = Date.now();
+  const isOngoing = isActive && (!t.startTime || new Date(t.startTime).getTime() <= now);
+  const isRegistrationOpen = isSetup;
 
   return (
     <div
@@ -110,10 +113,34 @@ function TournamentCard({ t, onClick, onDelete }: { t: any; onClick: () => void;
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
+          {(isOngoing || isRegistrationOpen) && (
+            <div style={{ marginBottom: 5 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: isOngoing ? '#16a34a' : '#b45309',
+                  background: isOngoing ? 'rgba(22,163,74,0.1)' : 'rgba(217,119,6,0.1)',
+                  padding: '2px 7px',
+                  borderRadius: 4,
+                  border: `1px solid ${isOngoing ? 'rgba(22,163,74,0.25)' : 'rgba(217,119,6,0.25)'}`,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                }}
+              >
+                <span style={{ fontSize: 7, lineHeight: 1 }}>●</span>
+                {isOngoing ? 'Ongoing' : 'Registration open'}
+              </span>
+            </div>
+          )}
           <div
             style={{
-              fontWeight: 800,
-              fontSize: 17,
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: isOngoing || isRegistrationOpen ? 'clamp(19px,4.5vw,26px)' : 'clamp(15px,4vw,19px)',
               color: 'var(--ink)',
               marginBottom: 6,
               overflow: 'hidden',
@@ -138,18 +165,20 @@ function TournamentCard({ t, onClick, onDelete }: { t: any; onClick: () => void;
                 {modeLabel}
               </span>
             )}
-            <span
-              style={{
-                background: statusStyle.bg,
-                color: statusStyle.color,
-                fontSize: 11,
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: 6,
-              }}
-            >
-              {statusStyle.label}
-            </span>
+            {!isOngoing && !isRegistrationOpen && (
+              <span
+                style={{
+                  background: statusStyle.bg,
+                  color: statusStyle.color,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: 6,
+                }}
+              >
+                {statusStyle.label}
+              </span>
+            )}
             {(t.playerCount > 0 || t.teamCount > 0) && (
               <span style={{ color: 'var(--muted)', fontSize: 12, fontFamily: 'var(--font-mono)' }}>
                 {(() => {
@@ -450,21 +479,10 @@ function ClubSection({
       ) : (
         <>
           <div style={{ marginBottom: finished.length > 0 ? 20 : 0 }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 800,
-                color: 'var(--muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                marginBottom: 8,
-              }}
-            >
-              Upcoming
-            </div>
+            <div className="section-label">Upcoming</div>
             {upcoming.length === 0 ? (
               <div style={{ color: 'var(--muted)', fontSize: 13, padding: '4px 0' }}>
-                No upcoming tournaments
+                No upcoming tournaments — some may be hidden by your filters
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -477,18 +495,7 @@ function ClubSection({
 
           {finished.length > 0 && (
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: 'var(--muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  marginBottom: 8,
-                }}
-              >
-                Finished
-              </div>
+              <div className="section-label">Finished</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {finished.map((t: any) => (
                   <TournamentCard key={t.id} t={t} onClick={() => handleCardClick(t)} onDelete={onDelete} />
@@ -703,9 +710,6 @@ export default function LandingPage({
                 }}
               >
                 Live Pickle
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-                Tournament Directory
               </div>
             </div>
           </div>
