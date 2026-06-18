@@ -256,9 +256,10 @@ function AppInner({
   });
 
   // Warn owner when no admin PIN is set — some PIN-gated actions would block them.
+  // Don't check `role` here: owners get setRole('admin') automatically on tournament creation,
+  // so `role` being non-null doesn't mean a PIN was used.
   const showNoPinWarning =
     isOwner &&
-    !role &&
     !!(pinsLoaded as Record<string, boolean>)['admin'] &&
     ((pins as Record<string, any[]>)['admin']?.length ?? 0) === 0;
 
