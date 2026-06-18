@@ -23,6 +23,8 @@ interface Props {
   finalRound: boolean;
   setFinalRound: (updater: (prev: boolean) => boolean) => void;
   targetRounds: number;
+  gamesPerTeam: number;
+  minGamesPlayed: number;
   nextRoundPresets: any[];
   breakMode: any;
   socialCourts: string[];
@@ -43,6 +45,8 @@ export default function BetweenRounds({
   finalRound,
   setFinalRound,
   targetRounds,
+  gamesPerTeam,
+  minGamesPlayed,
   nextRoundPresets,
   breakMode,
   socialCourts,
@@ -59,6 +63,7 @@ export default function BetweenRounds({
   const teamLabel = useTeamLabel();
   const nextRN = roundNum === 0 ? 1 : roundNum + 1;
   const isAutoFinal = targetRounds > 0 && nextRN === targetRounds && !finalRound;
+  const gamesPerTeamMet = gamesPerTeam > 0 && minGamesPlayed >= gamesPerTeam;
   const notEnoughTeams = roundNum === 0 && (activeTeamIds?.length ?? 0) < 2;
   const hintStyle = {
     fontSize: 'clamp(11px,2.5vw,13px)',
@@ -265,29 +270,49 @@ export default function BetweenRounds({
             <p style={hintStyle}>
               Add at least 2 teams in ⚙️ Tournament Settings to generate Round 1.
             </p>
+          ) : gamesPerTeamMet ? (
+            <p style={hintStyle}>
+              All teams have played {gamesPerTeam} game{gamesPerTeam !== 1 ? 's' : ''} — target
+              reached. Click Finish to end the tournament.
+            </p>
           ) : (
-            <button
-              onClick={onGenerateRound}
-              style={{
-                width: '100%',
-                padding: 'clamp(10px,2.5vw,13px)',
-                borderRadius: 12,
-                fontWeight: 800,
-                fontSize: 'clamp(13px,3vw,15px)',
-                cursor: 'pointer',
-                background: finalRound || isAutoFinal ? 'var(--ball)' : 'var(--court)',
-                color: finalRound || isAutoFinal ? 'var(--ink)' : '#fff',
-                border: 'none',
-              }}
-            >
-              {roundNum === 0
-                ? isAutoFinal
-                  ? '🏁 Generate Final Round →'
-                  : 'Generate Round 1 →'
-                : finalRound || isAutoFinal
-                  ? '🏁 Generate Final Round →'
-                  : `Generate Round ${roundNum + 1} →`}
-            </button>
+            <>
+              <button
+                onClick={onGenerateRound}
+                style={{
+                  width: '100%',
+                  padding: 'clamp(10px,2.5vw,13px)',
+                  borderRadius: 12,
+                  fontWeight: 800,
+                  fontSize: 'clamp(13px,3vw,15px)',
+                  cursor: 'pointer',
+                  background: finalRound || isAutoFinal ? 'var(--ball)' : 'var(--court)',
+                  color: finalRound || isAutoFinal ? 'var(--ink)' : '#fff',
+                  border: 'none',
+                }}
+              >
+                {roundNum === 0
+                  ? isAutoFinal
+                    ? '🏁 Generate Final Round →'
+                    : 'Generate Round 1 →'
+                  : finalRound || isAutoFinal
+                    ? '🏁 Generate Final Round →'
+                    : `Generate Round ${roundNum + 1} →`}
+              </button>
+              {gamesPerTeam > 0 && (
+                <p
+                  style={{
+                    fontSize: 'clamp(10px,2.2vw,12px)',
+                    color: 'var(--muted)',
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    margin: 0,
+                  }}
+                >
+                  {minGamesPlayed}/{gamesPerTeam} games per team played
+                </p>
+              )}
+            </>
           )}
           <button onClick={onTournamentSettings} style={settingsBtnStyle}>
             ⚙️ Tournament Settings
@@ -338,6 +363,7 @@ export default function BetweenRounds({
           )}
           {hasPermission(role, 'canGenerateRound') &&
             !(targetRounds > 0 && roundNum >= targetRounds) &&
+            !gamesPerTeamMet &&
             (notEnoughTeams ? (
               <p style={hintStyle}>Waiting for the admin to add teams in Tournament Settings.</p>
             ) : (
@@ -364,6 +390,12 @@ export default function BetweenRounds({
                     : `Generate Round ${roundNum + 1} →`}
               </button>
             ))}
+          {hasPermission(role, 'canGenerateRound') && gamesPerTeamMet && (
+            <p style={hintStyle}>
+              All teams have played {gamesPerTeam} game{gamesPerTeam !== 1 ? 's' : ''} — target
+              reached.
+            </p>
+          )}
           <button onClick={onTournamentSettings} style={settingsBtnStyle}>
             ⚙️ Tournament Settings
           </button>

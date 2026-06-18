@@ -50,6 +50,7 @@ export default function ModalRoot() {
     tournamentStartTime,
     tournamentDurationMins,
     maxPlayers,
+    gamesPerTeam,
     standingsTiebreakOrder,
     teamNameDisplay: _tnd,
   } = state;
@@ -259,6 +260,7 @@ export default function ModalRoot() {
           tournamentStartTime={tournamentStartTime}
           tournamentDurationMins={tournamentDurationMins}
           maxPlayers={maxPlayers}
+          gamesPerTeam={gamesPerTeam}
           tournamentMode={tournamentMode}
           standingsTiebreakOrder={standingsTiebreakOrder}
           onStandingsTiebreakOrderChange={onStandingsTiebreakOrderChange}

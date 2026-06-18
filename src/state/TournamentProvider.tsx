@@ -32,6 +32,7 @@ export const TOURNAMENT_INITIAL: TournamentState = {
   cancelledRoundNums: [],
   finalRound: false,
   targetRounds: 0,
+  gamesPerTeam: 0,
   socialCourts: [],
   teamNameDisplay: 'name',
   standingsTiebreakOrder: ['wins', 'scoreDiff', 'headToHead'],

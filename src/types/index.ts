@@ -230,6 +230,7 @@ export interface TournamentState {
   cancelledRoundNums: number[];
   finalRound: boolean;
   targetRounds: number;
+  gamesPerTeam: number;
   socialCourts: string[];
   teamNameDisplay: TeamNameDisplay;
   standingsTiebreakOrder: TiebreakKey[];
@@ -262,6 +263,7 @@ export interface TournamentSnapshot {
   breakMode: string | null;
   finalRound: boolean;
   targetRounds: number;
+  gamesPerTeam: number;
   tournamentMode: TournamentMode;
   roundRobinSchedule: RoundRobinSchedule | null;
   roundRobinCourts: string[] | null;

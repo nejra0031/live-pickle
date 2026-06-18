@@ -580,19 +580,21 @@ function AppInner({
   );
 
   const handleTournamentInfoSave = useCallback(
-    ({ title, location, startTime, durationMins, maxPlayers: mp = 0 }: { title: string; location: string; startTime: string; durationMins: number; maxPlayers?: number }) => {
+    ({ title, location, startTime, durationMins, maxPlayers: mp = 0, gamesPerTeam: gpt = 0 }: { title: string; location: string; startTime: string; durationMins: number; maxPlayers?: number; gamesPerTeam?: number }) => {
       const t = title.trim() || 'Tournament';
       set('tournamentTitle', t);
       set('tournamentLocation', location);
       set('tournamentStartTime', startTime);
       set('tournamentDurationMins', durationMins);
       set('maxPlayers', mp);
+      set('gamesPerTeam', gpt);
       gatedUpdate('canEditTeams', {
         tournamentTitle: t,
         tournamentLocation: location,
         tournamentStartTime: startTime,
         tournamentDurationMins: durationMins,
         maxPlayers: mp,
+        gamesPerTeam: gpt,
       });
       if (clubId && tournamentIdRef.current)
         writeTournamentMeta(clubId, tournamentIdRef.current, {

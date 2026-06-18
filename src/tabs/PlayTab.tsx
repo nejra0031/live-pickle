@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { hasPermission } from '../roleConfig';
 import TournamentFinished from './play/TournamentFinished';
 import { MODES } from '../modes';
@@ -25,6 +26,7 @@ export default function PlayTab() {
     pausedIds,
     finalRound,
     targetRounds,
+    gamesPerTeam,
     history,
     activeRoundExtras,
     nextRoundPresets,
@@ -32,6 +34,19 @@ export default function PlayTab() {
     roundRobinCourts,
     roundRobinStartRoundNum,
   } = state;
+
+  const minGamesPlayed = useMemo(() => {
+    if (!gamesPerTeam || !activeTeamIds.length) return 0;
+    const counts: Record<string, number> = {};
+    for (const id of activeTeamIds) counts[id] = 0;
+    for (const r of history) {
+      for (const g of r.games || []) {
+        if (g.winnerId in counts) counts[g.winnerId]++;
+        if (g.loserId in counts) counts[g.loserId]++;
+      }
+    }
+    return Math.min(...activeTeamIds.map((id) => counts[id] ?? 0));
+  }, [gamesPerTeam, history, activeTeamIds]);
 
   const {
     effectiveRole: role,
@@ -106,6 +121,8 @@ export default function PlayTab() {
     finalRound,
     pausedIds,
     targetRounds,
+    gamesPerTeam,
+    minGamesPlayed,
     setFinalRound,
     history,
     ranked,
