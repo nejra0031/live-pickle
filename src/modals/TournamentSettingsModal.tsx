@@ -226,6 +226,7 @@ export default function TournamentSettingsModal({
   tournamentDurationMins,
   maxPlayers: maxPlayersProp,
   gamesPerTeam: gamesPerTeamProp,
+  timerDuration: timerDurationProp,
   tournamentMode,
   standingsTiebreakOrder,
   onStandingsTiebreakOrderChange,
@@ -276,6 +277,9 @@ export default function TournamentSettingsModal({
   const [durationMins, setDurationMins] = useState(tournamentDurationMins || 0);
   const [maxPlayers, setMaxPlayers] = useState(maxPlayersProp || 0);
   const [gamesPerTeam, setGamesPerTeam] = useState(gamesPerTeamProp || 0);
+  const [timerMins, setTimerMins] = useState(() =>
+    timerDurationProp > 0 ? Math.round(timerDurationProp / 60) : 0
+  );
 
   // Teams state — swiss / rr
   const teamById = useTeamById();
@@ -379,7 +383,7 @@ export default function TournamentSettingsModal({
     rrCourtCount > 0 && localCourts.filter((_: any, i: number) => !localSocial[i]).length < rrCourtCount;
 
   const handleSave = () => {
-    if (canEditEventInfo) onSaveInfo({ title, location, startTime, durationMins, maxPlayers, gamesPerTeam });
+    if (canEditEventInfo) onSaveInfo({ title, location, startTime, durationMins, maxPlayers, gamesPerTeam, timerMins });
     if (canEditTeams) {
       if (tournamentMode === 'tpt' && onManageTPTTeamsSave) {
         const newTeams = Object.fromEntries(
@@ -524,6 +528,26 @@ export default function TournamentSettingsModal({
                     />
                     <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 600 }}>players</span>
                   </div>
+                </div>
+                <div>
+                  <FL>Time per round</FL>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={999}
+                      value={timerMins || ''}
+                      placeholder="0"
+                      onChange={(e) => setTimerMins(Math.max(0, Number(e.target.value) || 0))}
+                      style={{ ...iS, width: 80, textAlign: 'center' }}
+                    />
+                    <span style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 600 }}>
+                      minutes per round
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                    0 = no timer.
+                  </p>
                 </div>
                 {(tournamentMode === 'swiss' || tournamentMode == null) && (
                   <div>

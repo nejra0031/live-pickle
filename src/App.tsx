@@ -598,7 +598,7 @@ function AppInner({
   );
 
   const handleTournamentInfoSave = useCallback(
-    ({ title, location, startTime, durationMins, maxPlayers: mp = 0, gamesPerTeam: gpt = 0 }: { title: string; location: string; startTime: string; durationMins: number; maxPlayers?: number; gamesPerTeam?: number }) => {
+    ({ title, location, startTime, durationMins, maxPlayers: mp = 0, gamesPerTeam: gpt = 0, timerMins: tm = 0 }: { title: string; location: string; startTime: string; durationMins: number; maxPlayers?: number; gamesPerTeam?: number; timerMins?: number }) => {
       const t = title.trim() || 'Tournament';
       set('tournamentTitle', t);
       set('tournamentLocation', location);
@@ -606,6 +606,8 @@ function AppInner({
       set('tournamentDurationMins', durationMins);
       set('maxPlayers', mp);
       set('gamesPerTeam', gpt);
+      set('timerDuration', tm * 60);
+      set('timerDefaultMins', tm > 0 ? tm : 0);
       gatedUpdate('canEditTeams', {
         tournamentTitle: t,
         tournamentLocation: location,
@@ -614,12 +616,14 @@ function AppInner({
         maxPlayers: mp,
         gamesPerTeam: gpt,
       });
+      gatedUpdate('canEditTimer', { timerDuration: tm * 60, timerDefaultMins: tm > 0 ? tm : 0 });
       if (clubId && tournamentIdRef.current)
         writeTournamentMeta(clubId, tournamentIdRef.current, {
           title: t,
           maxPlayers: mp,
           location,
           startTime,
+          timerMins: tm,
         });
     },
     [set, gatedUpdate, clubId]

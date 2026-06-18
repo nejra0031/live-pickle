@@ -158,6 +158,11 @@ function TournamentCard({ t, onClick, onDelete }: { t: any; onClick: () => void;
                 })()}
               </span>
             )}
+            {t.timerMins > 0 && (
+              <span style={{ color: 'var(--muted)', fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+                ⏱ {t.timerMins}m/round
+              </span>
+            )}
           </div>
           {(t.startTime || t.location) && (
             <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8 }}>

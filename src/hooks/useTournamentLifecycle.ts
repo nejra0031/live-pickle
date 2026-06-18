@@ -167,6 +167,7 @@ export function useTournamentLifecycle({
           maxPlayers: mp,
           location,
           startTime,
+          timerMins: durSecs > 0 ? Math.round(durSecs / 60) : 0,
         });
       load({
         maxPlayers: mp,

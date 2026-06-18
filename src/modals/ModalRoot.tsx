@@ -33,7 +33,8 @@ export default function ModalRoot() {
     activeTeamIds,
     tournamentTeams,
     courtNumbers,
-    timerDefaultMins,
+    timerDefaultMins: _timerDefaultMins,
+    timerDuration,
     tournamentMode,
     history,
     round,
@@ -261,6 +262,7 @@ export default function ModalRoot() {
           tournamentDurationMins={tournamentDurationMins}
           maxPlayers={maxPlayers}
           gamesPerTeam={gamesPerTeam}
+          timerDuration={timerDuration}
           tournamentMode={tournamentMode}
           standingsTiebreakOrder={standingsTiebreakOrder}
           onStandingsTiebreakOrderChange={onStandingsTiebreakOrderChange}
