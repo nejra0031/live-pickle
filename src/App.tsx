@@ -81,6 +81,7 @@ function AppInner({
     tournamentFinished,
     finalRound,
     targetRounds,
+    gamesPerTeam,
     teamNameDisplay,
     standingsTiebreakOrder,
   } = state;
@@ -111,6 +112,23 @@ function AppInner({
       repo.pushAtomicUpdate({ finalRound: true }, setFirebaseError);
     }
   }, [targetRounds, roundNum]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const s = stateRef.current;
+    if (!s.gamesPerTeam || s.finalRound || !s.activeTeamIds.length) return;
+    const counts: Record<string, number> = {};
+    for (const id of s.activeTeamIds) counts[id] = 0;
+    for (const r of s.history) {
+      for (const g of (r.games || [])) {
+        if (g.winnerId in counts) counts[g.winnerId]++;
+        if (g.loserId in counts) counts[g.loserId]++;
+      }
+    }
+    const minPlayed = Math.min(...s.activeTeamIds.map((id: string) => counts[id] ?? 0));
+    if (minPlayed >= s.gamesPerTeam - 1) {
+      set('finalRound', true);
+      repo.pushAtomicUpdate({ finalRound: true }, setFirebaseError);
+    }
+  }, [gamesPerTeam, roundNum]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── TPT & Doubles RR state ────────────────────────────────────────────────
   const {
