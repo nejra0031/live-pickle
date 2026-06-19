@@ -263,14 +263,8 @@ function TournamentCard({ t, onClick, onDelete }: { t: any; onClick: () => void;
         >
           {[t.top3[1], t.top3[0], t.top3[2]].map((entry, i) => {
             if (!entry) return <div key={i} style={{ flex: '1 1 0' }} />;
-            const medals = ['🥈', '🥇', '🥉'];
+            const placeLabels = ['2nd', '1st', '3rd'];
             const barH = [22, 30, 16];
-            const barBg =
-              i === 1
-                ? 'linear-gradient(180deg,#fbbf24,#d97706)'
-                : i === 0
-                  ? 'linear-gradient(180deg,#cbd5e1,#94a3b8)'
-                  : 'linear-gradient(180deg,#f59e42,#b45309)';
             const hasStats = entry.wins != null && entry.losses != null && entry.scoreDiff != null;
             const diffStr = hasStats
               ? entry.scoreDiff > 0 ? `+${entry.scoreDiff}` : `${entry.scoreDiff}`
@@ -307,14 +301,17 @@ function TournamentCard({ t, onClick, onDelete }: { t: any; onClick: () => void;
                     width: '100%',
                     height: barH[i],
                     borderRadius: '4px 4px 0 0',
-                    background: barBg,
+                    background: 'var(--court)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 11,
+                    fontSize: 8,
+                    fontWeight: 800,
+                    color: '#fff',
+                    letterSpacing: '0.02em',
                   }}
                 >
-                  {medals[i]}
+                  {placeLabels[i]}
                 </div>
               </div>
             );

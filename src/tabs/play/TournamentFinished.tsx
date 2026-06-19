@@ -13,7 +13,7 @@ export default function TournamentFinished({ ranked, history, isAdmin, onResumeT
   const top = ranked.slice(0, 3);
   const podium = [top[1], top[0], top[2]].filter(Boolean);
   const heights = [120, 160, 90];
-  const medals = ['🥈', '🥇', '🥉'];
+  const placeLabels = ['2nd', '1st', '3rd'];
 
   return (
     <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
@@ -21,18 +21,18 @@ export default function TournamentFinished({ ranked, history, isAdmin, onResumeT
         className="rounded-2xl text-center"
         style={{
           padding: 'clamp(16px,4vw,28px)',
-          background: 'linear-gradient(135deg,#fef3c7,#fde68a)',
-          border: '1px solid rgba(217,119,6,0.3)',
+          background: 'var(--court-faint)',
+          border: '1px solid var(--court-soft)',
         }}
       >
         <div style={{ fontSize: 'clamp(36px,9vw,56px)' }}>🏆</div>
         <p
           className="font-black"
-          style={{ color: '#92400e', fontSize: 'clamp(18px,4.5vw,26px)', margin: '4px 0' }}
+          style={{ color: 'var(--ink)', fontSize: 'clamp(18px,4.5vw,26px)', margin: '4px 0' }}
         >
           Tournament Complete
         </p>
-        <p style={{ color: '#78350f', fontSize: 'clamp(11px,2.8vw,14px)', margin: 0 }}>
+        <p style={{ color: 'var(--muted)', fontSize: 'clamp(11px,2.8vw,14px)', margin: 0 }}>
           {history.length} round{history.length !== 1 ? 's' : ''} played
         </p>
       </div>
@@ -87,19 +87,17 @@ export default function TournamentFinished({ ranked, history, isAdmin, onResumeT
                   height: `clamp(${h * 0.5}px,${h * 0.18}vw,${h}px)`,
                   marginTop: 8,
                   borderRadius: '8px 8px 0 0',
-                  background:
-                    place === 1
-                      ? 'linear-gradient(180deg,#fbbf24,#d97706)'
-                      : place === 2
-                        ? 'linear-gradient(180deg,#cbd5e1,#94a3b8)'
-                        : 'linear-gradient(180deg,#f59e42,#b45309)',
+                  background: 'var(--court)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 'clamp(20px,5vw,32px)',
+                  color: '#fff',
+                  fontSize: 'clamp(11px,2.5vw,15px)',
+                  fontWeight: 800,
+                  letterSpacing: '0.02em',
                 }}
               >
-                {medals[i]}
+                {placeLabels[i]}
               </div>
             </div>
           );

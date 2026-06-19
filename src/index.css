@@ -121,6 +121,30 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .accordion-header:hover { background: var(--court-soft); }
 
+/* ── Section labels (court-line zone dividers) ───────────────────────────── */
+.section-label {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 7px;
+  margin-bottom: 10px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* ── LIVE dot pulse (header connection indicator) ────────────────────────── */
+@keyframes live-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+.live-dot {
+  display: inline-block;
+  animation: live-dot-pulse 1.8s ease-in-out infinite;
+}
+
 /* ── Live card pulse (landing page active tournament accent) ──────────────── */
 @keyframes live-border-pulse {
   0%, 100% { border-left-color: var(--ball); }
