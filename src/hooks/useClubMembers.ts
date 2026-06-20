@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { update, userRef, saveKnownPlayer, fetchKnownPlayers, removeKnownPlayer } from '../firebase';
+import { update, userRef, saveKnownPlayer, fetchClubMembers, removeClubMember } from '../firebase';
 
 function memberSlug(nickname: string) {
   return nickname
@@ -18,18 +18,14 @@ export function useClubMembers(clubId: string) {
     setLoading(true);
     setError(null);
     try {
-      const snap = await fetchKnownPlayers();
-      const raw = snap.val();
-      if (raw) {
-        const list = (Object.values(raw) as any[])
-          .filter((p) => p && (p.nickname || p.name))
-          .sort((a, b) =>
-            ((a.nickname || a.name) ?? '').localeCompare((b.nickname || b.name) ?? '')
-          );
-        setMembers(list);
-      } else {
-        setMembers([]);
-      }
+      const users = await fetchClubMembers(clubId);
+      const list = users
+        .map((u) => u.profile)
+        .filter((p: any) => p && (p.nickname || p.name))
+        .sort((a: any, b: any) =>
+          ((a.nickname || a.name) ?? '').localeCompare((b.nickname || b.name) ?? '')
+        );
+      setMembers(list);
     } catch (err) {
       console.error('useClubMembers fetch failed', err);
       setError('Failed to load members');
@@ -88,10 +84,10 @@ export function useClubMembers(clubId: string) {
 
   const removeMember = useCallback(
     async (id: string) => {
-      await removeKnownPlayer(id);
+      await removeClubMember(id, clubId);
       await fetchMembers();
     },
-    [fetchMembers]
+    [clubId, fetchMembers]
   );
 
   return { members, loading, error, addMember, updateMember, removeMember, refresh: fetchMembers };

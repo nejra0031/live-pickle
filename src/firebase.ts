@@ -148,6 +148,19 @@ export function deleteTournament(clubId: string, tid: string) {
   );
 }
 
+// ── Club members (users filtered by club membership) ──────────────────────
+export async function fetchClubMembers(clubId: string) {
+  const snap = await get(usersRef());
+  const raw = snap.val() ?? {};
+  return (Object.values(raw) as any[]).filter((u) => u?.clubs?.[clubId] === true);
+}
+
+export function removeClubMember(uid: string, clubId: string) {
+  return remove(ref(db, `users/${uid}/clubs/${clubId}`)).catch((err: Error) =>
+    console.error('removeClubMember failed', err)
+  );
+}
+
 // ── Known-players registry ─────────────────────────────────────────────────
 const KNOWN_PLAYERS_PATH = TEST_MODE ? 'players_e2e' : 'players';
 
