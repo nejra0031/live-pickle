@@ -148,15 +148,19 @@ export function deleteTournament(clubId: string, tid: string) {
   );
 }
 
-// ── Club members (users filtered by club membership) ──────────────────────
+// ── Club members (per-club roster at clubs/{clubId}/members/) ─────────────
+export const clubMembersRef = (clubId: string) => ref(db, `clubs/${clubId}/members`);
+export const clubMemberRef = (clubId: string, uid: string) =>
+  ref(db, `clubs/${clubId}/members/${uid}`);
+
 export async function fetchClubMembers(clubId: string) {
-  const snap = await get(usersRef());
+  const snap = await get(clubMembersRef(clubId));
   const raw = snap.val() ?? {};
-  return (Object.values(raw) as any[]).filter((u) => u?.clubs?.[clubId] === true);
+  return Object.values(raw) as any[];
 }
 
 export function removeClubMember(uid: string, clubId: string) {
-  return remove(ref(db, `users/${uid}/clubs/${clubId}`)).catch((err: Error) =>
+  return remove(clubMemberRef(clubId, uid)).catch((err: Error) =>
     console.error('removeClubMember failed', err)
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { update, userRef, saveKnownPlayer, fetchClubMembers, removeClubMember } from '../firebase';
+import { set, clubMemberRef, saveKnownPlayer, fetchClubMembers, removeClubMember } from '../firebase';
 
 function memberSlug(nickname: string) {
   return nickname
@@ -18,9 +18,7 @@ export function useClubMembers(clubId: string) {
     setLoading(true);
     setError(null);
     try {
-      const users = await fetchClubMembers(clubId);
-      const list = users
-        .map((u) => u.profile)
+      const list = (await fetchClubMembers(clubId))
         .filter((p: any) => p && (p.nickname || p.name))
         .sort((a: any, b: any) =>
           ((a.nickname || a.name) ?? '').localeCompare((b.nickname || b.name) ?? '')
@@ -52,7 +50,7 @@ export function useClubMembers(clubId: string) {
         email: (email || '').trim(),
         createdAt: Date.now(),
       };
-      await update(userRef(uid), { profile, clubs: { [clubId]: true } });
+      await set(clubMemberRef(clubId, uid), profile);
       await saveKnownPlayer(
         trimmedFullName || trimmedNickname,
         duprId,
@@ -70,6 +68,14 @@ export function useClubMembers(clubId: string) {
       const trimmedNickname = (nickname || '').trim();
       if (!trimmedNickname) return;
       const trimmedFullName = (fullName || '').trim();
+      const profile = {
+        id,
+        nickname: trimmedNickname,
+        name: trimmedFullName,
+        duprId: (duprId || '').trim(),
+        email: (email || '').trim(),
+      };
+      await set(clubMemberRef(clubId, id), profile);
       await saveKnownPlayer(
         trimmedFullName || trimmedNickname,
         duprId,
@@ -79,7 +85,7 @@ export function useClubMembers(clubId: string) {
       );
       await fetchMembers();
     },
-    [fetchMembers]
+    [clubId, fetchMembers]
   );
 
   const removeMember = useCallback(
