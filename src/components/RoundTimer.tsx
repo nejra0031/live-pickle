@@ -1,7 +1,6 @@
 ﻿export default function RoundTimer({
   secsLeft,
   totalSecs,
-  roundNum,
   timerRunning,
   canToggleTimer,
   canControlTimer,
@@ -11,7 +10,6 @@
 }: {
   secsLeft: any;
   totalSecs: any;
-  roundNum?: any;
   timerRunning: any;
   canToggleTimer: any;
   canControlTimer: any;
@@ -62,12 +60,11 @@
         {expired ? "TIME'S UP" : `${mins}:${String(secs).padStart(2, '0')}`}
       </div>
 
-      {/* Left: circle + Round label */}
+      {/* Left: progress circle */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 'clamp(4px,1vw,8px)',
           flexShrink: 0,
           position: 'relative',
           zIndex: 2,
@@ -104,18 +101,6 @@
             </text>
           )}
         </svg>
-        <span
-          style={{
-            fontSize: 'clamp(14px,3.5vw,20px)',
-            fontWeight: 800,
-            color: 'white',
-            textShadow: '0 1px 3px rgba(0,0,0,0.25)',
-            whiteSpace: 'nowrap',
-            lineHeight: 1,
-          }}
-        >
-          Round {roundNum}
-        </span>
       </div>
 
       {/* Spacer */}

@@ -5,6 +5,9 @@ import { playerDisplayName } from '../utils/nameDisplay';
 import { chipStyle } from '../utils/chipStyle';
 import { ORDINAL } from '../constants';
 
+const RANK_COLOR = (i: number) =>
+  i === 0 ? '#F59E0B' : i === 1 ? '#94A3B8' : i === 2 ? '#C97D3A' : 'rgba(0,0,0,0.1)';
+
 interface Props {
   tptTeams: Record<string, any>;
   tptPlayers: Record<string, any>;
@@ -109,6 +112,7 @@ export default function ThreePlayerStandingsTab({
                 padding: `${pad} ${pad}`,
                 gap: 'clamp(6px,1.5vw,12px)',
                 background: rowBg,
+                borderLeft: `4px solid ${RANK_COLOR(i)}`,
                 cursor: hasDetails ? 'pointer' : 'default',
               }}
             >

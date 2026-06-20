@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { get, update, usersRef, userRef, saveKnownPlayer } from '../firebase';
+import { update, userRef, saveKnownPlayer, fetchKnownPlayers, removeKnownPlayer } from '../firebase';
 
-function memberSlug(name: string) {
-  return name
+function memberSlug(nickname: string) {
+  return nickname
     .trim()
     .toLowerCase()
     .replace(/\s+/g, '_')
@@ -18,13 +18,14 @@ export function useClubMembers(clubId: string) {
     setLoading(true);
     setError(null);
     try {
-      const snap = await get(usersRef());
+      const snap = await fetchKnownPlayers();
       const raw = snap.val();
       if (raw) {
         const list = (Object.values(raw) as any[])
-          .filter((u) => u?.clubs?.[clubId])
-          .map((u) => u.profile ?? u)
-          .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+          .filter((p) => p && (p.nickname || p.name))
+          .sort((a, b) =>
+            ((a.nickname || a.name) ?? '').localeCompare((b.nickname || b.name) ?? '')
+          );
         setMembers(list);
       } else {
         setMembers([]);
@@ -42,24 +43,56 @@ export function useClubMembers(clubId: string) {
   }, [fetchMembers]);
 
   const addMember = useCallback(
-    async (name: string, duprId: string, nickname: string) => {
-      const trimmedName = (name || '').trim();
-      if (!trimmedName) return;
-      const uid = memberSlug(trimmedName);
+    async (nickname: string, fullName: string, duprId: string, email: string) => {
+      const trimmedNickname = (nickname || '').trim();
+      if (!trimmedNickname) return;
+      const uid = memberSlug(trimmedNickname);
+      const trimmedFullName = (fullName || '').trim();
       const profile = {
         id: uid,
-        name: trimmedName,
+        nickname: trimmedNickname,
+        name: trimmedFullName,
         duprId: (duprId || '').trim(),
-        nickname: (nickname || '').trim(),
+        email: (email || '').trim(),
         createdAt: Date.now(),
       };
       await update(userRef(uid), { profile, clubs: { [clubId]: true } });
-      // Also save to players so they appear in tournament setup autocomplete
-      await saveKnownPlayer(trimmedName, duprId, nickname);
+      await saveKnownPlayer(
+        trimmedFullName || trimmedNickname,
+        duprId,
+        trimmedNickname,
+        uid,
+        (email || '').trim()
+      );
       await fetchMembers();
     },
     [clubId, fetchMembers]
   );
 
-  return { members, loading, error, addMember, refresh: fetchMembers };
+  const updateMember = useCallback(
+    async (id: string, nickname: string, fullName: string, duprId: string, email: string) => {
+      const trimmedNickname = (nickname || '').trim();
+      if (!trimmedNickname) return;
+      const trimmedFullName = (fullName || '').trim();
+      await saveKnownPlayer(
+        trimmedFullName || trimmedNickname,
+        duprId,
+        trimmedNickname,
+        id,
+        (email || '').trim()
+      );
+      await fetchMembers();
+    },
+    [fetchMembers]
+  );
+
+  const removeMember = useCallback(
+    async (id: string) => {
+      await removeKnownPlayer(id);
+      await fetchMembers();
+    },
+    [fetchMembers]
+  );
+
+  return { members, loading, error, addMember, updateMember, removeMember, refresh: fetchMembers };
 }

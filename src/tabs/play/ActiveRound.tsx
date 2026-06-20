@@ -121,11 +121,37 @@ export default function ActiveRound({
     <div className="flex flex-col gap-4">
       <BreakBanner breakMode={breakMode} onBreakEnd={onBreakEnd} role={role} />
       <SocialCourts socialCourts={socialCourts} />
-      {showTimer ? (
+      <div style={{ textAlign: 'center', lineHeight: 1 }}>
+        <div
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'clamp(10px,2.5vw,13px)',
+            fontWeight: 800,
+            color: 'var(--muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.18em',
+            marginBottom: 2,
+          }}
+        >
+          Round
+        </div>
+        <div
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'clamp(48px,13vw,80px)',
+            fontWeight: 900,
+            color: 'var(--court)',
+            lineHeight: 1,
+            letterSpacing: '-1px',
+          }}
+        >
+          {roundNum}
+        </div>
+      </div>
+      {showTimer && (
         <RoundTimer
           secsLeft={timerSecsLeft}
           totalSecs={timerDuration}
-          roundNum={roundNum}
           timerRunning={timerRunning}
           canToggleTimer={
             hasPermission(role, 'canEditTimer') || hasPermission(role, 'canToggleTimer')
@@ -135,34 +161,6 @@ export default function ActiveRound({
           onRestart={onTimerRestart}
           onOpenSettings={onTimerSettings}
         />
-      ) : (
-        <div style={{ textAlign: 'center', lineHeight: 1 }}>
-          <div
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(10px,2.5vw,13px)',
-              fontWeight: 800,
-              color: 'var(--muted)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.18em',
-              marginBottom: 2,
-            }}
-          >
-            Round
-          </div>
-          <div
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(48px,13vw,80px)',
-              fontWeight: 900,
-              color: 'var(--court)',
-              lineHeight: 1,
-              letterSpacing: '-1px',
-            }}
-          >
-            {roundNum}
-          </div>
-        </div>
       )}
 
       {canWrite ? (

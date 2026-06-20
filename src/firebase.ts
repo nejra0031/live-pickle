@@ -120,6 +120,22 @@ export async function fetchOwnedClubIds(uid: string) {
   return Object.keys(snap.val() ?? {});
 }
 
+// ── User club memberships (self-joined) ───────────────────────────────────────
+const userClubsPath = (uid: string) => `userClubs/${uid}`;
+const userClubsRef = (uid: string) => ref(db, userClubsPath(uid));
+
+export async function fetchUserClubs(uid: string): Promise<string[]> {
+  const snap = await get(userClubsRef(uid));
+  return Object.keys(snap.val() ?? {});
+}
+
+export async function joinUserClubs(uid: string, clubIds: string[]): Promise<void> {
+  if (!uid || clubIds.length === 0) return;
+  const updates: Record<string, boolean> = {};
+  clubIds.forEach((id) => { updates[id] = true; });
+  await update(userClubsRef(uid), updates);
+}
+
 export function writeTournamentMeta(clubId: string, tid: string, meta: Record<string, any>) {
   return update(ref(db, `clubs/${clubId}/tournaments/${tid}/meta`), meta).catch((err: Error) =>
     console.error('writeTournamentMeta failed', err)
@@ -143,11 +159,17 @@ export function generatePlayerKey() {
 export function fetchKnownPlayers() {
   return get(knownPlayersRef());
 }
+export function removeKnownPlayer(id: string) {
+  return remove(ref(db, `${KNOWN_PLAYERS_PATH}/${id}`)).catch((err: Error) =>
+    console.error('removeKnownPlayer failed', err)
+  );
+}
 export function saveKnownPlayer(
   name: string,
   duprId: string,
   nickname: string | undefined,
-  id?: string | null
+  id?: string | null,
+  email?: string
 ) {
   const trimmedName = (name || '').trim();
   if (!trimmedName) return Promise.resolve();
@@ -158,6 +180,7 @@ export function saveKnownPlayer(
     duprID: (duprId || '').trim(),
   };
   if (nickname !== undefined) fields.nickname = (nickname || '').trim();
+  if (email !== undefined) fields.email = (email || '').trim();
   return set(ref(db, `${KNOWN_PLAYERS_PATH}/${playerId}`), fields).catch((err: Error) =>
     console.error('saveKnownPlayer failed', err)
   );

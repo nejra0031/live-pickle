@@ -1,19 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchOwnedClubIds, createClub as fbCreateClub } from '../firebase';
+import { fetchOwnedClubIds, fetchUserClubs, joinUserClubs, createClub as fbCreateClub } from '../firebase';
 
-// Tracks the clubs the signed-in user (by uid) owns.
 export function useMyClubs(uid: string | null | undefined) {
   const [ownedClubIds, setOwnedClubIds] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [joinedClubIds, setJoinedClubIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     if (!uid) {
       setOwnedClubIds([]);
+      setJoinedClubIds([]);
+      setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      setOwnedClubIds(await fetchOwnedClubIds(uid));
+      const [owned, joined] = await Promise.all([
+        fetchOwnedClubIds(uid),
+        fetchUserClubs(uid),
+      ]);
+      setOwnedClubIds(owned);
+      setJoinedClubIds(joined);
     } finally {
       setLoading(false);
     }
@@ -27,11 +34,21 @@ export function useMyClubs(uid: string | null | undefined) {
     async (name: string) => {
       if (!uid) return null;
       const clubId = await fbCreateClub(name, uid);
+      await joinUserClubs(uid, [clubId]);
       await refresh();
       return clubId;
     },
     [uid, refresh]
   );
 
-  return { ownedClubIds, loading, refresh, createClub };
+  const joinClubs = useCallback(
+    async (clubIds: string[]) => {
+      if (!uid) return;
+      await joinUserClubs(uid, clubIds);
+      await refresh();
+    },
+    [uid, refresh]
+  );
+
+  return { ownedClubIds, joinedClubIds, loading, refresh, createClub, joinClubs };
 }

@@ -1,5 +1,8 @@
 ﻿import { useContext } from 'react';
 import { ORDINAL } from '../constants';
+
+const RANK_COLOR = (i: number) =>
+  i === 0 ? '#F59E0B' : i === 1 ? '#94A3B8' : i === 2 ? '#C97D3A' : 'rgba(0,0,0,0.1)';
 import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
 import { TeamRegistryContext } from '../context/TeamRegistryContext';
 import { formatPlayerName } from '../algorithms/doublesRR';
@@ -95,6 +98,7 @@ export default function DoublesRRStandingsTab({
                 gap: 'clamp(6px,1.5vw,10px)',
                 background: i % 2 === 0 ? '#fff' : '#f8fafc',
                 borderTop: '1px solid rgba(0,0,0,0.05)',
+                borderLeft: `4px solid ${RANK_COLOR(i)}`,
               }}
             >
               <span

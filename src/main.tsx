@@ -17,7 +17,7 @@ function Root() {
   } | null>(null);
 
   const { user, signIn, signOut } = useAuth();
-  const { ownedClubIds, createClub } = useMyClubs(user?.uid ?? null);
+  const { ownedClubIds, joinedClubIds, loading: myClubsLoading, createClub, joinClubs } = useMyClubs(user?.uid ?? null);
 
   function handleSelectTournament(clubId: string, tournamentId: string) {
     setActiveContext({ clubId, tournamentId });
@@ -69,7 +69,10 @@ function Root() {
         onSignIn={signIn}
         onSignOut={signOut}
         ownedClubIds={ownedClubIds}
+        joinedClubIds={joinedClubIds}
+        myClubsLoading={myClubsLoading}
         onCreateClub={createClub}
+        onJoinClubs={joinClubs}
       />
     );
   }

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ballIcon from '/ball.png';
 import { useAllClubs } from './hooks/useAllClubs';
-import { TOURNAMENT_MODES, splitAndSortTournaments, applyLandingFilters } from './landingFilters';
+import { TOURNAMENT_MODES, getSortTimestamp, isTournamentFull } from './landingFilters';
 import ClubMembersPanel from './components/ClubMembersPanel';
+import WelcomeScreen from './components/WelcomeScreen';
 
 function toSlug(title: string) {
   return (
@@ -73,7 +74,7 @@ function formatStartTime(ts: string) {
   return `${date} · ${time}`;
 }
 
-function TournamentCard({ t, onClick, onDelete }: { t: any; onClick: () => void; onDelete?: (id: string) => void }) {
+function TournamentCard({ t, onClick, onDelete, clubInfo }: { t: any; onClick: () => void; onDelete?: (id: string) => void; clubInfo?: any }) {
   const [confirming, setConfirming] = useState(false);
   const statusStyle = STATUS_STYLES[t.status] ?? STATUS_STYLES.finished;
   const modeLabel = MODE_LABELS[t.mode] ?? t.mode ?? '';
@@ -113,6 +114,18 @@ function TournamentCard({ t, onClick, onDelete }: { t: any; onClick: () => void;
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
+          {clubInfo && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 7 }}>
+              <img
+                src={clubInfo.imageUrl || ballIcon}
+                alt=""
+                style={{ width: 15, height: 15, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', letterSpacing: '0.02em' }}>
+                {clubInfo.name}
+              </span>
+            </div>
+          )}
           {(isOngoing || isRegistrationOpen) && (
             <div style={{ marginBottom: 5 }}>
               <span
@@ -322,189 +335,99 @@ function TournamentCard({ t, onClick, onDelete }: { t: any; onClick: () => void;
   );
 }
 
-function ClubTogglesRow({ clubs, hiddenClubs, onToggle }: { clubs: any[]; hiddenClubs: Set<string>; onToggle: (id: string) => void }) {
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-      {clubs.map(({ clubId, clubInfo }: { clubId: string; clubInfo: any }) => {
-        const active = !hiddenClubs.has(clubId);
-        return (
-          <button
-            key={clubId}
-            onClick={() => onToggle(clubId)}
-            style={{
-              fontSize: 13, fontWeight: 700, padding: '6px 14px', borderRadius: 999, cursor: 'pointer',
-              background: active ? 'var(--court-faint)' : 'transparent',
-              color: active ? 'var(--court)' : 'var(--muted)',
-              border: active ? '1px solid var(--court-soft)' : '1px solid var(--border)',
-            }}
-          >
-            {clubInfo?.name ?? clubId}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function FilterControls({ enabledModes, onToggleMode, hideFull, onToggleHideFull }: {
-  enabledModes: Set<string>;
-  onToggleMode: (m: string) => void;
-  hideFull: boolean;
-  onToggleHideFull: () => void;
+function CheckItem({ checked, label, logoUrl, onClick }: {
+  checked: boolean; label: string; logoUrl?: string; onClick: () => void;
 }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-      {TOURNAMENT_MODES.map((mode) => {
-        const active = enabledModes.has(mode);
-        return (
-          <button
-            key={mode}
-            onClick={() => onToggleMode(mode)}
-            style={{
-              fontSize: 13, fontWeight: 700, padding: '6px 14px', borderRadius: 999, cursor: 'pointer',
-              background: active ? 'var(--court-faint)' : 'transparent',
-              color: active ? 'var(--court)' : 'var(--muted)',
-              border: active ? '1px solid var(--court-soft)' : '1px solid var(--border)',
-            }}
-          >
-            {MODE_LABELS[mode]}
-          </button>
-        );
-      })}
-      <button
-        onClick={onToggleHideFull}
-        style={{
-          fontSize: 13, fontWeight: 700, padding: '6px 14px', borderRadius: 999, cursor: 'pointer',
-          background: hideFull ? 'var(--court-faint)' : 'transparent',
-          color: hideFull ? 'var(--court)' : 'var(--muted)',
-          border: hideFull ? '1px solid var(--court-soft)' : '1px solid var(--border)',
-        }}
-      >
-        Hide full
-      </button>
-    </div>
+    <button
+      onClick={onClick}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        background: 'none', border: 'none', cursor: 'pointer', padding: '3px 0',
+        fontSize: 13, fontWeight: 600,
+        color: checked ? 'var(--ink)' : 'var(--muted)',
+      }}
+    >
+      <span style={{
+        width: 15, height: 15, borderRadius: 3, flexShrink: 0,
+        background: checked ? 'var(--court)' : 'transparent',
+        border: checked ? 'none' : '1.5px solid rgba(0,0,0,0.22)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'background 0.1s',
+      }}>
+        {checked && (
+          <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+            <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      {logoUrl && (
+        <img src={logoUrl} alt="" style={{ width: 17, height: 17, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+      )}
+      <span>{label}</span>
+    </button>
   );
 }
 
-function ClubSection({
-  clubId, clubInfo, upcoming, finished, hasAnyTournaments,
-  isOwned, onCreateTournament, onSelectTournament, onDelete, onManageMembers, idToSlug,
-}: any) {
-  function handleCardClick(t: any) {
-    const slug = idToSlug[t.id] || t.id;
-    history.pushState({ clubId, tournamentId: t.id }, '', `#${clubId}/${slug}`);
-    onSelectTournament(clubId, t.id);
-  }
-
-  const noneVisible = upcoming.length === 0 && finished.length === 0;
-
+function FilterSection({ clubs, hiddenClubs, onToggleClub, enabledModes, onToggleMode, hideFull, onToggleHideFull, hasMultipleClubs, hasTournaments }: {
+  clubs: any[]; hiddenClubs: Set<string>; onToggleClub: (id: string) => void;
+  enabledModes: Set<string>; onToggleMode: (m: string) => void;
+  hideFull: boolean; onToggleHideFull: () => void;
+  hasMultipleClubs: boolean; hasTournaments: boolean;
+}) {
+  const rowLabel = (text: string) => (
+    <span style={{
+      fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase',
+      letterSpacing: '0.09em', width: 46, flexShrink: 0, paddingTop: 4,
+    }}>
+      {text}
+    </span>
+  );
   return (
-    <div style={{ marginBottom: 32 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            paddingLeft: 12,
-            borderLeft: '3px solid var(--court)',
-          }}
-        >
-          <img
-            src={clubInfo?.imageUrl || ballIcon}
-            alt={`${clubInfo?.name ?? clubId} logo`}
-            style={{
-              width: 32, height: 32, borderRadius: '50%', objectFit: 'cover',
-              flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            }}
-          />
-          <span
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 22,
-              fontWeight: 700,
-              color: 'var(--court)',
-              letterSpacing: '-0.2px',
-            }}
-          >
-            {clubInfo?.name ?? clubId}
-          </span>
-        </div>
-        {isOwned && (
-          <button
-            onClick={onManageMembers}
-            style={{
-              fontSize: 13, padding: '6px 16px', borderRadius: 10, fontWeight: 700, cursor: 'pointer',
-              background: 'var(--court-faint)', color: 'var(--court)',
-              border: '1px solid var(--court-soft)',
-            }}
-          >
-            Club members
-          </button>
-        )}
-        {isOwned && (
-          <button
-            onClick={onCreateTournament}
-            style={{
-              fontSize: 13, padding: '6px 16px', borderRadius: 10, fontWeight: 700, cursor: 'pointer',
-              background: 'var(--court)', color: '#fff', border: 'none',
-              boxShadow: '0 2px 8px rgba(27,122,120,0.25)',
-            }}
-          >
-            + New Tournament
-          </button>
-        )}
-      </div>
-
-      {!hasAnyTournaments ? (
-        <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--muted)' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🎾</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--muted)', marginBottom: 8 }}>
-            No tournaments yet
+    <div style={{
+      marginBottom: 20,
+      padding: '12px 14px',
+      background: 'var(--white)',
+      border: '1px solid var(--border)',
+      borderRadius: 12,
+      display: 'flex', flexDirection: 'column', gap: 10,
+    }}>
+      {hasMultipleClubs && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          {rowLabel('Clubs')}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, rowGap: 4 }}>
+            {clubs.map(({ clubId, clubInfo }: { clubId: string; clubInfo: any }) => (
+              <CheckItem
+                key={clubId}
+                checked={!hiddenClubs.has(clubId)}
+                label={clubInfo?.name ?? clubId}
+                logoUrl={clubInfo?.imageUrl || ballIcon}
+                onClick={() => onToggleClub(clubId)}
+              />
+            ))}
           </div>
-          {isOwned && (
-            <div style={{ fontSize: 14, color: 'var(--muted)' }}>
-              Click <strong>+ New Tournament</strong> to get started
-            </div>
-          )}
         </div>
-      ) : noneVisible ? (
-        <div style={{ textAlign: 'center', padding: '32px 24px', color: 'var(--muted)', fontSize: 14 }}>
-          No tournaments match the current filters
-        </div>
-      ) : (
-        <>
-          <div style={{ marginBottom: finished.length > 0 ? 20 : 0 }}>
-            <div className="section-label">Upcoming</div>
-            {upcoming.length === 0 ? (
-              <div style={{ color: 'var(--muted)', fontSize: 13, padding: '4px 0' }}>
-                No upcoming tournaments — some may be hidden by your filters
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {upcoming.map((t: any) => (
-                  <TournamentCard key={t.id} t={t} onClick={() => handleCardClick(t)} onDelete={onDelete} />
-                ))}
-              </div>
-            )}
+      )}
+      {hasTournaments && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          {rowLabel('Format')}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, rowGap: 4 }}>
+            {TOURNAMENT_MODES.map((mode) => (
+              <CheckItem
+                key={mode}
+                checked={enabledModes.has(mode)}
+                label={MODE_LABELS[mode]}
+                onClick={() => onToggleMode(mode)}
+              />
+            ))}
+            <CheckItem checked={hideFull} label="Hide full" onClick={onToggleHideFull} />
           </div>
-
-          {finished.length > 0 && (
-            <div>
-              <div className="section-label">Finished</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {finished.map((t: any) => (
-                  <TournamentCard key={t.id} t={t} onClick={() => handleCardClick(t)} onDelete={onDelete} />
-                ))}
-              </div>
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   );
 }
+
 
 function NewClubForm({ onCreateClub }: { onCreateClub: (name: string) => Promise<any> }) {
   const [open, setOpen] = useState(false);
@@ -592,7 +515,10 @@ interface LandingPageProps {
   onSignIn: () => void;
   onSignOut: () => void;
   ownedClubIds?: string[];
+  joinedClubIds?: string[];
+  myClubsLoading?: boolean;
   onCreateClub: (name: string) => Promise<any>;
+  onJoinClubs: (clubIds: string[]) => Promise<void>;
 }
 export default function LandingPage({
   onSelectTournament,
@@ -601,7 +527,10 @@ export default function LandingPage({
   onSignIn,
   onSignOut,
   ownedClubIds = [],
+  joinedClubIds = [],
+  myClubsLoading = false,
   onCreateClub,
+  onJoinClubs,
 }: LandingPageProps) {
   const { clubs, loading, error, refresh, deleteTournament } = useAllClubs();
 
@@ -609,6 +538,8 @@ export default function LandingPage({
     () => new Set(readStoredJSON(LS_KEYS.hiddenClubs, []))
   );
   const [membersClubId, setMembersClubId] = useState(null);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const welcomeCheckedRef = useRef(false);
   const [enabledModes, setEnabledModes] = useState(() => {
     const stored = readStoredJSON(LS_KEYS.enabledModes, null);
     return new Set(
@@ -621,6 +552,26 @@ export default function LandingPage({
   useEffect(() => { writeStoredJSON(LS_KEYS.enabledModes, [...enabledModes]); }, [enabledModes]);
   useEffect(() => { writeStoredJSON(LS_KEYS.hideFull, hideFull); }, [hideFull]);
   useEffect(() => { refresh(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset welcome check when user changes
+  useEffect(() => {
+    welcomeCheckedRef.current = false;
+    setShowWelcome(false);
+  }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Show welcome screen for logged-in users who haven't joined any clubs yet
+  useEffect(() => {
+    if (!user || myClubsLoading || welcomeCheckedRef.current) return;
+    welcomeCheckedRef.current = true;
+    if (joinedClubIds.length === 0 && ownedClubIds.length === 0) {
+      setShowWelcome(true);
+    }
+  }, [user, myClubsLoading, joinedClubIds, ownedClubIds]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleWelcomeDone(selectedClubIds: string[]) {
+    await onJoinClubs(selectedClubIds);
+    setShowWelcome(false);
+  }
 
   const slugMaps = useMemo(
     () => Object.fromEntries(clubs.map(({ clubId, tournaments }) => [clubId, buildSlugMap(tournaments)])),
@@ -662,66 +613,62 @@ export default function LandingPage({
     });
   }
 
-  const visibleClubs = clubs.filter((c) => !hiddenClubs.has(c.clubId));
-  const hasAnyTournamentsAnywhere = clubs.some((c) => c.tournaments.length > 0);
+  // When logged in, show only clubs the user owns or has joined
+  const memberClubs = user
+    ? clubs.filter(
+        (c) => ownedClubIds.includes(c.clubId) || joinedClubIds.includes(c.clubId)
+      )
+    : clubs;
+
+  const hasAnyTournamentsAnywhere = memberClubs.some((c) => c.tournaments.length > 0);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface)' }}>
       {/* App header */}
       <div
         style={{
-          background: 'var(--white)',
-          borderBottom: '1px solid var(--court-soft)',
-          boxShadow: '0 2px 12px rgba(27,122,120,0.07)',
+          background: 'var(--court)',
+          borderBottom: '3px solid var(--ball)',
+          boxShadow: '0 2px 16px rgba(0,0,0,0.18)',
         }}
       >
         <div
           style={{
             maxWidth: 720,
             margin: '0 auto',
-            padding: '18px clamp(12px,3vw,20px)',
+            padding: '0 clamp(12px,3vw,20px)',
+            height: 68,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 16,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <img
               src={ballIcon}
               alt="Live Pickle"
               style={{
-                width: 52, height: 52, borderRadius: '50%', objectFit: 'cover',
-                flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                width: 40, height: 40, borderRadius: '50%', objectFit: 'cover',
+                flexShrink: 0, boxShadow: '0 2px 10px rgba(0,0,0,0.28)',
               }}
             />
-            <div>
-              <div
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: 28,
-                  fontWeight: 800,
-                  color: 'var(--court)',
-                  letterSpacing: '-0.3px',
-                  lineHeight: 1.1,
-                }}
-              >
-                Live Pickle
-              </div>
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 'clamp(26px,6vw,36px)',
+                fontWeight: 800,
+                lineHeight: 1,
+                letterSpacing: '-0.3px',
+                textTransform: 'uppercase',
+              }}
+            >
+              <span style={{ color: 'var(--ball)' }}>Live</span>
+              {' '}
+              <span style={{ color: '#fff' }}>Pickle</span>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              onClick={refresh}
-              title="Refresh"
-              style={{
-                fontSize: 13, padding: '6px 12px', borderRadius: 10, fontWeight: 600, cursor: 'pointer',
-                background: 'rgba(0,0,0,0.04)', color: 'var(--muted)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              ↻
-            </button>
             {user ? (
               <button
                 onClick={onSignOut}
@@ -729,8 +676,8 @@ export default function LandingPage({
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   fontSize: 13, padding: '6px 12px', borderRadius: 10, fontWeight: 600, cursor: 'pointer',
-                  background: 'rgba(0,0,0,0.04)', color: 'var(--muted)',
-                  border: '1px solid var(--border)',
+                  background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)',
+                  border: '1px solid rgba(255,255,255,0.18)',
                 }}
               >
                 {user.photoURL ? (
@@ -742,9 +689,9 @@ export default function LandingPage({
               <button
                 onClick={onSignIn}
                 style={{
-                  fontSize: 13, padding: '6px 12px', borderRadius: 10, fontWeight: 600, cursor: 'pointer',
-                  background: 'var(--court-faint)', color: 'var(--court)',
-                  border: '1px solid var(--court-soft)',
+                  fontSize: 13, padding: '6px 14px', borderRadius: 10, fontWeight: 700, cursor: 'pointer',
+                  background: 'var(--ball)', color: 'var(--ink)',
+                  border: 'none',
                 }}
               >
                 Sign in
@@ -779,63 +726,166 @@ export default function LandingPage({
           </div>
         )}
 
-        {!loading && !error && (
-          <>
-            {user && (
-              <div style={{ marginBottom: 16 }}>
-                <NewClubForm onCreateClub={onCreateClub} />
-              </div>
-            )}
+        {!loading && !error && (() => {
+          const now = Date.now();
+          const modeFilterActive = enabledModes.size < TOURNAMENT_MODES.length;
 
-            {clubs.length > 1 && (
-              <ClubTogglesRow clubs={clubs} hiddenClubs={hiddenClubs} onToggle={toggleClub} />
-            )}
+          // Flat list of all tournaments across all visible member clubs
+          const allWithClub = memberClubs.flatMap(({ clubId, clubInfo, tournaments }) =>
+            (hiddenClubs.has(clubId) ? [] : tournaments).map((t: any) => ({ ...t, _clubId: clubId, _clubInfo: clubInfo }))
+          );
 
-            {hasAnyTournamentsAnywhere && (
-              <FilterControls
-                enabledModes={enabledModes}
-                onToggleMode={toggleMode}
-                hideFull={hideFull}
-                onToggleHideFull={() => setHideFull((v) => !v)}
-              />
-            )}
+          const filtered = allWithClub.filter((t: any) => {
+            if (modeFilterActive && !enabledModes.has(t.mode)) return false;
+            if (hideFull && t.status !== 'finished' && isTournamentFull(t)) return false;
+            return true;
+          });
 
-            {visibleClubs.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--muted)', fontSize: 14 }}>
-                All clubs hidden — click a club above to show it
-              </div>
-            ) : (
-              visibleClubs.map(({ clubId, clubInfo, tournaments }) => {
-                const { upcoming, finished } = applyLandingFilters(
-                  splitAndSortTournaments(tournaments),
-                  { enabledModes, hideFull }
-                );
-                return (
-                  <ClubSection
-                    key={clubId}
-                    clubId={clubId}
-                    clubInfo={clubInfo}
-                    upcoming={upcoming}
-                    finished={finished}
-                    hasAnyTournaments={tournaments.length > 0}
-                    isOwned={ownedClubIds.includes(clubId)}
-                    onCreateTournament={() => onCreateTournament(clubId)}
-                    onSelectTournament={onSelectTournament}
-                    onDelete={
-                      ownedClubIds.includes(clubId) ? (tid: string) => deleteTournament(clubId, tid) : null
-                    }
-                    onManageMembers={() => setMembersClubId(clubId)}
-                    idToSlug={slugMaps[clubId]?.idToSlug ?? {}}
-                  />
-                );
-              })
-            )}
-          </>
-        )}
+          const ongoing = filtered.filter((t: any) =>
+            t.status === 'active' && (!t.startTime || new Date(t.startTime).getTime() <= now)
+          );
+          const regOpen = filtered.filter((t: any) =>
+            t.status === 'setup' || (t.status === 'active' && t.startTime && new Date(t.startTime).getTime() > now)
+          );
+          const finished = filtered.filter((t: any) => t.status === 'finished');
+
+          const byDate = (dir: 1 | -1) => (a: any, b: any) => {
+            const ta = getSortTimestamp(a), tb = getSortTimestamp(b);
+            if (ta == null && tb == null) return 0;
+            if (ta == null) return 1;
+            if (tb == null) return -1;
+            return dir * (ta - tb);
+          };
+
+          const groups = [
+            { label: 'In progress', items: [...ongoing].sort(byDate(1)) },
+            { label: 'Registration open', items: [...regOpen].sort(byDate(1)) },
+            { label: 'Finished', items: [...finished].sort(byDate(-1)) },
+          ];
+
+          function handleCardClick(t: any) {
+            const slug = slugMaps[t._clubId]?.idToSlug?.[t.id] || t.id;
+            history.pushState({ clubId: t._clubId, tournamentId: t.id }, '', `#${t._clubId}/${slug}`);
+            onSelectTournament(t._clubId, t.id);
+          }
+
+          const ownedClubs = memberClubs.filter(({ clubId }) => ownedClubIds.includes(clubId));
+
+          return (
+            <>
+              {/* Owner admin row */}
+              {user && (
+                <div style={{ marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                  <NewClubForm onCreateClub={onCreateClub} />
+                  {ownedClubs.map(({ clubId, clubInfo }) => (
+                    <React.Fragment key={clubId}>
+                      <span style={{ color: 'var(--border)', userSelect: 'none' }}>|</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <img
+                          src={(clubInfo as any)?.imageUrl || ballIcon}
+                          alt=""
+                          style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
+                          {(clubInfo as any)?.name ?? clubId}
+                        </span>
+                        <button
+                          onClick={() => setMembersClubId(clubId)}
+                          style={{
+                            fontSize: 12, padding: '4px 10px', borderRadius: 8, fontWeight: 700, cursor: 'pointer',
+                            background: 'var(--court-faint)', color: 'var(--court)',
+                            border: '1px solid var(--court-soft)',
+                          }}
+                        >
+                          Members
+                        </button>
+                        <button
+                          onClick={() => onCreateTournament(clubId)}
+                          style={{
+                            fontSize: 12, padding: '4px 10px', borderRadius: 8, fontWeight: 700, cursor: 'pointer',
+                            background: 'var(--court)', color: '#fff', border: 'none',
+                          }}
+                        >
+                          + Tournament
+                        </button>
+                      </div>
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+
+              {/* Filters */}
+              {(memberClubs.length > 1 || hasAnyTournamentsAnywhere) && (
+                <FilterSection
+                  clubs={memberClubs}
+                  hiddenClubs={hiddenClubs}
+                  onToggleClub={toggleClub}
+                  enabledModes={enabledModes}
+                  onToggleMode={toggleMode}
+                  hideFull={hideFull}
+                  onToggleHideFull={() => setHideFull((v) => !v)}
+                  hasMultipleClubs={memberClubs.length > 1}
+                  hasTournaments={hasAnyTournamentsAnywhere}
+                />
+              )}
+
+              {/* Flat tournament list */}
+              {memberClubs.length > 0 && memberClubs.every(({ clubId }) => hiddenClubs.has(clubId)) ? (
+                <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--muted)', fontSize: 14 }}>
+                  All clubs hidden — uncheck a club above to show it
+                </div>
+              ) : groups.every((g) => g.items.length === 0) ? (
+                memberClubs.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '64px 24px', color: 'var(--muted)' }}>
+                    <div style={{ fontSize: 36, marginBottom: 12 }}>🎾</div>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>No clubs yet</div>
+                    {user && (
+                      <div style={{ fontSize: 13, marginTop: 6 }}>
+                        Use <strong>+ New Club</strong> above to get started
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--muted)', fontSize: 14 }}>
+                    No tournaments match the current filters
+                  </div>
+                )
+              ) : (
+                groups.map(({ label, items }) =>
+                  items.length === 0 ? null : (
+                    <div key={label} style={{ marginBottom: 8 }}>
+                      <div className="section-label">{label}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                        {items.map((t: any) => (
+                          <TournamentCard
+                            key={`${t._clubId}/${t.id}`}
+                            t={t}
+                            onClick={() => handleCardClick(t)}
+                            onDelete={ownedClubIds.includes(t._clubId) ? (tid: string) => deleteTournament(t._clubId, tid) : undefined}
+                            clubInfo={t._clubInfo}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )
+                )
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {membersClubId && (
         <ClubMembersPanel clubId={membersClubId} onClose={() => setMembersClubId(null)} />
+      )}
+
+      {showWelcome && (
+        <WelcomeScreen
+          user={user}
+          clubs={clubs}
+          clubsLoading={loading}
+          onDone={handleWelcomeDone}
+        />
       )}
     </div>
   );
