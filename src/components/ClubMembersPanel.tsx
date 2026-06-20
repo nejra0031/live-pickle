@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useClubMembers } from '../hooks/useClubMembers';
+import { migrateKnownPlayersToClub } from '../firebase';
 
 type SortCol = 'nickname' | 'name' | 'dupr' | 'email';
 
@@ -54,6 +55,24 @@ export default function ClubMembersPanel({ clubId, onClose }: { clubId: string; 
   const [editEmail, setEditEmail]       = useState('');
   const [editSaving, setEditSaving]     = useState(false);
   const [editError, setEditError]       = useState('');
+
+  // Migration
+  const [importing, setImporting]     = useState(false);
+  const [importMsg, setImportMsg]     = useState('');
+
+  async function handleImport() {
+    setImporting(true);
+    setImportMsg('');
+    try {
+      const count = await migrateKnownPlayersToClub(clubId);
+      await refresh();
+      setImportMsg(`Imported ${count} player${count !== 1 ? 's' : ''}.`);
+    } catch {
+      setImportMsg('Import failed.');
+    } finally {
+      setImporting(false);
+    }
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -192,6 +211,32 @@ export default function ClubMembersPanel({ clubId, onClose }: { clubId: string; 
               {saving ? 'Adding…' : 'Add Member'}
             </button>
           </form>
+
+          {/* Import from global players */}
+          <div style={{ marginBottom: 8 }}>
+            <button
+              onClick={handleImport}
+              disabled={importing}
+              style={{
+                width: '100%',
+                padding: '7px 0',
+                borderRadius: 9,
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: importing ? 'default' : 'pointer',
+                background: 'rgba(255,255,255,0.05)',
+                color: '#64748b',
+                border: '1px dashed rgba(255,255,255,0.12)',
+              }}
+            >
+              {importing ? 'Importing…' : 'Import all from global players list'}
+            </button>
+            {importMsg && (
+              <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0', textAlign: 'center' }}>
+                {importMsg}
+              </p>
+            )}
+          </div>
 
           {/* Divider + Member list title */}
           <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '4px 0 16px' }} />
