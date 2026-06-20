@@ -32,7 +32,7 @@ function colVal(m: any, col: SortCol): string {
 }
 
 export default function ClubMembersPanel({ clubId, onClose }: { clubId: string; onClose: () => void }) {
-  const { members, loading, error, addMember, updateMember, removeMember } = useClubMembers(clubId);
+  const { members, loading, error, addMember, updateMember, removeMember, refresh } = useClubMembers(clubId);
 
   // Add form
   const [nickname, setNickname]   = useState('');
