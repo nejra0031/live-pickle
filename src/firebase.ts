@@ -165,27 +165,6 @@ export function removeClubMember(uid: string, clubId: string) {
   );
 }
 
-export async function migrateKnownPlayersToClub(clubId: string): Promise<number> {
-  const snap = await get(ref(db, KNOWN_PLAYERS_PATH));
-  const raw = snap.val() ?? {};
-  const players = Object.values(raw) as any[];
-  await Promise.all(
-    players.map((p) => {
-      if (!p?.id) return Promise.resolve();
-      const member = {
-        id: p.id,
-        nickname: (p.nickname || '').trim(),
-        name: (p.name || '').trim(),
-        duprId: (p.duprID || p.duprId || '').trim(),
-        email: (p.email || '').trim(),
-        createdAt: p.createdAt || Date.now(),
-      };
-      return set(clubMemberRef(clubId, p.id), member);
-    })
-  );
-  return players.length;
-}
-
 // ── Known-players registry ─────────────────────────────────────────────────
 const KNOWN_PLAYERS_PATH = TEST_MODE ? 'players_e2e' : 'players';
 
@@ -222,6 +201,27 @@ export function saveKnownPlayer(
   return set(ref(db, `${KNOWN_PLAYERS_PATH}/${playerId}`), fields).catch((err: Error) =>
     console.error('saveKnownPlayer failed', err)
   );
+}
+
+export async function migrateKnownPlayersToClub(clubId: string): Promise<number> {
+  const snap = await get(ref(db, KNOWN_PLAYERS_PATH));
+  const raw = snap.val() ?? {};
+  const players = Object.values(raw) as any[];
+  await Promise.all(
+    players.map((p: any) => {
+      if (!p?.id) return Promise.resolve();
+      const member = {
+        id: p.id,
+        nickname: (p.nickname || '').trim(),
+        name: (p.name || '').trim(),
+        duprId: (p.duprID || p.duprId || '').trim(),
+        email: (p.email || '').trim(),
+        createdAt: p.createdAt || Date.now(),
+      };
+      return set(clubMemberRef(clubId, p.id), member);
+    })
+  );
+  return players.length;
 }
 
 // ── Write-token helpers (module-level — shared across all repos) ──────────

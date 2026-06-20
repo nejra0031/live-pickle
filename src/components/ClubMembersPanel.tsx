@@ -67,7 +67,8 @@ export default function ClubMembersPanel({ clubId, onClose }: { clubId: string; 
       const count = await migrateKnownPlayersToClub(clubId);
       await refresh();
       setImportMsg(`Imported ${count} player${count !== 1 ? 's' : ''}.`);
-    } catch {
+    } catch (err) {
+      console.error('migrateKnownPlayersToClub failed', err);
       setImportMsg('Import failed.');
     } finally {
       setImporting(false);
