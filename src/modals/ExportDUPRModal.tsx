@@ -1,5 +1,6 @@
 ﻿import { useState, useMemo } from 'react';
 import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
+import { useAppCtx } from '../state/AppCtx';
 import useKnownPlayers from '../hooks/useKnownPlayers';
 import PlayerNameField from '../components/PlayerNameField';
 import {
@@ -62,7 +63,8 @@ export default function ExportDUPRModal({
 }: Props) {
   const teamById = useTeamById();
   const teamLabel = useTeamLabel();
-  const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
+  const { clubId } = useAppCtx();
+  const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers(clubId);
   const [eventName, setEventName] = useState(tournamentTitle || 'Tournament');
   const [date, setDate] = useState(todayStr());
   const [location, setLocation] = useState(tournamentLocation || '');

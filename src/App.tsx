@@ -673,6 +673,7 @@ function AppInner({
 
   // ── AppCtx value ──────────────────────────────────────────────────────────
   const appCtxValue = {
+    clubId,
     user,
     onSignIn,
     onSignOut,
