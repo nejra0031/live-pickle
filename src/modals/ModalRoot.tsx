@@ -116,9 +116,11 @@ export default function ModalRoot() {
               ? 'PIN required to regenerate round'
               : pinPurpose === 'revertToRound'
                 ? `PIN required to revert to Round ${modal.data?.revertTarget}`
-                : pinPurpose?.startsWith('remove')
-                  ? 'PIN required to remove'
-                  : 'PIN required';
+                : pinPurpose === 'promoteRound'
+                  ? 'PIN required to change the active round'
+                  : pinPurpose?.startsWith('remove')
+                    ? 'PIN required to remove'
+                    : 'PIN required';
 
   const pinCheckFn = (() => {
     if (!pinPurpose) return null;

@@ -33,6 +33,7 @@ export default function PlayTab() {
     roundRobinSchedule,
     roundRobinCourts,
     roundRobinStartRoundNum,
+    maxPlayers,
   } = state;
 
   const minGamesPlayed = useMemo(() => {
@@ -113,6 +114,7 @@ export default function PlayTab() {
     roundRobinSchedule,
     roundRobinCourts,
     roundRobinStartRoundNum,
+    maxPlayers,
     courtNumbers,
     socialCourts,
     liveAdditions,

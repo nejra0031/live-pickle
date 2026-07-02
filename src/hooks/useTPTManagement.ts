@@ -7,6 +7,8 @@ import { buildSnapshot } from '../snapshot';
 import { generateTPTSchedule } from '../algorithms/threePlayerTeam';
 import { applyTournamentStartState } from './tournamentStartHelpers';
 import { undoScheduledResult, submitScheduledResult } from './scheduledResultHelpers';
+import { scheduleProgress } from '../tabs/play/scheduleProgress';
+import { hasPermission } from '../roleConfig';
 import { MODES } from '../modes';
 
 // Owns the 3-Player Team (TPT) tournament lifecycle: starting a TPT tournament
@@ -224,5 +226,50 @@ export function useTPTManagement({
     [roleRef, repo] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  return { handleStartTPT, handleTPTResult, handleUndoTPTResult, handleManageTPTTeamsSave };
+  // Admin-only: swaps an upcoming scheduled round into the current-round slot. Any results
+  // already recorded against the previously-current round are cleared — after the swap
+  // they'd belong to a different matchup and would corrupt standings if kept.
+  const handlePromoteTPTRound = useCallback(
+    (targetIdx: number) => {
+      if (!hasPermission(roleRef.current, 'canFullEditHistory')) return;
+      const schedule = tptScheduleRef.current || [];
+      const { currentRoundIdx } = scheduleProgress(schedule, stateRef.current.history);
+      if (
+        targetIdx === currentRoundIdx ||
+        targetIdx < 0 ||
+        targetIdx >= schedule.length ||
+        stateRef.current.history.length >= schedule.length
+      )
+        return;
+
+      const newSchedule = [...schedule];
+      [newSchedule[currentRoundIdx], newSchedule[targetIdx]] = [
+        newSchedule[targetIdx],
+        newSchedule[currentRoundIdx],
+      ];
+
+      const nr = { ...tptResultsRef.current };
+      const clearedFirebase: Record<string, null> = {};
+      Object.keys(nr).forEach((k) => {
+        if (k.startsWith(`${currentRoundIdx}_`)) {
+          delete nr[k];
+          clearedFirebase[`tptResults/${k}`] = null;
+        }
+      });
+      tptResultsRef.current = nr;
+      setTPTResults(nr);
+      setTPTSchedule(newSchedule);
+      tptScheduleRef.current = newSchedule;
+      repo.pushAtomicUpdate({ tptSchedule: newSchedule, ...clearedFirebase }, onFirebaseError);
+    },
+    [roleRef, repo] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  return {
+    handleStartTPT,
+    handleTPTResult,
+    handleUndoTPTResult,
+    handleManageTPTTeamsSave,
+    handlePromoteTPTRound,
+  };
 }

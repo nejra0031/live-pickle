@@ -1,7 +1,6 @@
 ﻿import { useState } from 'react';
 import { ROLES, hasPermission } from '../roleConfig';
 import { ALL_TEAMS } from '../constants';
-import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
 import PlayerNameField from '../components/PlayerNameField';
 import ColorSwatchPicker from '../components/ColorSwatchPicker';
 import useKnownPlayers from '../hooks/useKnownPlayers';
@@ -349,10 +348,23 @@ export default function TournamentSettingsModal({
 
   // Reset confirmation state
   const [resetConfirm, setResetConfirm] = useState(false);
+  const [confirmRemoveTeamId, setConfirmRemoveTeamId] = useState<string | null>(null);
+  const [confirmRemoveTPTTeamId, setConfirmRemoveTPTTeamId] = useState<string | null>(null);
+  const [confirmRemoveDRRPlayerId, setConfirmRemoveDRRPlayerId] = useState<string | null>(null);
 
   // Derived
   const playedTeamIds = new Set(
     (history || []).flatMap((r: any) => (r.games || []).flatMap((g: any) => [g.winnerId, g.loserId]))
+  );
+  const playedTPTTeamIds = new Set(
+    (history || []).flatMap((r: any) =>
+      (r.tptMatchups || []).flatMap((m: any) => [m.teamAId, m.teamBId])
+    )
+  );
+  const playedDRRPlayerIds = new Set(
+    (history || []).flatMap((r: any) =>
+      (r.doublesRRCourts || []).flatMap((c: any) => [...(c.teamA || []), ...(c.teamB || [])])
+    )
   );
   const usedIds = new Set(localTeams.map((t: any) => t.id));
   const available = ALL_TEAMS.filter((t: any) => !usedIds.has(t.id));
@@ -578,32 +590,6 @@ export default function TournamentSettingsModal({
             </Acc>
           )}
 
-          {/* ── Standings order ── */}
-          {canEditStandingsOrder && tournamentMode !== null && (
-            <Acc title="Standings order" open={sec.standings} onToggle={() => toggle('standings')}>
-              <div
-                className="rounded-xl"
-                style={{
-                  padding: '10px 12px',
-                  background: 'var(--court-faint)',
-                  border: '1px solid var(--court-soft)',
-                }}
-              >
-                <TiebreakOrderEditor
-                  order={
-                    tournamentMode === 'doublesrr' ? doublesRRTiebreakOrder : standingsTiebreakOrder
-                  }
-                  onChange={
-                    tournamentMode === 'doublesrr'
-                      ? onDoublesRRTiebreakOrderChange
-                      : onStandingsTiebreakOrderChange
-                  }
-                  dark
-                />
-              </div>
-            </Acc>
-          )}
-
           {/* ── Team status ── */}
           {canPauseTeams &&
             tournamentMode !== 'doublesrr' &&
@@ -725,7 +711,7 @@ export default function TournamentSettingsModal({
                                 p.map((x: any) => (x.id === t.id ? { ...x, name: e.target.value } : x))
                               )
                             }
-                            style={fS}
+                            style={{ ...fS, minWidth: 0 }}
                           />
                           <button
                             onClick={() => setExpandedPlayerId((p) => (p === t.id ? null : t.id))}
@@ -749,9 +735,49 @@ export default function TournamentSettingsModal({
                           {(() => {
                             const removeDisabled =
                               localTeams.length <= 2 && playedTeamIds.has(t.id);
+                            const armed = confirmRemoveTeamId === t.id;
+                            if (armed) {
+                              return (
+                                <div className="flex items-center gap-1" style={{ flexShrink: 0 }}>
+                                  <button
+                                    onClick={() => {
+                                      setLocalTeams((p: any) => p.filter((x: any) => x.id !== t.id));
+                                      setConfirmRemoveTeamId(null);
+                                    }}
+                                    style={{
+                                      padding: '3px 8px',
+                                      borderRadius: 6,
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      background: 'rgba(220,38,38,0.85)',
+                                      color: '#fff',
+                                      border: '1px solid rgba(220,38,38,0.85)',
+                                    }}
+                                  >
+                                    Remove?
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmRemoveTeamId(null)}
+                                    style={{
+                                      padding: '3px 8px',
+                                      borderRadius: 6,
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      background: 'rgba(0,0,0,0.05)',
+                                      color: 'var(--muted)',
+                                      border: '1px solid var(--border)',
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              );
+                            }
                             return (
                               <button
-                                onClick={() => setLocalTeams((p: any) => p.filter((x: any) => x.id !== t.id))}
+                                onClick={() => setConfirmRemoveTeamId(t.id)}
                                 disabled={removeDisabled}
                                 title={
                                   removeDisabled
@@ -934,8 +960,84 @@ export default function TournamentSettingsModal({
                               p.map((t) => (t.id === team.id ? { ...t, name: e.target.value } : t))
                             )
                           }
-                          style={{ ...fS, fontWeight: 800, color: team.color }}
+                          style={{ ...fS, fontWeight: 800, color: team.color, minWidth: 0 }}
                         />
+                        {(() => {
+                          const removeDisabled =
+                            localTPTTeams.length <= 2 && playedTPTTeamIds.has(team.id);
+                          const armed = confirmRemoveTPTTeamId === team.id;
+                          if (armed) {
+                            return (
+                              <div className="flex items-center gap-1" style={{ flexShrink: 0 }}>
+                                <button
+                                  onClick={() => {
+                                    setLocalTPTTeams((p) => p.filter((x) => x.id !== team.id));
+                                    const removedPlayerIds = new Set(
+                                      [...(team.maleIds || []), team.femaleId].filter(Boolean)
+                                    );
+                                    setLocalTPTPlayers((prev) =>
+                                      Object.fromEntries(
+                                        Object.entries(prev).filter(([id]) => !removedPlayerIds.has(id))
+                                      )
+                                    );
+                                    setConfirmRemoveTPTTeamId(null);
+                                  }}
+                                  style={{
+                                    padding: '3px 8px',
+                                    borderRadius: 6,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    background: 'rgba(220,38,38,0.85)',
+                                    color: '#fff',
+                                    border: '1px solid rgba(220,38,38,0.85)',
+                                  }}
+                                >
+                                  Remove?
+                                </button>
+                                <button
+                                  onClick={() => setConfirmRemoveTPTTeamId(null)}
+                                  style={{
+                                    padding: '3px 8px',
+                                    borderRadius: 6,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    background: 'rgba(0,0,0,0.05)',
+                                    color: 'var(--muted)',
+                                    border: '1px solid var(--border)',
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            );
+                          }
+                          return (
+                            <button
+                              onClick={() => setConfirmRemoveTPTTeamId(team.id)}
+                              disabled={removeDisabled}
+                              title={
+                                removeDisabled
+                                  ? 'Cannot remove: below 2 teams and this team has already played a game'
+                                  : undefined
+                              }
+                              style={{
+                                padding: '3px 7px',
+                                borderRadius: 6,
+                                fontSize: 12,
+                                fontWeight: 700,
+                                flexShrink: 0,
+                                cursor: removeDisabled ? 'not-allowed' : 'pointer',
+                                background: 'rgba(220,38,38,0.12)',
+                                color: removeDisabled ? '#475569' : '#f87171',
+                                border: '1px solid rgba(220,38,38,0.25)',
+                              }}
+                            >
+                              ×
+                            </button>
+                          );
+                        })()}
                       </div>
                       {players.map((p) => (
                         <div key={p.id} className="flex items-start gap-2">
@@ -1083,7 +1185,7 @@ export default function TournamentSettingsModal({
                         }))
                       }
                     />
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <NicknameField
                         name={p.name}
                         nickname={p.nickname || ''}
@@ -1095,6 +1197,77 @@ export default function TournamentSettingsModal({
                         }
                       />
                     </div>
+                    {(() => {
+                      const removeDisabled = playedDRRPlayerIds.has(p.id);
+                      const armed = confirmRemoveDRRPlayerId === p.id;
+                      if (armed) {
+                        return (
+                          <div className="flex items-center gap-1" style={{ flexShrink: 0 }}>
+                            <button
+                              onClick={() => {
+                                setLocalDRRPlayers((prev) => {
+                                  const next = { ...prev };
+                                  delete (next as any)[p.id];
+                                  return next;
+                                });
+                                setConfirmRemoveDRRPlayerId(null);
+                              }}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: 6,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                background: 'rgba(220,38,38,0.85)',
+                                color: '#fff',
+                                border: '1px solid rgba(220,38,38,0.85)',
+                              }}
+                            >
+                              Remove?
+                            </button>
+                            <button
+                              onClick={() => setConfirmRemoveDRRPlayerId(null)}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: 6,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                background: 'rgba(0,0,0,0.05)',
+                                color: 'var(--muted)',
+                                border: '1px solid var(--border)',
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <button
+                          onClick={() => setConfirmRemoveDRRPlayerId(p.id)}
+                          disabled={removeDisabled}
+                          title={
+                            removeDisabled
+                              ? 'Cannot remove: this player has already played a game'
+                              : undefined
+                          }
+                          style={{
+                            padding: '3px 7px',
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            flexShrink: 0,
+                            cursor: removeDisabled ? 'not-allowed' : 'pointer',
+                            background: 'rgba(220,38,38,0.12)',
+                            color: removeDisabled ? '#475569' : '#f87171',
+                            border: '1px solid rgba(220,38,38,0.25)',
+                          }}
+                        >
+                          ×
+                        </button>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>

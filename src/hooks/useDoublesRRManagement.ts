@@ -12,6 +12,7 @@ import {
 } from '../algorithms/doublesRR';
 import { applyTournamentStartState } from './tournamentStartHelpers';
 import { undoScheduledResult, submitScheduledResult } from './scheduledResultHelpers';
+import { scheduleProgress } from '../tabs/play/scheduleProgress';
 import { MODES } from '../modes';
 
 // Owns the Doubles Round Robin tournament lifecycle: starting (a full state
@@ -276,11 +277,54 @@ export function useDoublesRRManagement({
     [roleRef, repo] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  // Admin-only: swaps an upcoming scheduled round into the current-round slot. Any results
+  // already recorded against the previously-current round are cleared — after the swap
+  // they'd belong to different courts and would corrupt standings if kept.
+  const handlePromoteDoublesRRRound = useCallback(
+    (targetIdx: number) => {
+      if (!hasPermission(roleRef.current as any, 'canFullEditHistory')) return;
+      const schedule = doublesRRScheduleRef.current || [];
+      const { currentRoundIdx } = scheduleProgress(schedule, stateRef.current.history);
+      if (
+        targetIdx === currentRoundIdx ||
+        targetIdx < 0 ||
+        targetIdx >= schedule.length ||
+        stateRef.current.history.length >= schedule.length
+      )
+        return;
+
+      const newSchedule = [...schedule];
+      [newSchedule[currentRoundIdx], newSchedule[targetIdx]] = [
+        newSchedule[targetIdx],
+        newSchedule[currentRoundIdx],
+      ];
+
+      const nr = { ...doublesRRResultsRef.current };
+      const clearedFirebase: Record<string, null> = {};
+      Object.keys(nr).forEach((k) => {
+        if (k.startsWith(`${currentRoundIdx}_`)) {
+          delete nr[k];
+          clearedFirebase[`doublesRRResults/${k}`] = null;
+        }
+      });
+      doublesRRResultsRef.current = nr;
+      setDoublesRRResults(nr);
+      setDoublesRRSchedule(newSchedule);
+      doublesRRScheduleRef.current = newSchedule;
+      repo.pushAtomicUpdate(
+        { doublesRRSchedule: newSchedule, ...clearedFirebase },
+        onFirebaseError
+      );
+    },
+    [roleRef, repo] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   return {
     handleStartDoublesRR,
     handleDoublesRRResult,
     handleUndoDoublesRRResult,
     handleGenerateAdditionalDoublesRR,
     handleManageDoublesRRPlayersSave,
+    handlePromoteDoublesRRRound,
   };
 }

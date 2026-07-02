@@ -28,6 +28,7 @@ interface Props {
   breakMode: any;
   socialCourts: string[];
   activeTeamIds: string[];
+  maxPlayers?: number;
   onGenerateRound: () => void;
   onSelectRRTeams: () => void;
   onPresetMatch: () => void;
@@ -49,6 +50,7 @@ export default function BetweenRounds({
   breakMode,
   socialCourts,
   activeTeamIds,
+  maxPlayers = 0,
   onGenerateRound,
   onSelectRRTeams,
   onPresetMatch,
@@ -63,6 +65,11 @@ export default function BetweenRounds({
   const isAutoFinal = targetRounds > 0 && nextRN === targetRounds && !finalRound;
   const gamesPerTeamMet = gamesPerTeam > 0 && minGamesPlayed >= gamesPerTeam;
   const notEnoughTeams = roundNum === 0 && (activeTeamIds?.length ?? 0) < 2;
+  const signedUpCount = (activeTeamIds || []).reduce((n, id) => {
+    const t = teamById(id);
+    return n + (t?.players?.length || 1);
+  }, 0);
+  const showSignupBanner = roundNum === 0 && maxPlayers > 0;
   const hintStyle = {
     fontSize: 'clamp(11px,2.5vw,13px)',
     fontWeight: 700,
@@ -79,6 +86,12 @@ export default function BetweenRounds({
     <div className="flex flex-col gap-4">
       <BreakBanner breakMode={breakMode} onBreakEnd={onBreakEnd} role={role} />
       <SocialCourts socialCourts={socialCourts} />
+
+      {showSignupBanner && (
+        <p style={hintStyle}>
+          {signedUpCount} / {maxPlayers} signed up. Matches will be auto-generated when full.
+        </p>
+      )}
 
       {isAdmin ? (
         <div

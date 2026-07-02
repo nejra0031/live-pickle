@@ -3,7 +3,6 @@ import { ORDINAL } from '../constants';
 
 const RANK_COLOR = (i: number) =>
   i === 0 ? '#F59E0B' : i === 1 ? '#94A3B8' : i === 2 ? '#C97D3A' : 'rgba(0,0,0,0.1)';
-import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
 import { TeamRegistryContext } from '../context/TeamRegistryContext';
 import { formatPlayerName } from '../algorithms/doublesRR';
 import { chipStyle } from '../utils/chipStyle';
@@ -18,9 +17,6 @@ interface Props {
 export default function DoublesRRStandingsTab({
   doublesRRPlayers = {},
   doublesRRStandings,
-  doublesRRTiebreakOrder,
-  onDoublesRRTiebreakOrderChange,
-  isAdmin,
 }: Props) {
   const { teamNameDisplay } = useContext(TeamRegistryContext);
   if (!doublesRRStandings || doublesRRStandings.length === 0) {
@@ -36,34 +32,6 @@ export default function DoublesRRStandingsTab({
 
   return (
     <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
-      {isAdmin && onDoublesRRTiebreakOrderChange && (
-        <div
-          className="rounded-2xl flex flex-col"
-          style={{
-            padding: 'clamp(10px,2.5vw,16px)',
-            gap: 'clamp(6px,1.5vw,10px)',
-            background: 'var(--court-faint)',
-            border: '1px solid var(--court-soft)',
-          }}
-        >
-          <p
-            style={{
-              color: 'var(--court)',
-              fontWeight: 800,
-              fontSize: 'clamp(11px,2.5vw,13px)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-            }}
-          >
-            Ranking order (highest priority first)
-          </p>
-          <TiebreakOrderEditor
-            order={doublesRRTiebreakOrder}
-            onChange={onDoublesRRTiebreakOrderChange}
-          />
-        </div>
-      )}
-
       <div
         className="rounded-2xl overflow-hidden"
         style={{ border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}

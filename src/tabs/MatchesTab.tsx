@@ -385,21 +385,26 @@ export default function MatchesTab() {
     roundRobinSchedule.forEach((pairs, idx) => {
       const roundNum = (roundRobinStartRoundNum || 1) + idx;
       if (!committedNums.has(roundNum))
-        upcomingEntries.push({ type: 'upcoming', mode: 'roundrobin', roundNum, pairs });
+        upcomingEntries.push({ type: 'upcoming', mode: 'roundrobin', roundNum, idx, pairs });
     });
   } else if (tournamentMode === 'tpt' && tptSchedule.length > 0) {
     tptSchedule.forEach((round: any, idx: number) => {
       const roundNum = idx + 1;
       if (!committedNums.has(roundNum))
-        upcomingEntries.push({ type: 'upcoming', mode: 'tpt', roundNum, round });
+        upcomingEntries.push({ type: 'upcoming', mode: 'tpt', roundNum, idx, round });
     });
   } else if (tournamentMode === 'doublesrr' && doublesRRScheduleArr.length > 0) {
     doublesRRScheduleArr.forEach((round: any, idx: number) => {
       const roundNum = idx + 1;
       if (!committedNums.has(roundNum))
-        upcomingEntries.push({ type: 'upcoming', mode: 'doublesrr', roundNum, round });
+        upcomingEntries.push({ type: 'upcoming', mode: 'doublesrr', roundNum, idx, round });
     });
   }
+  // The first entry pushed above (ascending schedule order) is the round currently
+  // being played on the Play tab — every other upcoming entry can be promoted to replace it.
+  const currentUpcomingIdx = upcomingEntries.length > 0 ? upcomingEntries[0].idx : null;
+  const onPromoteRound = (mode: string, targetIdx: number) =>
+    openModal('pin', { purpose: 'promoteRound', promoteRoundTarget: { mode, targetIdx } });
 
   const allEntries = [
     ...sortedEntries,
@@ -581,7 +586,8 @@ export default function MatchesTab() {
         }
 
         if (entry.type === 'upcoming') {
-          const { mode, roundNum } = entry;
+          const { mode, roundNum, idx } = entry;
+          const canPromote = canFullEdit && currentUpcomingIdx != null && idx !== currentUpcomingIdx;
           const header = (
             <div
               className="flex items-center justify-between"
@@ -616,17 +622,37 @@ export default function MatchesTab() {
                   {roundNum}
                 </span>
               </div>
-              <span
-                style={{
-                  fontSize: 'clamp(9px,2vw,11px)',
-                  color: '#94a3b8',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                Upcoming
-              </span>
+              <div className="flex items-center" style={{ gap: 8 }}>
+                {canPromote && (
+                  <button
+                    onClick={() => onPromoteRound(mode, idx)}
+                    title="Make this the current round, swapping it with the round in progress"
+                    style={{
+                      fontSize: 'clamp(9px,2vw,11px)',
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      background: 'var(--court-faint)',
+                      color: 'var(--court)',
+                      border: '1px solid var(--court-soft)',
+                    }}
+                  >
+                    ⇄ Make current
+                  </button>
+                )}
+                <span
+                  style={{
+                    fontSize: 'clamp(9px,2vw,11px)',
+                    color: '#94a3b8',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  Upcoming
+                </span>
+              </div>
             </div>
           );
           const wrap = (children: any) => (

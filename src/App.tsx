@@ -277,6 +277,7 @@ function AppInner({
   // Don't check `role` here: owners get setRole('admin') automatically on tournament creation,
   // so `role` being non-null doesn't mean a PIN was used.
   const showNoPinWarning =
+    phase === 'play' &&
     isOwner &&
     !!(pinsLoaded as Record<string, boolean>)['admin'] &&
     ((pins as Record<string, any[]>)['admin']?.length ?? 0) === 0;
@@ -297,6 +298,7 @@ function AppInner({
     handleGenerateAdditionalRoundRobin,
     handleRRMatchResult,
     handleUndoRRMatchResult,
+    handlePromoteRRRound,
     rrMatchKey,
   } = useRoundManagement({
     stateRef,
@@ -366,8 +368,13 @@ function AppInner({
   effectiveRankedRef.current = effectiveRanked;
 
   // ── Mode management hooks ─────────────────────────────────────────────────
-  const { handleStartTPT, handleTPTResult, handleUndoTPTResult, handleManageTPTTeamsSave } =
-    useTPTManagement({
+  const {
+    handleStartTPT,
+    handleTPTResult,
+    handleUndoTPTResult,
+    handleManageTPTTeamsSave,
+    handlePromoteTPTRound,
+  } = useTPTManagement({
       stateRef,
       tournamentIdRef,
       lastSeenRoundNum,
@@ -401,6 +408,7 @@ function AppInner({
     handleUndoDoublesRRResult,
     handleGenerateAdditionalDoublesRR,
     handleManageDoublesRRPlayersSave,
+    handlePromoteDoublesRRRound,
   } = useDoublesRRManagement({
     stateRef,
     tournamentIdRef,
@@ -548,6 +556,11 @@ function AppInner({
       } else if (purpose === 'revertToBeginning') {
         openModal('confirmRevertToBeginning');
         return;
+      } else if (purpose === 'promoteRound' && payload.promoteRoundTarget) {
+        const { mode, targetIdx } = payload.promoteRoundTarget;
+        if (mode === 'roundrobin') handlePromoteRRRound(targetIdx);
+        else if (mode === 'tpt') handlePromoteTPTRound(targetIdx);
+        else if (mode === 'doublesrr') handlePromoteDoublesRRRound(targetIdx);
       } else if (purpose === 'removeGame' && payload.removeGameTarget) {
         openModal('confirmRemoveGame', payload.removeGameTarget);
         return;
@@ -578,6 +591,9 @@ function AppInner({
       handleRemoveActiveCourt,
       handleRemoveLiveAddition,
       handleRemoveActiveRoundExtra,
+      handlePromoteRRRound,
+      handlePromoteTPTRound,
+      handlePromoteDoublesRRRound,
     ]
   );
 
@@ -715,11 +731,14 @@ function AppInner({
     doCancelRound,
     handleRRMatchResult,
     handleUndoRRMatchResult,
+    handlePromoteRRRound,
     rrMatchKey,
     handleTPTResult,
     handleUndoTPTResult,
+    handlePromoteTPTRound,
     handleDoublesRRResult,
     handleUndoDoublesRRResult,
+    handlePromoteDoublesRRRound,
     handleExitRoundRobin,
     doExitRoundRobin,
     onStartRoundRobin: handleStartRoundRobin,

@@ -699,6 +699,51 @@ export function useRoundManagement({
     [rrMatchKey, pendingRef, roleRef, onFirebaseError, set, repo]
   );
 
+  // Admin-only: swaps an upcoming scheduled round into the current-round slot, so it
+  // becomes the round shown/played on the Play tab. Any results already recorded against
+  // the previously-current round are cleared — after the swap they'd belong to a different
+  // matchup and would corrupt standings if kept.
+  const handlePromoteRRRound = useCallback(
+    (targetSrIdx: number) => {
+      if (!hasPermission(roleRef.current, 'canFullEditHistory')) return;
+      const s = stateRef.current;
+      const schedule = s.roundRobinSchedule || [];
+      const startRN = s.roundRobinStartRoundNum || 1;
+      const committed = new Set(s.history.map((h: any) => h.roundNum));
+      const currentSrIdx = schedule.findIndex((_: any, i: number) => !committed.has(startRN + i));
+      if (
+        currentSrIdx === -1 ||
+        targetSrIdx === currentSrIdx ||
+        targetSrIdx < 0 ||
+        targetSrIdx >= schedule.length
+      )
+        return;
+
+      const newSchedule = [...schedule];
+      [newSchedule[currentSrIdx], newSchedule[targetSrIdx]] = [
+        newSchedule[targetSrIdx],
+        newSchedule[currentSrIdx],
+      ];
+
+      const np = { ...pendingRef.current };
+      const clearedFirebase: Record<string, null> = {};
+      Object.keys(np).forEach((k) => {
+        if (k.startsWith(`rr_${currentSrIdx}_`)) {
+          delete np[k];
+          clearedFirebase[`pendingResults/${k}`] = null;
+        }
+      });
+      pendingRef.current = np;
+      set('pending', np);
+      set('roundRobinSchedule', newSchedule);
+      repo.pushAtomicUpdate(
+        { roundRobinSchedule: newSchedule, ...clearedFirebase },
+        onFirebaseError
+      );
+    },
+    [stateRef, roleRef, pendingRef, set, repo, onFirebaseError]
+  );
+
   return {
     handleResult,
     handleLiveResult,
@@ -714,6 +759,7 @@ export function useRoundManagement({
     handleGenerateAdditionalRoundRobin,
     handleRRMatchResult,
     handleUndoRRMatchResult,
+    handlePromoteRRRound,
     rrMatchKey,
   };
 }
