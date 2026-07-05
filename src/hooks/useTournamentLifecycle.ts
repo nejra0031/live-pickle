@@ -6,7 +6,6 @@ import { normaliseSnapshot } from '../normalise';
 import { mkStandings, rebuildStandings } from '../algorithms/standings';
 import { generateRoundRobinSchedule } from '../algorithms/roundRobin';
 import { setModuleRegistry } from '../constants';
-import { TOURNAMENT_INITIAL } from '../state/TournamentProvider';
 import { useTournamentState } from '../state/TournamentProvider';
 import { useModal } from '../state/ModalProvider';
 import { useRepo } from '../state/RepoProvider';
@@ -28,26 +27,17 @@ export function useTournamentLifecycle({
   setTimerAlarmed,
   setBackupRoundNums,
   applyTimerState,
-  resetTimer,
   computeSecsLeft,
   gatedUpdate,
   onFirebaseError,
   updateAllStates,
-  setTPTTeams,
-  setTPTPlayers,
-  setTPTSchedule,
   setTPTResults,
   setTPTSubstitutions,
   tptResultsRef,
-  tptScheduleRef,
   tptRoundCompletingRef,
   tptSubstitutionsRef,
-  setDoublesRRPlayers,
-  setDoublesRRSchedule,
   setDoublesRRResults,
-  doublesRRPlayersRef,
   doublesRRResultsRef,
-  doublesRRScheduleRef,
   doublesRRRoundCompletingRef,
 }: {
   clubId: string | null;
@@ -66,26 +56,17 @@ export function useTournamentLifecycle({
   setTimerAlarmed: (v: boolean) => void;
   setBackupRoundNums: Dispatch<SetStateAction<Set<number>>>;
   applyTimerState: (running: boolean, startedAt: number | null, secsLeft: number) => void;
-  resetTimer: (secs: number) => void;
   computeSecsLeft: () => number;
   gatedUpdate: (perm: any, fields: any) => void;
   onFirebaseError: (msg: string) => void;
   updateAllStates: (s: any) => void;
-  setTPTTeams: (v: any) => void;
-  setTPTPlayers: (v: any) => void;
-  setTPTSchedule: (v: any) => void;
   setTPTResults: (v: any) => void;
   setTPTSubstitutions: (v: any) => void;
   tptResultsRef: MutableRefObject<any>;
-  tptScheduleRef: MutableRefObject<any>;
   tptRoundCompletingRef: MutableRefObject<boolean>;
   tptSubstitutionsRef: MutableRefObject<any>;
-  setDoublesRRPlayers: (v: any) => void;
-  setDoublesRRSchedule: (v: any) => void;
   setDoublesRRResults: (v: any) => void;
-  doublesRRPlayersRef: MutableRefObject<any>;
   doublesRRResultsRef: MutableRefObject<any>;
-  doublesRRScheduleRef: MutableRefObject<any>;
   doublesRRRoundCompletingRef: MutableRefObject<boolean>;
 }) {
   const { set, load, stateRef } = useTournamentState();
@@ -206,36 +187,81 @@ export function useTournamentLifecycle({
     [applyTimerState, clubId, onCreated, set, load, setRole] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  // Ends the current tournament's matches and returns it to a pre-Round-1 state.
+  // Only match data (history, round state, schedules/results) is cleared — teams,
+  // courts, and other setup fields are left untouched, both locally and in
+  // Firebase (an atomic update, not a full pushSnapshot, so unlisted fields like
+  // tptTeams/players/doublesRRPlayers/teamRegistry/courtNumbers survive).
   const doReset = useCallback(() => {
+    const s = stateRef.current;
     if (clubId) writeTournamentMeta(clubId, tournamentIdRef.current as string, { status: 'setup' });
-    repo.pushSnapshot(null, onFirebaseError);
+    repo.pushAtomicUpdate(
+      {
+        history: [],
+        roundNum: 0,
+        roundData: null,
+        pausedIds: [],
+        roundComplete: false,
+        pendingResults: null,
+        activeRoundExtras: [],
+        liveAdditions: [],
+        nextRoundPresets: [],
+        tournamentFinished: false,
+        cancelledRoundNums: [],
+        finalRound: false,
+        roundRobinSchedule: null,
+        roundRobinCourts: null,
+        roundRobinStartRoundNum: null,
+        roundRobinStartSnapshot: null,
+        roundRobinEndSnapshot: null,
+        breakMode: null,
+        timerRunning: false,
+        timerStartedAt: null,
+        timerPausedSecsLeft: s.timerDuration,
+        tptResults: {},
+        tptSubstitutions: {},
+        doublesRRResults: {},
+      },
+      onFirebaseError
+    );
     repo.clearBackups();
     setBackupRoundNums(new Set());
     historyLengthRef.current = 0;
-    lastSeenRoundNum.current = -1;
-    setPhase('setup');
-    load({ ...TOURNAMENT_INITIAL });
+    lastSeenRoundNum.current = 0;
+    load({
+      history: [],
+      round: null,
+      roundNum: 0,
+      pending: {},
+      roundComplete: false,
+      pausedIds: [],
+      roundRobinSchedule: null,
+      roundRobinCourts: null,
+      roundRobinStartRoundNum: null,
+      roundRobinStartSnapshot: null,
+      roundRobinEndSnapshot: null,
+      activeRoundExtras: [],
+      liveAdditions: [],
+      nextRoundPresets: [],
+      tournamentFinished: false,
+      cancelledRoundNums: [],
+      finalRound: false,
+    });
     pendingRef.current = {};
-    setStandings([]);
+    setStandings(rebuildStandings(s.activeTeamIds, []));
     setBreakMode(null);
-    setTPTTeams({});
-    setTPTPlayers({});
-    setTPTSchedule([]);
     setTPTResults({});
-    setTPTSubstitutions({});
     tptResultsRef.current = {};
-    tptScheduleRef.current = [];
     tptRoundCompletingRef.current = false;
+    setTPTSubstitutions({});
     tptSubstitutionsRef.current = {};
-    setDoublesRRPlayers({});
-    setDoublesRRSchedule([]);
     setDoublesRRResults({});
-    doublesRRPlayersRef.current = {};
     doublesRRResultsRef.current = {};
-    doublesRRScheduleRef.current = [];
     doublesRRRoundCompletingRef.current = false;
-    resetTimer(0);
-  }, [resetTimer, setBackupRoundNums, load, repo, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
+    setRoundKey((k) => k + 1);
+    applyTimerState(false, null, s.timerDuration);
+    setActiveTab('play');
+  }, [stateRef, closeModal, applyTimerState, setBackupRoundNums, repo, load, clubId, onFirebaseError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doRevertToRound = useCallback(async () => {
     const target = modal.data?.roundNum;

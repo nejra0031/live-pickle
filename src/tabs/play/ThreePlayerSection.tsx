@@ -109,7 +109,7 @@ export default function ThreePlayerSection({
           boxShadow: isCurrentRound ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
         }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap" style={{ gap: 'clamp(4px,1vw,8px)' }}>
           <span
             style={{
               fontWeight: 800,
@@ -124,11 +124,14 @@ export default function ThreePlayerSection({
           <span style={{ color: '#94a3b8', fontSize: 'clamp(10px,2.5vw,12px)', fontWeight: 600 }}>
             ·
           </span>
-          <span style={{ fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', color: '#475569' }}>
+          <div
+            className="flex items-center flex-wrap"
+            style={{ gap: 4, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', color: '#475569' }}
+          >
             <span style={{ color: teamA.color, fontWeight: 800 }}>{tptTeamLabel(teamA)}</span>
-            <span style={{ color: '#94a3b8', margin: '0 4px' }}>vs</span>
+            <span style={{ color: '#94a3b8' }}>vs</span>
             <span style={{ color: teamB.color, fontWeight: 800 }}>{tptTeamLabel(teamB)}</span>
-          </span>
+          </div>
         </div>
 
         {games.map((game, gi) => {

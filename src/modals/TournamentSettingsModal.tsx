@@ -6,6 +6,7 @@ import ColorSwatchPicker from '../components/ColorSwatchPicker';
 import useKnownPlayers from '../hooks/useKnownPlayers';
 import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
 import { useAppCtx } from '../state/AppCtx';
+import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
 
 const iS = {
   padding: '8px 10px',
@@ -589,6 +590,26 @@ export default function TournamentSettingsModal({
               </div>
             </Acc>
           )}
+
+          {/* ── Standings order ── */}
+          {canEditStandingsOrder &&
+            (() => {
+              const isDRR = tournamentMode === 'doublesrr';
+              const order = (isDRR ? doublesRRTiebreakOrder : standingsTiebreakOrder) || [
+                'wins',
+                'scoreDiff',
+                'headToHead',
+              ];
+              const onChange = isDRR ? onDoublesRRTiebreakOrderChange : onStandingsTiebreakOrderChange;
+              return (
+                <Acc title="Standings order" open={sec.standingsOrder} onToggle={() => toggle('standingsOrder')}>
+                  <p style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
+                    Ties are broken top to bottom by these criteria. Use the arrows to reorder.
+                  </p>
+                  <TiebreakOrderEditor order={order} onChange={onChange} />
+                </Acc>
+              );
+            })()}
 
           {/* ── Team status ── */}
           {canPauseTeams &&

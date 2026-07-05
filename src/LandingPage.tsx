@@ -35,6 +35,7 @@ const LS_KEYS = {
   hiddenClubs: 'livepickle:hiddenClubs',
   enabledModes: 'livepickle:enabledModes',
   hideFull: 'livepickle:hideFull',
+  welcomeDismissedUids: 'livepickle:welcomeDismissedUids',
 };
 
 function readStoredJSON(key: string, fallback: any) {
@@ -50,6 +51,22 @@ function writeStoredJSON(key: string, value: any) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {}
+}
+
+// The welcome screen greets first-time users who haven't joined/created a club
+// yet. Once they've seen and dismissed it (with or without joining), it should
+// never reappear for that account on this device — otherwise it nags on every
+// login for anyone who chooses "Continue without joining".
+function hasSeenWelcome(uid: string) {
+  const seen = readStoredJSON(LS_KEYS.welcomeDismissedUids, []);
+  return Array.isArray(seen) && seen.includes(uid);
+}
+
+function markWelcomeSeen(uid: string) {
+  const seen = readStoredJSON(LS_KEYS.welcomeDismissedUids, []);
+  const next = new Set(Array.isArray(seen) ? seen : []);
+  next.add(uid);
+  writeStoredJSON(LS_KEYS.welcomeDismissedUids, [...next]);
 }
 
 const MODE_LABELS: Record<string, string> = {
@@ -560,16 +577,18 @@ export default function LandingPage({
   }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show welcome screen for logged-in users who haven't joined any clubs yet
+  // and haven't already dismissed it once on this device.
   useEffect(() => {
     if (!user || myClubsLoading || welcomeCheckedRef.current) return;
     welcomeCheckedRef.current = true;
-    if (joinedClubIds.length === 0 && ownedClubIds.length === 0) {
+    if (joinedClubIds.length === 0 && ownedClubIds.length === 0 && !hasSeenWelcome(user.uid)) {
       setShowWelcome(true);
     }
   }, [user, myClubsLoading, joinedClubIds, ownedClubIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleWelcomeDone(selectedClubIds: string[]) {
     await onJoinClubs(selectedClubIds);
+    if (user) markWelcomeSeen(user.uid);
     setShowWelcome(false);
   }
 
