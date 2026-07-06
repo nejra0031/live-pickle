@@ -32,6 +32,7 @@ const fS = {
 };
 const uid = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 const playerKey = (n: string) => n.trim().toLowerCase();
+const NO_NAME_PLACEHOLDER = '⚠️ No Name Entered ⚠️';
 
 const DISPLAY_MODE_OPTIONS = [
   { value: 'name', label: 'Team name' },
@@ -401,21 +402,39 @@ export default function TournamentSettingsModal({
     if (canEditEventInfo) onSaveInfo({ title, location, startTime, durationMins, maxPlayers, gamesPerTeam, timerMins });
     if (canEditTeams) {
       if (tournamentMode === 'tpt' && onManageTPTTeamsSave) {
+        // Drop teams added this session via "+ Add team" that were never filled in
+        // (no player name entered) — otherwise blank names fall back to internal
+        // ids and the team still joins the schedule as a real competitor.
+        const keptTPTTeams = localTPTTeams.filter((t: any) => {
+          if (!t._isNew || playedTPTTeamIds.has(t.id)) return true;
+          const teamPlayerIds = [...(t.maleIds || []), t.femaleId].filter(Boolean);
+          return teamPlayerIds.some((pid: string) => (localTPTPlayers[pid]?.name || '').trim());
+        });
+        const keptTPTPlayerIds = new Set(
+          keptTPTTeams.flatMap((t: any) => [...(t.maleIds || []), t.femaleId].filter(Boolean))
+        );
         const newTeams = Object.fromEntries(
-          localTPTTeams.map((t: any) => [t.id, { ...t, name: t.name.trim() || t.id }])
+          keptTPTTeams.map((t: any) => {
+            const { _isNew, _defaultName, ...rest } = t;
+            return [t.id, { ...rest, name: t.name.trim() || NO_NAME_PLACEHOLDER }];
+          })
         );
         const newPlayers = Object.fromEntries(
-          Object.entries(localTPTPlayers).map(([id, p]) => [
-            id,
-            {
-              ...p,
-              name: p.name.trim() || id,
-              duprId: (p.duprId || '').trim(),
-              nickname: (p.nickname || '').trim(),
-            },
-          ])
+          Object.entries(localTPTPlayers)
+            .filter(([id]) => keptTPTPlayerIds.has(id))
+            .map(([id, p]) => [
+              id,
+              {
+                ...p,
+                name: p.name.trim() || NO_NAME_PLACEHOLDER,
+                duprId: (p.duprId || '').trim(),
+                nickname: (p.nickname || '').trim(),
+              },
+            ])
         );
-        Object.values(newPlayers).forEach((p: any) => saveKnownPlayer(p.name, p.duprId, p.nickname));
+        Object.values(newPlayers)
+          .filter((p: any) => p.name !== NO_NAME_PLACEHOLDER)
+          .forEach((p: any) => saveKnownPlayer(p.name, p.duprId, p.nickname));
         onManageTPTTeamsSave(newTeams, newPlayers);
       } else if (tournamentMode === 'doublesrr' && onManageDoublesRRPlayersSave) {
         const newPlayers = Object.fromEntries(
@@ -423,16 +442,27 @@ export default function TournamentSettingsModal({
             id,
             {
               ...p,
-              name: p.name.trim() || id,
+              name: p.name.trim() || NO_NAME_PLACEHOLDER,
               duprId: (p.duprId || '').trim(),
               nickname: (p.nickname || '').trim(),
             },
           ])
         );
-        Object.values(newPlayers).forEach((p: any) => saveKnownPlayer(p.name, p.duprId, p.nickname));
+        Object.values(newPlayers)
+          .filter((p: any) => p.name !== NO_NAME_PLACEHOLDER)
+          .forEach((p: any) => saveKnownPlayer(p.name, p.duprId, p.nickname));
         onManageDoublesRRPlayersSave(newPlayers);
       } else if (onManageTeamsSave) {
-        const registry = localTeams.map((t: any) => {
+        // Drop teams added this session via "+ Add team" that were never touched
+        // (still the auto-assigned name, no players entered) — otherwise a
+        // placeholder team quietly joins match generation.
+        const keptTeams = localTeams.filter((t: any) => {
+          if (!t._isNew || playedTeamIds.has(t.id)) return true;
+          const nameUntouched = t.name.trim() === (t._defaultName || '').trim();
+          const noPlayers = t.players.every((p: any) => !p.name.trim());
+          return !(nameUntouched && noPlayers);
+        });
+        const registry = keptTeams.map((t: any) => {
           const players = t.players.map((p: any) => ({
             name: p.name.trim(),
             duprId: p.duprId.trim(),
@@ -444,7 +474,7 @@ export default function TournamentSettingsModal({
             .forEach((p: any) => saveKnownPlayer(p.name, p.duprId, p.nickname));
           return {
             id: t.id,
-            name: t.name.trim() || t.id,
+            name: t.name.trim() || NO_NAME_PLACEHOLDER,
             color: t.color,
             text: t.text,
             ...(hasPlayers ? { players } : {}),
@@ -452,7 +482,7 @@ export default function TournamentSettingsModal({
         });
         onManageTeamsSave(
           registry,
-          localTeams.map((t: any) => t.id)
+          keptTeams.map((t: any) => t.id)
         );
       }
     }
@@ -886,6 +916,8 @@ export default function TournamentSettingsModal({
                             color: base.color,
                             text: base.text,
                             players: emptyPair(),
+                            _isNew: true,
+                            _defaultName: base.name,
                           },
                         ]);
                       }}
@@ -1116,6 +1148,8 @@ export default function TournamentSettingsModal({
                           text: base.text,
                           maleIds: [m1, m2],
                           femaleId: f,
+                          _isNew: true,
+                          _defaultName: base.name,
                         },
                       ]);
                       setLocalTPTPlayers((p) => ({
