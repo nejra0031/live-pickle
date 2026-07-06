@@ -10,8 +10,7 @@ function TPTStandingsSection(props: any) {
     <ThreePlayerStandingsTab
       tptTeams={props.tptTeams}
       tptPlayers={props.tptPlayers}
-      tptSchedule={props.tptSchedule}
-      tptResults={props.tptResults}
+      history={props.history}
       tiebreakOrder={props.standingsTiebreakOrder}
       tptSubstitutions={props.tptSubstitutions}
       tournamentFinished={props.tournamentFinished}
@@ -24,20 +23,12 @@ export const tptDescriptor: TournamentModeDescriptor = {
   label: 'Trio Teams',
   hasPredeterminedSchedule: true,
   defaultTiebreakOrder: ['wins', 'scoreDiff', 'headToHead'],
-  buildStandings: ({
-    tptTeams,
-    tptPlayers,
-    tptSchedule,
-    tptResults,
-    standingsTiebreakOrder,
-    tptSubstitutions,
-  }: StandingsCtx) => {
+  buildStandings: ({ tptTeams, tptPlayers, history, standingsTiebreakOrder, tptSubstitutions }: StandingsCtx) => {
     if (Object.keys(tptTeams).length === 0) return [];
     return buildTPTStandings(
       tptTeams,
       tptPlayers,
-      tptSchedule,
-      tptResults,
+      history,
       standingsTiebreakOrder,
       tptSubstitutions
     ).teamStandings;

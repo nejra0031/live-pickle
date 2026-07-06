@@ -40,12 +40,19 @@ const tptTeams = {
   },
 };
 
-const tptSchedule = [{ matchups: [{ teamAId: 'A', teamBId: 'B' }], byeTeamId: 'C' }];
-
 // Males doubles game (gi=0): sideA = [a1, a2], sideB = [b1, b2]. Team A wins 11-5.
-const tptResults = {
-  '0_0_0': { winnerTeamId: 'A', loserTeamId: 'B', winnerScore: 11, loserScore: 5 },
-};
+const history = [
+  {
+    roundNum: 1,
+    tptMatchups: [
+      {
+        teamAId: 'A',
+        teamBId: 'B',
+        games: [{ winnerTeamId: 'A', loserTeamId: 'B', winnerScore: 11, loserScore: 5 }, null, null],
+      },
+    ],
+  },
+];
 
 function findPlayer(playerStandings, teamId, pid) {
   return playerStandings[teamId].find((p) => p.id === pid);
@@ -53,13 +60,10 @@ function findPlayer(playerStandings, teamId, pid) {
 
 describe('buildTPTStandings', () => {
   it('credits the rostered players when there is no substitution', () => {
-    const { teamStandings, playerStandings } = buildTPTStandings(
-      tptTeams,
-      players,
-      tptSchedule,
-      tptResults,
-      ['wins', 'scoreDiff']
-    );
+    const { teamStandings, playerStandings } = buildTPTStandings(tptTeams, players, history, [
+      'wins',
+      'scoreDiff',
+    ]);
 
     const teamA = teamStandings.find((t) => t.id === 'A');
     expect(teamA.wins).toBe(1);
@@ -80,8 +84,7 @@ describe('buildTPTStandings', () => {
     const { teamStandings, playerStandings } = buildTPTStandings(
       tptTeams,
       players,
-      tptSchedule,
-      tptResults,
+      history,
       ['wins', 'scoreDiff'],
       tptSubstitutions
     );

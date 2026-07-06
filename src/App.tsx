@@ -864,6 +864,7 @@ function AppInner({
                       <ModeStandingsTab
                         ranked={effectiveRanked}
                         pausedIds={pausedIds}
+                        history={history}
                         tptTeams={tptTeams}
                         tptPlayers={tptPlayers}
                         tptSchedule={tptSchedule}

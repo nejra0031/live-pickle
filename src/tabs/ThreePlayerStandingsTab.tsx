@@ -11,8 +11,7 @@ const RANK_COLOR = (i: number) =>
 interface Props {
   tptTeams: Record<string, any>;
   tptPlayers: Record<string, any>;
-  tptSchedule: any[];
-  tptResults: Record<string, any>;
+  history: any[];
   tiebreakOrder: any[];
   tptSubstitutions?: Record<string, any>;
   tournamentFinished?: boolean;
@@ -20,23 +19,14 @@ interface Props {
 export default function ThreePlayerStandingsTab({
   tptTeams,
   tptPlayers,
-  tptSchedule,
-  tptResults,
+  history,
   tiebreakOrder,
   tptSubstitutions = {},
   tournamentFinished = false,
 }: Props) {
   const { teamStandings, playerStandings, partnershipStandings } = useMemo(
-    () =>
-      buildTPTStandings(
-        tptTeams,
-        tptPlayers,
-        tptSchedule,
-        tptResults,
-        tiebreakOrder,
-        tptSubstitutions
-      ),
-    [tptTeams, tptPlayers, tptSchedule, tptResults, tiebreakOrder, tptSubstitutions]
+    () => buildTPTStandings(tptTeams, tptPlayers, history, tiebreakOrder, tptSubstitutions),
+    [tptTeams, tptPlayers, history, tiebreakOrder, tptSubstitutions]
   );
   const { teamNameDisplay } = useContext(TeamRegistryContext);
   const [openIds, setOpenIds] = useState(new Set());

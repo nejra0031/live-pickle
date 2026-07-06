@@ -1,7 +1,7 @@
 // Schedule generation and standings for the 3-player team tournament format.
 
 import { playerDisplayName } from '../utils/nameDisplay';
-import type { TPTTeam, TPTPlayer, TPTSchedule, TPTResults, TPTSubstitutions } from '../types';
+import type { TPTTeam, TPTPlayer, TPTSchedule, TPTSubstitutions } from '../types';
 
 export function formatTPTTeamLabel(
   team: TPTTeam | null | undefined,
@@ -76,15 +76,17 @@ export function getTPTGamesForMatchup(teamA: TPTTeam, teamB: TPTTeam): TPTGameDe
   ];
 }
 
-// Builds team and player standings from committed results.
+// Builds team and player standings from committed history — matches the
+// swiss/round-robin/doubles-RR convention of rebuilding from scratch off
+// `history` rather than a live results map, so editing a past game's score
+// (which only rewrites history) is guaranteed to be reflected here.
 // Returns { teamStandings, playerStandings }
 // teamStandings: [{ id, name, color, text, wins, losses, scoreDiff, played }] sorted by tiebreakOrder
 // playerStandings: { [teamId]: [{ id, name, gender, wins, losses, scoreDiff, played }] }
 export function buildTPTStandings(
   tptTeams: Record<string, TPTTeam>,
   players: Record<string, TPTPlayer>,
-  tptSchedule: TPTSchedule,
-  tptResults: TPTResults,
+  history: Array<{ tptMatchups?: Array<{ teamAId: string; teamBId: string; games: any[] }> }>,
   tiebreakOrder: string[],
   tptSubstitutions: TPTSubstitutions = {}
 ) {
@@ -141,75 +143,72 @@ export function buildTPTStandings(
     });
   });
 
-  Object.entries(tptResults).forEach(([key, result]) => {
-    if (!result) return;
-    const parts = key.split('_');
-    if (parts.length !== 3) return;
-    const [ri, mi, gi] = parts.map(Number);
-    const schedRound = tptSchedule[ri];
-    if (!schedRound) return;
-    const matchup = schedRound.matchups?.[mi];
-    if (!matchup) return;
+  history.forEach((h, ri) => {
+    (h.tptMatchups || []).forEach((matchup, mi) => {
+      const { teamAId, teamBId, games: matchupGames } = matchup;
+      const teamA = tptTeams[teamAId],
+        teamB = tptTeams[teamBId];
+      if (!teamA || !teamB) return;
+      const gameDefs = getTPTGamesForMatchup(teamA, teamB);
 
-    const { teamAId, teamBId } = matchup;
-    const teamA = tptTeams[teamAId],
-      teamB = tptTeams[teamBId];
-    if (!teamA || !teamB) return;
+      (matchupGames || []).forEach((result, gi) => {
+        if (!result) return;
+        const key = `${ri}_${mi}_${gi}`;
+        const { winnerTeamId, loserTeamId, winnerScore, loserScore } = result;
+        const diff = winnerScore - loserScore;
 
-    const { winnerTeamId, loserTeamId, winnerScore, loserScore } = result;
-    const diff = winnerScore - loserScore;
+        if (teamMap[winnerTeamId]) {
+          teamMap[winnerTeamId].wins++;
+          teamMap[winnerTeamId].scoreDiff += diff;
+          teamMap[winnerTeamId].played++;
+        }
+        if (teamMap[loserTeamId]) {
+          teamMap[loserTeamId].losses++;
+          teamMap[loserTeamId].scoreDiff -= diff;
+          teamMap[loserTeamId].played++;
+        }
 
-    if (teamMap[winnerTeamId]) {
-      teamMap[winnerTeamId].wins++;
-      teamMap[winnerTeamId].scoreDiff += diff;
-      teamMap[winnerTeamId].played++;
-    }
-    if (teamMap[loserTeamId]) {
-      teamMap[loserTeamId].losses++;
-      teamMap[loserTeamId].scoreDiff -= diff;
-      teamMap[loserTeamId].played++;
-    }
+        const game = gameDefs[gi];
+        if (!game) return;
 
-    const games = getTPTGamesForMatchup(teamA, teamB);
-    const game = games[gi];
-    if (!game) return;
+        const subs = (tptSubstitutions as any)[key] || {};
+        const applySub = (pid: string) => subs[pid] || pid;
+        const sideA = (game.sideA || []).map(applySub);
+        const sideB = (game.sideB || []).map(applySub);
 
-    const subs = (tptSubstitutions as any)[key] || {};
-    const applySub = (pid: string) => subs[pid] || pid;
-    const sideA = (game.sideA || []).map(applySub);
-    const sideB = (game.sideB || []).map(applySub);
+        const winnerIsA = winnerTeamId === teamAId;
+        const winnerPids = winnerIsA ? sideA : sideB;
+        const loserPids = winnerIsA ? sideB : sideA;
 
-    const winnerIsA = winnerTeamId === teamAId;
-    const winnerPids = winnerIsA ? sideA : sideB;
-    const loserPids = winnerIsA ? sideB : sideA;
+        winnerPids.forEach((pid: string) => {
+          if (playerMap[pid]) {
+            playerMap[pid].wins++;
+            playerMap[pid].scoreDiff += diff;
+            playerMap[pid].played++;
+          }
+        });
+        loserPids.forEach((pid: string) => {
+          if (playerMap[pid]) {
+            playerMap[pid].losses++;
+            playerMap[pid].scoreDiff -= diff;
+            playerMap[pid].played++;
+          }
+        });
 
-    winnerPids.forEach((pid: string) => {
-      if (playerMap[pid]) {
-        playerMap[pid].wins++;
-        playerMap[pid].scoreDiff += diff;
-        playerMap[pid].played++;
-      }
+        const wk = [...winnerPids].sort().join('_'),
+          lk = [...loserPids].sort().join('_');
+        if (partnershipMap[wk]) {
+          partnershipMap[wk].wins++;
+          partnershipMap[wk].scoreDiff += diff;
+          partnershipMap[wk].played++;
+        }
+        if (partnershipMap[lk]) {
+          partnershipMap[lk].losses++;
+          partnershipMap[lk].scoreDiff -= diff;
+          partnershipMap[lk].played++;
+        }
+      });
     });
-    loserPids.forEach((pid: string) => {
-      if (playerMap[pid]) {
-        playerMap[pid].losses++;
-        playerMap[pid].scoreDiff -= diff;
-        playerMap[pid].played++;
-      }
-    });
-
-    const wk = [...winnerPids].sort().join('_'),
-      lk = [...loserPids].sort().join('_');
-    if (partnershipMap[wk]) {
-      partnershipMap[wk].wins++;
-      partnershipMap[wk].scoreDiff += diff;
-      partnershipMap[wk].played++;
-    }
-    if (partnershipMap[lk]) {
-      partnershipMap[lk].losses++;
-      partnershipMap[lk].scoreDiff -= diff;
-      partnershipMap[lk].played++;
-    }
   });
 
   // Build H2H matchup-win map when needed.
@@ -217,15 +216,14 @@ export function buildTPTStandings(
   let h2h: Record<string, any> | null = null;
   if (criteria.includes('headToHead')) {
     h2h = {};
-    tptSchedule.forEach((round, ri) => {
-      (round.matchups || []).forEach((matchup, mi) => {
-        const { teamAId, teamBId } = matchup;
+    history.forEach((h) => {
+      (h.tptMatchups || []).forEach((matchup) => {
+        const { teamAId, teamBId, games: matchupGames } = matchup;
         let aWins = 0,
           bWins = 0,
           aScoreDiff = 0;
-        for (let gi = 0; gi < 3; gi++) {
-          const r = tptResults[`${ri}_${mi}_${gi}`];
-          if (!r) continue;
+        (matchupGames || []).forEach((r) => {
+          if (!r) return;
           const diff = (r.winnerScore || 0) - (r.loserScore || 0);
           if (r.winnerTeamId === teamAId) {
             aWins++;
@@ -234,7 +232,7 @@ export function buildTPTStandings(
             bWins++;
             aScoreDiff -= diff;
           }
-        }
+        });
         if (aWins + bWins === 0) return;
         const ak = `${teamAId}_${teamBId}`,
           bk = `${teamBId}_${teamAId}`;
