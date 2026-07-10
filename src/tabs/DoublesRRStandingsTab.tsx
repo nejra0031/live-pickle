@@ -49,11 +49,11 @@ export default function DoublesRRStandingsTab({
           <span style={{ width: colW.rank }}>Rank</span>
           <span className="flex-1">Player</span>
           <span style={{ width: colW.stat, textAlign: 'center' }}>GP</span>
-          <span style={{ width: colW.stat, textAlign: 'center', color: '#86efac' }}>W</span>
-          <span style={{ width: colW.stat, textAlign: 'center', color: '#fca5a5' }}>L</span>
-          <span style={{ width: colW.score, textAlign: 'center', color: '#bae6fd' }}>PF</span>
-          <span style={{ width: colW.score, textAlign: 'center', color: '#fecaca' }}>PA</span>
-          <span style={{ width: colW.diff, textAlign: 'center', color: '#7dd3fc' }}>+/−</span>
+          <span style={{ width: colW.stat, textAlign: 'center' }}>W</span>
+          <span style={{ width: colW.stat, textAlign: 'center' }}>L</span>
+          <span style={{ width: colW.score, textAlign: 'center' }}>PF</span>
+          <span style={{ width: colW.score, textAlign: 'center' }}>PA</span>
+          <span style={{ width: colW.diff, textAlign: 'center' }}>+/−</span>
         </div>
         {doublesRRStandings.map((p, i) => {
           const diff = p.scoreDiff;
@@ -101,7 +101,7 @@ export default function DoublesRRStandingsTab({
                 style={{
                   width: colW.stat,
                   textAlign: 'center',
-                  color: '#16a34a',
+                  color: 'var(--ink)',
                   fontWeight: 900,
                   fontSize: 'clamp(16px,4vw,24px)',
                 }}
@@ -112,7 +112,7 @@ export default function DoublesRRStandingsTab({
                 style={{
                   width: colW.stat,
                   textAlign: 'center',
-                  color: '#dc2626',
+                  color: 'var(--ink)',
                   fontWeight: 900,
                   fontSize: 'clamp(16px,4vw,24px)',
                 }}
@@ -123,7 +123,7 @@ export default function DoublesRRStandingsTab({
                 style={{
                   width: colW.score,
                   textAlign: 'center',
-                  color: '#0369a1',
+                  color: 'var(--ink)',
                   fontWeight: 700,
                   fontSize: 'clamp(13px,3.2vw,18px)',
                 }}
@@ -134,7 +134,7 @@ export default function DoublesRRStandingsTab({
                 style={{
                   width: colW.score,
                   textAlign: 'center',
-                  color: '#b91c1c',
+                  color: 'var(--ink)',
                   fontWeight: 700,
                   fontSize: 'clamp(13px,3.2vw,18px)',
                 }}
@@ -147,7 +147,7 @@ export default function DoublesRRStandingsTab({
                   textAlign: 'center',
                   fontWeight: 900,
                   fontSize: 'clamp(14px,3.5vw,22px)',
-                  color: diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : '#94a3b8',
+                  color: 'var(--ink)',
                 }}
               >
                 {diff > 0 ? '+' : ''}

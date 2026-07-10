@@ -210,17 +210,17 @@ export default function MatchesTab() {
                 <span className="flex-1">Team</span>
                 <span style={{ width: 'clamp(22px,4.5vw,34px)', textAlign: 'center' }}>GP</span>
                 <span
-                  style={{ width: 'clamp(22px,4.5vw,34px)', textAlign: 'center', color: '#16a34a' }}
+                  style={{ width: 'clamp(22px,4.5vw,34px)', textAlign: 'center' }}
                 >
                   W
                 </span>
                 <span
-                  style={{ width: 'clamp(22px,4.5vw,34px)', textAlign: 'center', color: '#dc2626' }}
+                  style={{ width: 'clamp(22px,4.5vw,34px)', textAlign: 'center' }}
                 >
                   L
                 </span>
                 <span
-                  style={{ width: 'clamp(28px,5.5vw,42px)', textAlign: 'center', color: '#0284c7' }}
+                  style={{ width: 'clamp(28px,5.5vw,42px)', textAlign: 'center' }}
                 >
                   +/−
                 </span>
@@ -277,7 +277,7 @@ export default function MatchesTab() {
                       style={{
                         width: 'clamp(22px,4.5vw,34px)',
                         textAlign: 'center',
-                        color: '#16a34a',
+                        color: 'var(--ink)',
                         fontWeight: 800,
                         fontSize: 'clamp(11px,2.5vw,14px)',
                       }}
@@ -288,7 +288,7 @@ export default function MatchesTab() {
                       style={{
                         width: 'clamp(22px,4.5vw,34px)',
                         textAlign: 'center',
-                        color: '#dc2626',
+                        color: 'var(--ink)',
                         fontWeight: 800,
                         fontSize: 'clamp(11px,2.5vw,14px)',
                       }}
@@ -301,12 +301,7 @@ export default function MatchesTab() {
                         textAlign: 'center',
                         fontWeight: 800,
                         fontSize: 'clamp(11px,2.5vw,14px)',
-                        color:
-                          team.scoreDiff > 0
-                            ? '#16a34a'
-                            : team.scoreDiff < 0
-                              ? '#dc2626'
-                              : '#94a3b8',
+                        color: 'var(--ink)',
                       }}
                     >
                       {team.scoreDiff > 0 ? '+' : ''}
@@ -1667,18 +1662,18 @@ export default function MatchesTab() {
                         <span
                           style={{
                             fontWeight: 700,
-                            color: d > 0 ? '#16a34a' : d < 0 ? '#dc2626' : '#94a3b8',
+                            color: 'var(--ink)',
                           }}
                         >
                           #{a}
                         </span>
                         {d > 0 && (
-                          <span style={{ color: '#16a34a', fontSize: 'clamp(9px,2vw,11px)' }}>
+                          <span style={{ color: 'var(--ink)', fontSize: 'clamp(9px,2vw,11px)' }}>
                             ▲{d}
                           </span>
                         )}
                         {d < 0 && (
-                          <span style={{ color: '#dc2626', fontSize: 'clamp(9px,2vw,11px)' }}>
+                          <span style={{ color: 'var(--ink)', fontSize: 'clamp(9px,2vw,11px)' }}>
                             ▼{Math.abs(d)}
                           </span>
                         )}

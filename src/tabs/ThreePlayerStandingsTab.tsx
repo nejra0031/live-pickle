@@ -73,9 +73,9 @@ export default function ThreePlayerStandingsTab({
         <span style={{ width: colW.rank }}>Rank</span>
         <span className="flex-1">Name</span>
         <span style={{ width: colW.stat, textAlign: 'center' }}>GP</span>
-        <span style={{ width: colW.stat, textAlign: 'center', color: '#86efac' }}>W</span>
-        <span style={{ width: colW.stat, textAlign: 'center', color: '#fca5a5' }}>L</span>
-        <span style={{ width: colW.diff, textAlign: 'center', color: '#7dd3fc' }}>+/−</span>
+        <span style={{ width: colW.stat, textAlign: 'center' }}>W</span>
+        <span style={{ width: colW.stat, textAlign: 'center' }}>L</span>
+        <span style={{ width: colW.diff, textAlign: 'center' }}>+/−</span>
       </div>
 
       {teamStandings.map((team, i) => {
@@ -139,7 +139,7 @@ export default function ThreePlayerStandingsTab({
                 style={{
                   width: colW.stat,
                   textAlign: 'center',
-                  color: '#16a34a',
+                  color: 'var(--ink)',
                   fontWeight: 900,
                   fontSize: 'clamp(16px,4vw,24px)',
                   flexShrink: 0,
@@ -151,7 +151,7 @@ export default function ThreePlayerStandingsTab({
                 style={{
                   width: colW.stat,
                   textAlign: 'center',
-                  color: '#dc2626',
+                  color: 'var(--ink)',
                   fontWeight: 900,
                   fontSize: 'clamp(16px,4vw,24px)',
                   flexShrink: 0,
@@ -165,7 +165,7 @@ export default function ThreePlayerStandingsTab({
                   textAlign: 'center',
                   fontWeight: 900,
                   fontSize: 'clamp(14px,3.5vw,22px)',
-                  color: diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : '#94a3b8',
+                  color: 'var(--ink)',
                   flexShrink: 0,
                 }}
               >
@@ -243,7 +243,7 @@ export default function ThreePlayerStandingsTab({
                             style={{
                               width: colW.stat,
                               textAlign: 'center',
-                              color: '#16a34a',
+                              color: 'var(--ink)',
                               fontWeight: 700,
                               fontSize: 'clamp(13px,3.2vw,17px)',
                               flexShrink: 0,
@@ -255,7 +255,7 @@ export default function ThreePlayerStandingsTab({
                             style={{
                               width: colW.stat,
                               textAlign: 'center',
-                              color: '#dc2626',
+                              color: 'var(--ink)',
                               fontWeight: 700,
                               fontSize: 'clamp(13px,3.2vw,17px)',
                               flexShrink: 0,
@@ -269,7 +269,7 @@ export default function ThreePlayerStandingsTab({
                               textAlign: 'center',
                               fontWeight: 700,
                               fontSize: 'clamp(12px,3vw,15px)',
-                              color: pd > 0 ? '#16a34a' : pd < 0 ? '#dc2626' : '#94a3b8',
+                              color: 'var(--ink)',
                               flexShrink: 0,
                             }}
                           >
@@ -341,7 +341,7 @@ export default function ThreePlayerStandingsTab({
                             style={{
                               width: colW.stat,
                               textAlign: 'center',
-                              color: '#16a34a',
+                              color: 'var(--ink)',
                               fontWeight: 700,
                               fontSize: 'clamp(12px,3vw,16px)',
                               flexShrink: 0,
@@ -353,7 +353,7 @@ export default function ThreePlayerStandingsTab({
                             style={{
                               width: colW.stat,
                               textAlign: 'center',
-                              color: '#dc2626',
+                              color: 'var(--ink)',
                               fontWeight: 700,
                               fontSize: 'clamp(12px,3vw,16px)',
                               flexShrink: 0,
@@ -367,7 +367,7 @@ export default function ThreePlayerStandingsTab({
                               textAlign: 'center',
                               fontWeight: 700,
                               fontSize: 'clamp(11px,2.8vw,15px)',
-                              color: pd > 0 ? '#16a34a' : pd < 0 ? '#dc2626' : '#94a3b8',
+                              color: 'var(--ink)',
                               flexShrink: 0,
                             }}
                           >

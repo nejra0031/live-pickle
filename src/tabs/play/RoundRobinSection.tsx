@@ -245,11 +245,11 @@ export default function RoundRobinSection({
                         {w ? teamLabel(w.id) : ''}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: w?.color, fontSize: 'clamp(13px,3vw,16px)', minWidth: '2ch', textAlign: 'right' }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--ink)', fontSize: 'clamp(13px,3vw,16px)', minWidth: '2ch', textAlign: 'right' }}>
                           {committedGame.winnerScore}
                         </span>
                         <span style={{ color: '#cbd5e1', fontWeight: 700 }}>–</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: l?.color, fontSize: 'clamp(13px,3vw,16px)', minWidth: '2ch', textAlign: 'left' }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--muted)', fontSize: 'clamp(13px,3vw,16px)', minWidth: '2ch', textAlign: 'left' }}>
                           {committedGame.loserScore}
                         </span>
                       </div>

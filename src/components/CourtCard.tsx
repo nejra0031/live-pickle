@@ -69,11 +69,11 @@ export default function CourtCard({
           </span>
           {winner && loser && (
             <div className="flex items-center gap-2 flex-1 flex-wrap" style={{ minWidth: 0 }}>
-              <span style={{ color: winner.color, fontWeight: 800, fontSize: 'clamp(12px,3vw,15px)' }}>
+              <span style={{ color: 'var(--ink)', fontWeight: 800, fontSize: 'clamp(12px,3vw,15px)' }}>
                 {winner.name}
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: winner.color, fontSize: 'clamp(17px,4.5vw,23px)', lineHeight: 1, minWidth: '2ch', textAlign: 'right' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--ink)', fontSize: 'clamp(17px,4.5vw,23px)', lineHeight: 1, minWidth: '2ch', textAlign: 'right' }}>
                   {pendingResult.winnerScore}
                 </span>
                 <span style={{ color: 'var(--muted)', fontSize: 'clamp(13px,3vw,16px)', fontWeight: 700 }}>–</span>
@@ -81,7 +81,7 @@ export default function CourtCard({
                   {pendingResult.loserScore}
                 </span>
               </div>
-              <span style={{ color: loser.color, fontWeight: 800, fontSize: 'clamp(12px,3vw,15px)' }}>
+              <span style={{ color: 'var(--muted)', fontWeight: 800, fontSize: 'clamp(12px,3vw,15px)' }}>
                 {loser.name}
               </span>
             </div>

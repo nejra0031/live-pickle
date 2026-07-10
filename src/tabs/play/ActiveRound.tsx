@@ -357,17 +357,17 @@ export default function ActiveRound({
                           <span style={{ color: 'var(--muted)', minWidth: 50 }}>
                             Court {g.courtNumber}
                           </span>
-                          <span style={{ color: w?.color, fontWeight: 700 }}>
+                          <span style={{ color: 'var(--ink)', fontWeight: 700 }}>
                             {w ? teamLabel(w.id) : ''}
                           </span>
-                          <span style={{ fontFamily: 'var(--font-mono)', color: w?.color, fontWeight: 500 }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink)', fontWeight: 500 }}>
                             {g.winnerScore}
                           </span>
                           <span style={{ color: 'var(--muted)' }}>–</span>
-                          <span style={{ fontFamily: 'var(--font-mono)', color: l?.color, fontWeight: 500 }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)', fontWeight: 500 }}>
                             {g.loserScore}
                           </span>
-                          <span style={{ color: l?.color, fontWeight: 700 }}>
+                          <span style={{ color: 'var(--muted)', fontWeight: 700 }}>
                             {l ? teamLabel(l.id) : ''}
                           </span>
                           <button

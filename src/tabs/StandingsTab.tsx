@@ -29,9 +29,9 @@ export default function StandingsTab({ ranked, pausedIds }: Props) {
         <span style={{ width: 'clamp(36px,8vw,58px)', fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>POS</span>
         <span className="flex-1" style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>PLAYER</span>
         <span style={{ width: 'clamp(26px,5.5vw,42px)', textAlign: 'center', fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>GP</span>
-        <span style={{ width: 'clamp(26px,5.5vw,42px)', textAlign: 'center', fontSize: 10, color: '#16a34a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>W</span>
-        <span style={{ width: 'clamp(26px,5.5vw,42px)', textAlign: 'center', fontSize: 10, color: '#dc2626', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>L</span>
-        <span style={{ width: 'clamp(36px,7.5vw,54px)', textAlign: 'center', fontSize: 10, color: 'var(--court)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>+/-</span>
+        <span style={{ width: 'clamp(26px,5.5vw,42px)', textAlign: 'center', fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>W</span>
+        <span style={{ width: 'clamp(26px,5.5vw,42px)', textAlign: 'center', fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>L</span>
+        <span style={{ width: 'clamp(36px,7.5vw,54px)', textAlign: 'center', fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>+/-</span>
       </div>
 
       {ranked.map((team, i) => {
@@ -91,7 +91,7 @@ export default function StandingsTab({ ranked, pausedIds }: Props) {
                 fontFamily: 'var(--font-mono)',
                 width: 'clamp(26px,5.5vw,42px)',
                 textAlign: 'center',
-                color: '#16a34a',
+                color: 'var(--ink)',
                 fontWeight: 700,
                 fontSize: 'clamp(15px,3.5vw,20px)',
               }}
@@ -103,7 +103,7 @@ export default function StandingsTab({ ranked, pausedIds }: Props) {
                 fontFamily: 'var(--font-mono)',
                 width: 'clamp(26px,5.5vw,42px)',
                 textAlign: 'center',
-                color: '#dc2626',
+                color: 'var(--ink)',
                 fontWeight: 700,
                 fontSize: 'clamp(15px,3.5vw,20px)',
               }}
@@ -117,7 +117,7 @@ export default function StandingsTab({ ranked, pausedIds }: Props) {
                 textAlign: 'center',
                 fontWeight: 700,
                 fontSize: 'clamp(15px,3.5vw,20px)',
-                color: diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : 'var(--muted)',
+                color: 'var(--ink)',
               }}
             >
               {diff > 0 ? '+' : ''}{diff}

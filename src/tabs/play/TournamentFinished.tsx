@@ -1,4 +1,7 @@
-import { useTeamLabel, useTeamById } from '../../context/TeamRegistryContext';
+import { useContext } from 'react';
+import { useTeamLabel, useTeamById, TeamRegistryContext } from '../../context/TeamRegistryContext';
+import { formatTPTTeamLabel } from '../../algorithms/threePlayerTeam';
+import { formatPlayerName } from '../../algorithms/doublesRR';
 
 interface Props {
   ranked: any[];
@@ -6,14 +9,39 @@ interface Props {
   isAdmin: boolean;
   onResumeTournament: () => void;
   onReset: () => void;
+  tournamentMode?: string;
+  tptTeams?: Record<string, any>;
+  tptPlayers?: Record<string, any>;
+  doublesRRPlayers?: Record<string, any>;
 }
-export default function TournamentFinished({ ranked, history, isAdmin, onResumeTournament, onReset }: Props) {
+export default function TournamentFinished({
+  ranked,
+  history,
+  isAdmin,
+  onResumeTournament,
+  onReset,
+  tournamentMode,
+  tptTeams = {},
+  tptPlayers = {},
+  doublesRRPlayers = {},
+}: Props) {
   const teamLabel = useTeamLabel();
   const teamById = useTeamById();
+  const { teamNameDisplay } = useContext(TeamRegistryContext);
   const top = ranked.slice(0, 3);
   const podium = [top[1], top[0], top[2]].filter(Boolean);
   const heights = [120, 160, 90];
   const placeLabels = ['2nd', '1st', '3rd'];
+
+  const labelFor = (t: any) => {
+    if (tournamentMode === 'tpt') {
+      return formatTPTTeamLabel(tptTeams[t.id], tptPlayers, teamNameDisplay) || t.name || t.id;
+    }
+    if (tournamentMode === 'doublesrr') {
+      return formatPlayerName(doublesRRPlayers[t.id], teamNameDisplay) || t.name || t.id;
+    }
+    return teamLabel(t.id) || t.name || t.id;
+  };
 
   return (
     <div className="flex flex-col" style={{ gap: 'clamp(10px,2.5vw,16px)' }}>
@@ -46,7 +74,7 @@ export default function TournamentFinished({ ranked, history, isAdmin, onResumeT
           const team = teamById(t.id);
           const bg = t.color || team?.color || '#64748b';
           const fg = t.text || team?.text || '#ffffff';
-          const label = teamLabel(t.id) || t.name || t.id;
+          const label = labelFor(t);
           return (
             <div
               key={t.id}
