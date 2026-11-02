@@ -1,30 +1,31 @@
 {
   "rules": {
     ".read": true,
-    ".write": true,
-    "clubOwners": {
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
-      }
-    },
-    "clubs": {
-      "$clubId": {
+
+    "players":     { ".write": true },
+    "players_e2e": { ".write": true },
+
+    "tournamentsMeta":     { ".write": true },
+    "tournamentsMeta_e2e": { ".write": true },
+
+    "tournaments": {
+      "$tid": {
+        ".write": "auth != null && data.child('ownerUids/' + auth.uid).val() === true",
+        "current":  { ".write": true },
+        "backups":  { ".write": true },
+        "presence": { ".write": true },
         "ownerUids": {
-          ".read": true,
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid && (!root.child('clubs/'+$clubId+'/ownerUids').exists() || root.child('clubs/'+$clubId+'/ownerUids/'+auth.uid).exists())"
+            ".write": "auth != null && auth.uid === $uid && (!root.child('tournaments/' + $tid + '/ownerUids').exists() || root.child('tournaments/' + $tid + '/ownerUids/' + auth.uid).val() === true)"
           }
         },
-        "tournaments": {
-          "$tid": {
-            "config": {
-              "adminPins":   { ".read": true, ".write": "auth != null && root.child('clubs/'+$clubId+'/ownerUids/'+auth.uid).val() === true" },
-              "refereePins": { ".read": true, ".write": "auth != null && root.child('clubs/'+$clubId+'/ownerUids/'+auth.uid).val() === true" }
-            }
-          }
+        "config": {
+          "adminPins":   { ".write": "auth != null && root.child('tournaments/' + $tid + '/ownerUids/' + auth.uid).val() === true" },
+          "refereePins": { ".write": "auth != null && root.child('tournaments/' + $tid + '/ownerUids/' + auth.uid).val() === true" }
         }
       }
-    }
+    },
+
+    "tournaments_e2e": { ".write": true }
   }
 }

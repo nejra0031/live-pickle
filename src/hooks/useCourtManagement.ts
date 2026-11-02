@@ -11,7 +11,6 @@ import { useModal } from '../state/ModalProvider';
 import { useRepo } from '../state/RepoProvider';
 
 export function useCourtManagement({
-  clubId,
   tournamentIdRef,
   gatedUpdate,
   setStandings,
@@ -19,7 +18,6 @@ export function useCourtManagement({
   pendingRef,
   roleRef,
 }: {
-  clubId: string | null;
   tournamentIdRef: import('react').MutableRefObject<string | null>;
   gatedUpdate: (perm: any, fields: any) => void;
   setStandings: (s: any[]) => void;
@@ -46,12 +44,12 @@ export function useCourtManagement({
         upd.roundRobinSchedule = schedule;
       }
       gatedUpdate('canEditTeams', upd);
-      if (clubId && tournamentIdRef.current)
-        writeTournamentMeta(clubId, tournamentIdRef.current, {
+      if (tournamentIdRef.current)
+        writeTournamentMeta(tournamentIdRef.current, {
           playerCount: newRegistry.reduce((n: number, t: any) => n + (t.players?.length || 1), 0),
         });
     },
-    [stateRef, set, gatedUpdate, setStandings, closeModal, clubId] // eslint-disable-line react-hooks/exhaustive-deps
+    [stateRef, set, gatedUpdate, setStandings, closeModal] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleTeamNameDisplayChange = useCallback(

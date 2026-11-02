@@ -203,6 +203,8 @@ export type Permission =
 export interface TournamentState {
   tournamentTitle: string;
   tournamentLocation: string;
+  clubName: string;
+  clubLogo: string;
   tournamentStartTime: string;
   tournamentDurationMins: number;
   maxPlayers: number;
@@ -247,6 +249,8 @@ export interface TournamentSnapshot {
   teamRegistry: Team[];
   tournamentTitle: string;
   tournamentLocation: string;
+  clubName: string;
+  clubLogo: string;
   tournamentStartTime: string;
   tournamentDurationMins: number;
   maxPlayers: number;

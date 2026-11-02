@@ -5,35 +5,67 @@ import App from './App';
 import LandingPage from './LandingPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './hooks/useAuth';
-import { useMyClubs } from './hooks/useMyClubs';
+import { claimTournamentOwnership, isTournamentOwner, writeTournamentMeta } from './firebase';
 
 function Root() {
   // 'landing' | 'creating' | 'tournament'
   const [screen, setScreen] = useState('landing');
   const [activeContext, setActiveContext] = useState<{
-    clubId: string;
     tournamentId: string | null;
     initialRole?: string;
   } | null>(null);
+  // Whether the signed-in user owns the active tournament (they created it).
+  const [isOwner, setIsOwner] = useState(false);
 
   const { user, signIn, signOut } = useAuth();
-  const { ownedClubIds, joinedClubIds, loading: myClubsLoading, createClub, joinClubs } = useMyClubs(user?.uid ?? null);
+  const uid: string | null = user?.uid ?? null;
+  const activeTid = activeContext?.tournamentId ?? null;
 
-  function handleSelectTournament(clubId: string, tournamentId: string) {
-    setActiveContext({ clubId, tournamentId });
+  // Resolve ownership whenever the open tournament or the signed-in user changes.
+  // A freshly created tournament is marked owned immediately in handleCreated.
+  useEffect(() => {
+    if (!activeTid || !uid) {
+      if (screen !== 'creating') setIsOwner(false);
+      return;
+    }
+    let cancelled = false;
+    isTournamentOwner(activeTid, uid).then((owned) => {
+      if (!cancelled) setIsOwner((prev) => prev || owned);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTid, uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleSelectTournament(tournamentId: string) {
+    setIsOwner(false);
+    setActiveContext({ tournamentId });
     setScreen('tournament');
   }
 
-  function handleCreateTournament(clubId: string) {
-    if (!ownedClubIds.includes(clubId)) return;
+  // Anyone signed in with Google can create a tournament; they become its owner.
+  async function handleCreateTournament() {
+    if (!user) {
+      try {
+        await signIn();
+      } catch {
+        return; // popup closed / sign-in failed
+      }
+    }
     // tournamentId=null until handleStart generates the real tournament ID
-    setActiveContext({ clubId, tournamentId: null });
+    setIsOwner(true);
+    setActiveContext({ tournamentId: null });
     setScreen('creating');
   }
 
   // Called by App after handleStart generates the tournament ID
-  function handleCreated(clubId: string, tournamentId: string, role: string) {
-    setActiveContext({ clubId, tournamentId, initialRole: role });
+  function handleCreated(tournamentId: string, role: string) {
+    if (uid) {
+      claimTournamentOwnership(tournamentId, uid);
+      writeTournamentMeta(tournamentId, { ownerUid: uid });
+    }
+    setIsOwner(!!uid);
+    setActiveContext({ tournamentId, initialRole: role });
     setScreen('tournament');
   }
 
@@ -41,6 +73,7 @@ function Root() {
     history.pushState(null, '', location.pathname + location.search);
     setScreen('landing');
     setActiveContext(null);
+    setIsOwner(false);
   }
 
   // Browser back/forward: sync app screen state with URL hash
@@ -50,9 +83,10 @@ function Root() {
       if (!hash) {
         setScreen('landing');
         setActiveContext(null);
+        setIsOwner(false);
       } else if (e.state?.tournamentId) {
-        const { clubId, tournamentId } = e.state;
-        setActiveContext({ clubId, tournamentId });
+        setIsOwner(false);
+        setActiveContext({ tournamentId: e.state.tournamentId });
         setScreen('tournament');
       }
     };
@@ -68,26 +102,18 @@ function Root() {
         user={user}
         onSignIn={signIn}
         onSignOut={signOut}
-        ownedClubIds={ownedClubIds}
-        joinedClubIds={joinedClubIds}
-        myClubsLoading={myClubsLoading}
-        onCreateClub={createClub}
-        onJoinClubs={joinClubs}
       />
     );
   }
-
-  const isOwner = activeContext ? ownedClubIds.includes(activeContext.clubId) : false;
 
   // key changes from null→tournamentId after handleCreated, which remounts App
   // so useFirebaseSync re-registers listeners against the correct path.
   return (
     <App
-      key={activeContext?.tournamentId ?? 'new'}
-      clubId={activeContext?.clubId}
-      tournamentId={activeContext?.tournamentId ?? null}
+      key={activeTid ?? 'new'}
+      tournamentId={activeTid}
       initialRole={activeContext?.initialRole ?? null}
-      isOwner={isOwner}
+      isOwner={isOwner && !!uid}
       user={user}
       onSignIn={signIn}
       onSignOut={signOut}

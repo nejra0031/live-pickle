@@ -1,4 +1,4 @@
-// Pure helpers for the multi-club landing page: splitting/sorting tournaments
+// Pure helpers for the landing page: splitting/sorting tournaments
 // into Upcoming/Finished lists and applying the type/full-tournament filters.
 // No React/Firebase dependencies — keeps this independently unit-testable.
 

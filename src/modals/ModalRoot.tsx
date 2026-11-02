@@ -47,6 +47,8 @@ export default function ModalRoot() {
     teamNameDisplay,
     tptSubstitutions: _tptSubs,
     tournamentTitle,
+    clubName,
+    clubLogo,
     tournamentLocation,
     tournamentStartTime,
     tournamentDurationMins,
@@ -259,6 +261,8 @@ export default function ModalRoot() {
           onAddPin={onAddPin}
           onRevokePin={onRevokePin}
           tournamentTitle={tournamentTitle}
+          clubName={clubName}
+          clubLogo={clubLogo}
           tournamentLocation={tournamentLocation}
           tournamentStartTime={tournamentStartTime}
           tournamentDurationMins={tournamentDurationMins}

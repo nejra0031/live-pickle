@@ -6,9 +6,11 @@ const TEST_PIN_HASH = createHash('sha256').update(TEST_PIN).digest('hex');
 const TEST_REFEREE_PIN = 'ref56789';
 const TEST_REFEREE_PIN_HASH = createHash('sha256').update(TEST_REFEREE_PIN).digest('hex');
 
-const E2E_CLUB_ID       = 'blue_test';
+// Mirrors src/firebase.ts TEST_MODE paths: tournaments_e2e/{tid} for the
+// tournament itself and tournamentsMeta_e2e/{tid} for its landing-page summary.
 const E2E_TOURNAMENT_ID = 'e2e_tournament';
-const E2E_BASE          = `clubs/${E2E_CLUB_ID}/tournaments/${E2E_TOURNAMENT_ID}`;
+const E2E_BASE          = `tournaments_e2e/${E2E_TOURNAMENT_ID}`;
+const E2E_META_PATH     = `tournamentsMeta_e2e/${E2E_TOURNAMENT_ID}`;
 // Keep exported names unchanged so spec files need no edits
 const E2E_TOURNAMENT_PATH = E2E_BASE + '/current';
 const E2E_BACKUPS_PATH    = E2E_BASE + '/backups';
@@ -28,7 +30,7 @@ const fbSet    = (path, data) => fbReq(path, 'PUT', data);
 const fbDelete = (path)       => fbReq(path, 'DELETE');
 const fbGet    = (path)       => fbReq(path, 'GET');
 
-// Per-tournament PIN config lives under clubs/{club}/tournaments/{id}/config/adminPins/{pinId}.
+// Per-tournament PIN config lives under tournaments_e2e/{id}/config/adminPins/{pinId}.
 // Re-seeded by seedTournament()/seedTPTTournament() since clearE2EData() wipes it each test.
 async function seedAdminPin() {
   await fbSet(`${E2E_BASE}/config/adminPins/e2e_admin_pin`, {
@@ -86,7 +88,7 @@ async function seedTournament(overrides = {}) {
   };
   await fbSet(E2E_TOURNAMENT_PATH, base);
   // Seed meta so the landing page can list this tournament
-  await fbSet(`${E2E_BASE}/meta`, {
+  await fbSet(E2E_META_PATH, {
     id: E2E_TOURNAMENT_ID,
     title: base.tournamentTitle,
     mode: base.tournamentMode,
@@ -140,7 +142,7 @@ async function seedTPTTournament(overrides = {}) {
   };
   await fbSet(E2E_TOURNAMENT_PATH, base);
   // Seed meta so the landing page can list this tournament
-  await fbSet(`${E2E_BASE}/meta`, {
+  await fbSet(E2E_META_PATH, {
     id: E2E_TOURNAMENT_ID,
     title: base.tournamentTitle,
     mode: base.tournamentMode,
@@ -188,7 +190,7 @@ async function seedDoublesRRTournament(overrides = {}) {
   };
   await fbSet(E2E_TOURNAMENT_PATH, base);
   // Seed meta so the landing page can list this tournament
-  await fbSet(`${E2E_BASE}/meta`, {
+  await fbSet(E2E_META_PATH, {
     id: E2E_TOURNAMENT_ID,
     title: base.tournamentTitle,
     mode: base.tournamentMode,
@@ -201,15 +203,13 @@ async function seedDoublesRRTournament(overrides = {}) {
 }
 
 async function clearE2EData() {
-  await fbDelete(`clubs/${E2E_CLUB_ID}`).catch(() => {});
-  // clubsIndex_test is seeded once in global-setup and kept between tests.
-  // Preserving it means ensureClubsIndexBootstrapped() hits the fast path (1 read)
-  // instead of 4 sequential Firebase ops, cutting cold-start page-load time from ~12s to ~4s.
+  await fbDelete('tournaments_e2e').catch(() => {});
+  await fbDelete('tournamentsMeta_e2e').catch(() => {});
 }
 
 module.exports = {
   DB_URL, TEST_PIN, TEST_PIN_HASH, TEST_REFEREE_PIN, TEST_REFEREE_PIN_HASH,
-  E2E_CLUB_ID, E2E_TOURNAMENT_ID, E2E_BASE,
+  E2E_TOURNAMENT_ID, E2E_BASE, E2E_META_PATH,
   E2E_TOURNAMENT_PATH, E2E_BACKUPS_PATH, E2E_PRESENCE_PATH,
   fbSet, fbDelete, fbGet, seedTournament, seedTPTTournament, seedDoublesRRTournament, clearE2EData,
 };

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
 import type { SetField } from '../state/TournamentProvider';
 import type { TournamentRepo } from '../firebase';
-import { writeTournamentMeta, createTournamentRepo } from '../firebase';
+import { writeTournamentMeta, createTournamentRepo, generateTournamentId } from '../firebase';
 import { buildSnapshot } from '../snapshot';
 import { generateTPTSchedule } from '../algorithms/threePlayerTeam';
 import { applyTournamentStartState } from './tournamentStartHelpers';
@@ -42,7 +42,6 @@ export function useTPTManagement({
   applyTimerState,
   onFirebaseError,
   closeModal,
-  clubId,
   repo,
 }: {
   stateRef: MutableRefObject<any>;
@@ -69,7 +68,6 @@ export function useTPTManagement({
   applyTimerState: (running: boolean, startedAt: number | null, secsLeft: number) => void;
   onFirebaseError: (msg: string) => void;
   closeModal: () => void;
-  clubId: string | null;
   repo: TournamentRepo;
 }) {
   const handleStartTPT = useCallback(
@@ -81,9 +79,9 @@ export function useTPTManagement({
       title: any,
       eventDetails: Record<string, any> = {}
     ) => {
-      const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+      const tid = generateTournamentId();
       tournamentIdRef.current = tid;
-      const newRepo = createTournamentRepo(clubId ?? '', tid);
+      const newRepo = createTournamentRepo(tid);
       const schedule = generateTPTSchedule(Object.keys(tptTeamsData));
       const resolvedTitle = title || 'Tournament';
       set('tournamentTitle', resolvedTitle);
@@ -122,8 +120,7 @@ export function useTPTManagement({
         }
       );
       newRepo.pushSnapshot(snap, onFirebaseError);
-      if (clubId)
-        writeTournamentMeta(clubId, tid, {
+      writeTournamentMeta(tid, {
           id: tid,
           title: resolvedTitle,
           mode: 'tpt',
@@ -200,12 +197,12 @@ export function useTPTManagement({
         upd.tptSchedule = schedule;
       }
       repo.pushAtomicUpdate(upd, onFirebaseError);
-      if (clubId && tournamentIdRef.current)
-        writeTournamentMeta(clubId, tournamentIdRef.current, {
+      if (tournamentIdRef.current)
+        writeTournamentMeta(tournamentIdRef.current, {
           playerCount: Object.keys(newPlayers).length,
         });
     },
-    [closeModal, clubId, repo] // eslint-disable-line react-hooks/exhaustive-deps
+    [closeModal, repo] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleUndoTPTResult = useCallback(

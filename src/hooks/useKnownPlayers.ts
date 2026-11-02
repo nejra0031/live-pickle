@@ -1,39 +1,25 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchKnownPlayers, fetchClubMembers, saveKnownPlayer, generatePlayerKey } from '../firebase';
+import { fetchKnownPlayers, saveKnownPlayer, generatePlayerKey } from '../firebase';
 
-export default function useKnownPlayers(clubId?: string | null) {
+export default function useKnownPlayers() {
   const [players, setPlayers] = useState<any[]>([]);
   const playersRef = useRef<any[]>([]);
 
   useEffect(() => {
     let cancelled = false;
 
-    if (clubId) {
-      fetchClubMembers(clubId)
-        .then((members) => {
-          if (cancelled) return;
-          // Normalise duprId → duprID so PlayerNameField's filter works
-          const list = members
-            .filter((p) => p && (p.name || p.nickname))
-            .map((p) => ({ ...p, duprID: p.duprID || p.duprId || '' }));
-          playersRef.current = list;
-          setPlayers(list);
-        })
-        .catch((err) => console.error('fetchClubMembers failed', err));
-    } else {
-      fetchKnownPlayers()
-        .then((snap) => {
-          if (cancelled) return;
-          const val = (snap.val() || {}) as Record<string, any>;
-          const list = Object.values(val).filter((p) => p && p.name);
-          playersRef.current = list;
-          setPlayers(list);
-        })
-        .catch((err) => console.error('fetchKnownPlayers failed', err));
-    }
+    fetchKnownPlayers()
+      .then((snap) => {
+        if (cancelled) return;
+        const val = (snap.val() || {}) as Record<string, any>;
+        const list = Object.values(val).filter((p) => p && p.name);
+        playersRef.current = list;
+        setPlayers(list);
+      })
+      .catch((err) => console.error('fetchKnownPlayers failed', err));
 
     return () => { cancelled = true; };
-  }, [clubId]);
+  }, []);
 
   const save = useCallback((name: string, duprId: string, nickname?: string) => {
     const trimmedName = (name || '').trim();

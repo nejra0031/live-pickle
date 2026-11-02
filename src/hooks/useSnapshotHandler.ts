@@ -12,7 +12,6 @@ import { useTournamentState } from '../state/TournamentProvider';
 // its line-count; all side-effect setters that are NOT in TournamentProvider
 // context are received as parameters.
 export function useSnapshotHandler({
-  clubId,
   lastSeenRoundNum,
   tournamentIdRef,
   metaSyncedRef,
@@ -39,7 +38,6 @@ export function useSnapshotHandler({
   doublesRRScheduleRef,
   doublesRRResultsRef,
 }: {
-  clubId: string | null;
   lastSeenRoundNum: MutableRefObject<number>;
   tournamentIdRef: MutableRefObject<string | null>;
   metaSyncedRef: MutableRefObject<boolean>;
@@ -132,12 +130,12 @@ export function useSnapshotHandler({
       doublesRRResultsRef.current = s.doublesRRResults || {};
       setDoublesRRTiebreakOrder(s.doublesRRTiebreakOrder || DEFAULT_DOUBLES_RR_TIEBREAK_ORDER);
       if (s._tournamentId) tournamentIdRef.current = s._tournamentId;
-      if (!metaSyncedRef.current && clubId && tournamentIdRef.current) {
+      if (!metaSyncedRef.current && tournamentIdRef.current) {
         metaSyncedRef.current = true;
         const loc = s.tournamentLocation || '',
           st = s.tournamentStartTime || '';
         if (loc || st)
-          writeTournamentMeta(clubId, tournamentIdRef.current, { location: loc, startTime: st });
+          writeTournamentMeta(tournamentIdRef.current, { location: loc, startTime: st });
       }
       const isFirstLoad = lastSeenRoundNum.current === -1;
       const isNewRound = !isFirstLoad && s.roundNum !== lastSeenRoundNum.current;

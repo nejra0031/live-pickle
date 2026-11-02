@@ -24,6 +24,7 @@
 // so a LOAD merge preserves existing state rather than clobbering it. Non-reducer
 // state (standings/breakMode/pending/roundKey) is intentionally NOT produced here.
 import type { TournamentState, TournamentSnapshot } from './types';
+import { isValidLogoDataUrl } from './utils/logo';
 
 export function snapshotToState(
   s: TournamentSnapshot,
@@ -60,6 +61,8 @@ export function snapshotToState(
   if (s.teamRegistry && s.teamRegistry.length > 0) values.tournamentTeams = s.teamRegistry;
   if (s.tournamentTitle) values.tournamentTitle = s.tournamentTitle;
   values.tournamentLocation = s.tournamentLocation || '';
+  values.clubName = s.clubName || '';
+  values.clubLogo = isValidLogoDataUrl(s.clubLogo) ? s.clubLogo : '';
   values.tournamentStartTime = s.tournamentStartTime || '';
   values.tournamentDurationMins = s.tournamentDurationMins || 0;
   values.maxPlayers = s.maxPlayers || 0;
@@ -78,6 +81,8 @@ export function buildSnapshot(
     teamRegistry: state.tournamentTeams,
     tournamentTitle: state.tournamentTitle,
     tournamentLocation: state.tournamentLocation ?? '',
+    clubName: state.clubName ?? '',
+    clubLogo: state.clubLogo ?? '',
     tournamentStartTime: state.tournamentStartTime ?? '',
     tournamentDurationMins: state.tournamentDurationMins ?? 0,
     maxPlayers: state.maxPlayers ?? 0,

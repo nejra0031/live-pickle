@@ -36,6 +36,8 @@ export default function AppHeader({
   onShowHeader,
   onHideHeader,
   tournamentTitle,
+  clubName = '',
+  clubLogo = '',
   tournamentLocation,
   tournamentStartTime,
   tournamentDurationMins,
@@ -58,6 +60,8 @@ export default function AppHeader({
   onShowHeader: () => void;
   onHideHeader: () => void;
   tournamentTitle: string;
+  clubName?: string;
+  clubLogo?: string;
   tournamentLocation: string;
   tournamentStartTime: string;
   tournamentDurationMins: number;
@@ -207,8 +211,9 @@ export default function AppHeader({
 
           {!headerHidden && <div className="flex items-center" style={{ gap: 10, paddingBottom: 3 }}>
             <img
-              src={ballIcon}
-              alt=""
+              src={clubLogo || ballIcon}
+              alt={clubLogo ? `${clubName || 'Club'} logo` : ''}
+              data-testid="header-logo"
               style={{
                 width: 'clamp(28px,5.5vw,38px)',
                 height: 'clamp(28px,5.5vw,38px)',
@@ -217,21 +222,37 @@ export default function AppHeader({
                 flexShrink: 0,
               }}
             />
-            <h1
-              className="leading-tight truncate"
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontWeight: 900,
-                fontSize: 'clamp(20px,5.5vw,32px)',
-                color: 'var(--ink)',
-                letterSpacing: '-0.3px',
-                margin: 0,
-                flex: 1,
-                minWidth: 0,
-              }}
-            >
-              {tournamentTitle}
-            </h1>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {clubName && (
+                <div
+                  className="truncate"
+                  data-testid="header-club-name"
+                  style={{
+                    fontSize: 'clamp(10px,2.4vw,12px)',
+                    fontWeight: 700,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: 'var(--court)',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {clubName}
+                </div>
+              )}
+              <h1
+                className="leading-tight truncate"
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 900,
+                  fontSize: 'clamp(20px,5.5vw,32px)',
+                  color: 'var(--ink)',
+                  letterSpacing: '-0.3px',
+                  margin: 0,
+                }}
+              >
+                {tournamentTitle}
+              </h1>
+            </div>
             {isOwner && (
               <span
                 style={{

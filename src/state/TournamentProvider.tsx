@@ -5,6 +5,8 @@ import type { TournamentState } from '../types';
 export const TOURNAMENT_INITIAL: TournamentState = {
   tournamentTitle: 'Tournament',
   tournamentLocation: '',
+  clubName: '',
+  clubLogo: '',
   tournamentStartTime: '',
   tournamentDurationMins: 0,
   maxPlayers: 0,

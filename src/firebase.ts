@@ -49,120 +49,70 @@ export function subscribeAuth(callback: (user: any) => void) {
 
 // ── Module-level constants ─────────────────────────────────────────────────
 const TEST_MODE = import.meta.env.VITE_TEST_MODE === 'true';
-export const DEFAULT_CLUB_ID = TEST_MODE ? 'blue_test' : 'blue';
 
-// ── Club and user path helpers ─────────────────────────────────────────────
-export const clubInfoRef = (clubId: string) => ref(db, `clubs/${clubId}/info`);
-export const clubTournamentsRef = (clubId: string) => ref(db, `clubs/${clubId}/tournaments`);
-export const tournamentMetaRef = (clubId: string, tid: string) =>
-  ref(db, `clubs/${clubId}/tournaments/${tid}/meta`);
-export const usersRef = () => ref(db, 'users');
-export const userRef = (uid: string) => ref(db, `users/${uid}`);
+// Tournaments live flat at tournaments/{tid}/{current,backups,presence,config,ownerUids}.
+// A lightweight per-tournament summary (title, status, club name/logo, …) is kept
+// separately at tournamentsMeta/{tid} so the landing page can list every
+// tournament without downloading full snapshots and backups.
+const TOURNAMENTS_ROOT = TEST_MODE ? 'tournaments_e2e' : 'tournaments';
+const TOURNAMENTS_META_ROOT = TEST_MODE ? 'tournamentsMeta_e2e' : 'tournamentsMeta';
+export const E2E_TOURNAMENT_ID = 'e2e_tournament';
 
-// ── Clubs registry (root-level index of all clubs) ────────────────────────
-const CLUBS_INDEX_PATH = TEST_MODE ? 'clubsIndex_test' : 'clubsIndex';
+// TEST_MODE always resolves to the shared e2e tournament regardless of the id.
+const tournamentBase = (tid: string) =>
+  `${TOURNAMENTS_ROOT}/${TEST_MODE ? E2E_TOURNAMENT_ID : tid}`;
 
-export const clubsIndexRef = () => ref(db, CLUBS_INDEX_PATH);
-export const clubIndexEntryRef = (clubId: string) => ref(db, `${CLUBS_INDEX_PATH}/${clubId}`);
+export const tournamentsMetaRef = () => ref(db, TOURNAMENTS_META_ROOT);
+export const tournamentMetaRef = (tid: string) => ref(db, `${TOURNAMENTS_META_ROOT}/${tid}`);
 
-export const DEFAULT_CLUB_INFO = { name: 'BLUE', imageUrl: null };
-
-export async function ensureClubsIndexBootstrapped() {
-  const idxSnap = await get(clubsIndexRef());
-  const idx = idxSnap.val() ?? {};
-  if (idx[DEFAULT_CLUB_ID]) return;
-
-  const infoSnap = await get(clubInfoRef(DEFAULT_CLUB_ID));
-  let info = infoSnap.val();
-  if (!info) {
-    info = DEFAULT_CLUB_INFO;
-    await set(clubInfoRef(DEFAULT_CLUB_ID), info);
-  }
-  await set(clubIndexEntryRef(DEFAULT_CLUB_ID), info);
+export function generateTournamentId() {
+  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 }
 
-// ── Club ownership (Google-auth) ──────────────────────────────────────────
-export const clubOwnedClubsRef = (uid: string) => ref(db, `clubOwners/${uid}`);
-export const clubOwnerEntryRef = (clubId: string, uid: string) =>
-  ref(db, `clubOwners/${uid}/${clubId}`);
-export const clubOwnersRef = (clubId: string) => ref(db, `clubs/${clubId}/ownerUids`);
-export const clubOwnerRef = (clubId: string, uid: string) =>
-  ref(db, `clubs/${clubId}/ownerUids/${uid}`);
-
-function slugifyClubName(name: string) {
-  return (
-    (name || 'club')
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') || 'club'
-  );
-}
-
-export async function createClub(name: string, uid: string) {
-  const idxSnap = await get(clubsIndexRef());
-  const idx = idxSnap.val() ?? {};
-  const base = slugifyClubName(name);
-  let clubId = base,
-    n = 2;
-  while (idx[clubId]) clubId = `${base}-${n++}`;
-
-  const info = { name: (name || '').trim() || base, imageUrl: null };
-  await set(clubIndexEntryRef(clubId), info);
-  await set(clubInfoRef(clubId), info);
-  await set(clubOwnerRef(clubId, uid), true);
-  await set(clubOwnerEntryRef(clubId, uid), true);
-  return clubId;
-}
-
-export async function fetchOwnedClubIds(uid: string) {
-  const snap = await get(clubOwnedClubsRef(uid));
-  return Object.keys(snap.val() ?? {});
-}
-
-// ── User club memberships (self-joined) ───────────────────────────────────────
-const userClubsPath = (uid: string) => `userClubs/${uid}`;
-const userClubsRef = (uid: string) => ref(db, userClubsPath(uid));
-
-export async function fetchUserClubs(uid: string): Promise<string[]> {
-  const snap = await get(userClubsRef(uid));
-  return Object.keys(snap.val() ?? {});
-}
-
-export async function joinUserClubs(uid: string, clubIds: string[]): Promise<void> {
-  if (!uid || clubIds.length === 0) return;
-  const updates: Record<string, boolean> = {};
-  clubIds.forEach((id) => { updates[id] = true; });
-  await update(userClubsRef(uid), updates);
-}
-
-export function writeTournamentMeta(clubId: string, tid: string, meta: Record<string, any>) {
-  return update(ref(db, `clubs/${clubId}/tournaments/${tid}/meta`), meta).catch((err: Error) =>
+export function writeTournamentMeta(tid: string | null | undefined, meta: Record<string, any>) {
+  if (!tid) return Promise.resolve();
+  return update(tournamentMetaRef(tid), meta).catch((err: Error) =>
     console.error('writeTournamentMeta failed', err)
   );
 }
 
-export function deleteTournament(clubId: string, tid: string) {
-  return remove(ref(db, `clubs/${clubId}/tournaments/${tid}`)).catch((err: Error) =>
-    console.error('deleteTournament failed', err)
+export async function fetchAllTournamentMeta(): Promise<any[]> {
+  const snap = await get(tournamentsMetaRef());
+  const raw = (snap.val() ?? {}) as Record<string, any>;
+  return Object.entries(raw)
+    .map(([id, meta]) => ({ ...(meta ?? {}), id }))
+    .filter((t) => t.createdAt);
+}
+
+export async function deleteTournament(tid: string) {
+  try {
+    await remove(tournamentMetaRef(tid));
+    await remove(ref(db, tournamentBase(tid)));
+  } catch (err) {
+    console.error('deleteTournament failed', err);
+  }
+}
+
+// ── Tournament ownership (Google-auth) ────────────────────────────────────
+// Whoever creates a tournament (signed in with Google) becomes its owner:
+// tournaments/{tid}/ownerUids/{uid}: true. Owners get admin without a PIN and
+// are the only ones allowed to manage PINs (enforced by database.rules.json).
+const ownerRef = (tid: string, uid: string) =>
+  ref(db, `${tournamentBase(tid)}/ownerUids/${uid}`);
+
+export function claimTournamentOwnership(tid: string, uid: string) {
+  return set(ownerRef(tid, uid), true).catch((err: Error) =>
+    console.error('claimTournamentOwnership failed', err)
   );
 }
 
-// ── Club members (per-club roster at clubs/{clubId}/members/) ─────────────
-export const clubMembersRef = (clubId: string) => ref(db, `clubs/${clubId}/members`);
-export const clubMemberRef = (clubId: string, uid: string) =>
-  ref(db, `clubs/${clubId}/members/${uid}`);
-
-export async function fetchClubMembers(clubId: string) {
-  const snap = await get(clubMembersRef(clubId));
-  const raw = snap.val() ?? {};
-  return Object.values(raw) as any[];
-}
-
-export function removeClubMember(uid: string, clubId: string) {
-  return remove(clubMemberRef(clubId, uid)).catch((err: Error) =>
-    console.error('removeClubMember failed', err)
-  );
+export async function isTournamentOwner(tid: string, uid: string): Promise<boolean> {
+  try {
+    const snap = await get(ownerRef(tid, uid));
+    return snap.val() === true;
+  } catch {
+    return false;
+  }
 }
 
 // ── Known-players registry ─────────────────────────────────────────────────
@@ -201,27 +151,6 @@ export function saveKnownPlayer(
   return set(ref(db, `${KNOWN_PLAYERS_PATH}/${playerId}`), fields).catch((err: Error) =>
     console.error('saveKnownPlayer failed', err)
   );
-}
-
-export async function migrateKnownPlayersToClub(clubId: string): Promise<number> {
-  const snap = await get(ref(db, KNOWN_PLAYERS_PATH));
-  const raw = snap.val() ?? {};
-  const players = Object.values(raw) as any[];
-  await Promise.all(
-    players.map((p: any) => {
-      if (!p?.id) return Promise.resolve();
-      const member = {
-        id: p.id,
-        nickname: (p.nickname || '').trim(),
-        name: (p.name || '').trim(),
-        duprId: (p.duprID || p.duprId || '').trim(),
-        email: (p.email || '').trim(),
-        createdAt: p.createdAt || Date.now(),
-      };
-      return set(clubMemberRef(clubId, p.id), member);
-    })
-  );
-  return players.length;
 }
 
 // ── Write-token helpers (module-level — shared across all repos) ──────────
@@ -265,12 +194,8 @@ export interface TournamentRepo {
   revokePin(roleKeyPlural: string, pinId: string): Promise<void>;
 }
 
-export function createTournamentRepo(clubId: string, tournamentId: string): TournamentRepo {
-  // TEST_MODE always resolves to the shared e2e path regardless of args, exactly
-  // mirroring the old activePaths() TEST_MODE branch.
-  const base = TEST_MODE
-    ? 'clubs/blue_test/tournaments/e2e_tournament'
-    : `clubs/${clubId}/tournaments/${tournamentId}`;
+export function createTournamentRepo(tournamentId: string): TournamentRepo {
+  const base = tournamentBase(tournamentId);
 
   const tPath = `${base}/current`;
 

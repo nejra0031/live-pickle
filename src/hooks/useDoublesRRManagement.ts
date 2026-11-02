@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
 import type { SetField } from '../state/TournamentProvider';
 import type { TournamentRepo } from '../firebase';
-import { writeTournamentMeta, createTournamentRepo } from '../firebase';
+import { writeTournamentMeta, createTournamentRepo, generateTournamentId } from '../firebase';
 import { buildSnapshot } from '../snapshot';
 import { hasPermission } from '../roleConfig';
 import {
@@ -43,7 +43,6 @@ export function useDoublesRRManagement({
   applyTimerState,
   onFirebaseError,
   closeModal,
-  clubId,
   repo,
 }: {
   stateRef: MutableRefObject<any>;
@@ -68,7 +67,6 @@ export function useDoublesRRManagement({
   applyTimerState: (running: boolean, startedAt: number | null, secsLeft: number) => void;
   onFirebaseError: (msg: string) => void;
   closeModal: () => void;
-  clubId: string | null;
   repo: TournamentRepo;
 }) {
   const handleStartDoublesRR = useCallback(
@@ -79,9 +77,9 @@ export function useDoublesRRManagement({
       title: string,
       eventDetails: Record<string, any> = {}
     ) => {
-      const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+      const tid = generateTournamentId();
       tournamentIdRef.current = tid;
-      const newRepo = createTournamentRepo(clubId ?? '', tid);
+      const newRepo = createTournamentRepo(tid);
       const schedule = generateDoublesRRSchedule(Object.keys(playersData), courts.length);
       const resolvedTitle = title || 'Tournament';
       set('tournamentTitle', resolvedTitle);
@@ -118,8 +116,7 @@ export function useDoublesRRManagement({
         }
       );
       newRepo.pushSnapshot(snap, onFirebaseError);
-      if (clubId)
-        writeTournamentMeta(clubId, tid, {
+      writeTournamentMeta(tid, {
           id: tid,
           title: resolvedTitle,
           mode: 'doublesrr',
@@ -251,12 +248,12 @@ export function useDoublesRRManagement({
         upd.doublesRRSchedule = schedule;
       }
       repo.pushAtomicUpdate(upd, onFirebaseError);
-      if (clubId && tournamentIdRef.current)
-        writeTournamentMeta(clubId, tournamentIdRef.current, {
+      if (tournamentIdRef.current)
+        writeTournamentMeta(tournamentIdRef.current, {
           playerCount: Object.keys(newPlayers).length,
         });
     },
-    [closeModal, clubId, repo] // eslint-disable-line react-hooks/exhaustive-deps
+    [closeModal, repo] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleUndoDoublesRRResult = useCallback(

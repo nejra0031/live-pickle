@@ -7,6 +7,7 @@ import { TournamentProvider, useTournamentState } from './state/TournamentProvid
 import { ModalProvider, useModal } from './state/ModalProvider';
 import { AppCtx } from './state/AppCtx';
 import { hasPermission } from './roleConfig';
+import { isValidLogoDataUrl } from './utils/logo';
 import { rerank } from './algorithms/standings';
 import { DEFAULT_DOUBLES_RR_TIEBREAK_ORDER } from './algorithms/doublesRR';
 import { MODES } from './modes';
@@ -33,8 +34,8 @@ import StatusBanners from './components/StatusBanners';
 
 export default function App(props: any) {
   const repo = useMemo(
-    () => createTournamentRepo(props.clubId ?? '', props.tournamentId ?? '__creating__'),
-    [props.clubId, props.tournamentId]
+    () => createTournamentRepo(props.tournamentId ?? '__creating__'),
+    [props.tournamentId]
   );
   return (
     <RepoProvider repo={repo}>
@@ -48,7 +49,6 @@ export default function App(props: any) {
 }
 
 function AppInner({
-  clubId = null,
   tournamentId = null,
   initialRole = null,
   isOwner = false,
@@ -66,6 +66,8 @@ function AppInner({
   const {
     tournamentTitle,
     tournamentLocation,
+    clubName,
+    clubLogo,
     tournamentStartTime,
     tournamentDurationMins,
     tournamentTeams,
@@ -215,7 +217,6 @@ function AppInner({
 
   // ── Snapshot handler & pending results ────────────────────────────────────
   const updateAllStates = useSnapshotHandler({
-    clubId,
     lastSeenRoundNum,
     tournamentIdRef,
     metaSyncedRef,
@@ -399,7 +400,6 @@ function AppInner({
       applyTimerState,
       onFirebaseError: setFirebaseError,
       closeModal,
-      clubId,
       repo,
     });
   const {
@@ -432,7 +432,6 @@ function AppInner({
     applyTimerState,
     onFirebaseError: setFirebaseError,
     closeModal,
-    clubId,
     repo,
   });
 
@@ -447,7 +446,6 @@ function AppInner({
     handleFinishTournament,
     handleResumeTournament,
   } = useTournamentLifecycle({
-    clubId,
     onCreated,
     effectiveRankedRef,
     tournamentIdRef,
@@ -508,7 +506,6 @@ function AppInner({
     handleRemoveLiveAddition,
     handleRemoveActiveRoundExtra,
   } = useCourtManagement({
-    clubId,
     tournamentIdRef,
     gatedUpdate,
     setStandings,
@@ -605,9 +602,13 @@ function AppInner({
   );
 
   const handleTournamentInfoSave = useCallback(
-    ({ title, location, startTime, durationMins, maxPlayers: mp = 0, gamesPerTeam: gpt = 0, timerMins: tm = 0 }: { title: string; location: string; startTime: string; durationMins: number; maxPlayers?: number; gamesPerTeam?: number; timerMins?: number }) => {
+    ({ title, clubName: cn = '', clubLogo: cl = '', location, startTime, durationMins, maxPlayers: mp = 0, gamesPerTeam: gpt = 0, timerMins: tm = 0 }: { title: string; clubName?: string; clubLogo?: string; location: string; startTime: string; durationMins: number; maxPlayers?: number; gamesPerTeam?: number; timerMins?: number }) => {
+      const clubNameT = cn.trim();
+      const clubLogoV = isValidLogoDataUrl(cl) ? cl : '';
       const t = title.trim() || 'Tournament';
       set('tournamentTitle', t);
+      set('clubName', clubNameT);
+      set('clubLogo', clubLogoV);
       set('tournamentLocation', location);
       set('tournamentStartTime', startTime);
       set('tournamentDurationMins', durationMins);
@@ -617,6 +618,8 @@ function AppInner({
       set('timerDefaultMins', tm > 0 ? tm : 0);
       gatedUpdate('canEditTeams', {
         tournamentTitle: t,
+        clubName: clubNameT,
+        clubLogo: clubLogoV,
         tournamentLocation: location,
         tournamentStartTime: startTime,
         tournamentDurationMins: durationMins,
@@ -641,16 +644,18 @@ function AppInner({
           gatedUpdate('canSetFinalRound', { finalRound: false });
         }
       }
-      if (clubId && tournamentIdRef.current)
-        writeTournamentMeta(clubId, tournamentIdRef.current, {
+      if (tournamentIdRef.current)
+        writeTournamentMeta(tournamentIdRef.current, {
           title: t,
+          clubName: clubNameT,
+          clubLogo: clubLogoV,
           maxPlayers: mp,
           location,
           startTime,
           timerMins: tm,
         });
     },
-    [set, gatedUpdate, clubId]
+    [set, gatedUpdate]
   );
 
   const handleChooseAdditionalGames = useCallback(
@@ -680,7 +685,6 @@ function AppInner({
 
   // ── AppCtx value ──────────────────────────────────────────────────────────
   const appCtxValue = {
-    clubId,
     user,
     onSignIn,
     onSignOut,
@@ -795,6 +799,8 @@ function AppInner({
             onShowHeader={() => setHeaderHidden(false)}
             onHideHeader={() => setHeaderHidden(true)}
             tournamentTitle={tournamentTitle}
+            clubName={clubName}
+            clubLogo={clubLogo}
             tournamentLocation={tournamentLocation}
             tournamentStartTime={tournamentStartTime}
             tournamentDurationMins={tournamentDurationMins}

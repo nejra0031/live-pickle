@@ -1,6 +1,6 @@
 ﻿import { useCallback } from 'react';
 import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
-import { createTournamentRepo, writeTournamentMeta } from '../firebase';
+import { createTournamentRepo, writeTournamentMeta, generateTournamentId } from '../firebase';
 import { buildSnapshot } from '../snapshot';
 import { normaliseSnapshot } from '../normalise';
 import { mkStandings, rebuildStandings } from '../algorithms/standings';
@@ -11,7 +11,6 @@ import { useModal } from '../state/ModalProvider';
 import { useRepo } from '../state/RepoProvider';
 
 export function useTournamentLifecycle({
-  clubId,
   onCreated,
   effectiveRankedRef,
   tournamentIdRef,
@@ -40,8 +39,7 @@ export function useTournamentLifecycle({
   doublesRRResultsRef,
   doublesRRRoundCompletingRef,
 }: {
-  clubId: string | null;
-  onCreated?: ((clubId: string | null, tid: string, role: string) => void) | null;
+  onCreated?: ((tid: string, role: string) => void) | null;
   effectiveRankedRef: MutableRefObject<any[]>;
   tournamentIdRef: MutableRefObject<string | null>;
   lastSeenRoundNum: MutableRefObject<number>;
@@ -93,9 +91,9 @@ export function useTournamentLifecycle({
       set('tournamentStartTime', startTime);
       set('tournamentDurationMins', durationMins);
       const s = mkStandings(teamIds);
-      const tid = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+      const tid = generateTournamentId();
       tournamentIdRef.current = tid;
-      const newRepo = createTournamentRepo(clubId ?? '', tid);
+      const newRepo = createTournamentRepo(tid);
       const isRR = startMode === 'roundrobin';
       const tr = isRR ? 0 : numRounds || 0;
       const rrSchedule = isRR ? generateRoundRobinSchedule(teamIds, courts.length) : null;
@@ -135,10 +133,9 @@ export function useTournamentLifecycle({
       );
       newRepo.pushSnapshot(snap, onFirebaseError);
       setRole('admin');
-      onCreated?.(clubId, tid, 'admin');
+      onCreated?.(tid, 'admin');
       const playerCount = allTeams.reduce((n: number, t: any) => n + (t.players?.length || 1), 0);
-      if (clubId)
-        writeTournamentMeta(clubId, tid, {
+      writeTournamentMeta(tid, {
           id: tid,
           title: resolvedTitle,
           mode: isRR ? 'roundrobin' : 'swiss',
@@ -184,7 +181,7 @@ export function useTournamentLifecycle({
       setPhase('play');
       setActiveTab('play');
     },
-    [applyTimerState, clubId, onCreated, set, load, setRole] // eslint-disable-line react-hooks/exhaustive-deps
+    [applyTimerState, onCreated, set, load, setRole] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // Ends the current tournament's matches and returns it to a pre-Round-1 state.
@@ -194,7 +191,7 @@ export function useTournamentLifecycle({
   // tptTeams/players/doublesRRPlayers/teamRegistry/courtNumbers survive).
   const doReset = useCallback(() => {
     const s = stateRef.current;
-    if (clubId) writeTournamentMeta(clubId, tournamentIdRef.current as string, { status: 'setup' });
+    writeTournamentMeta(tournamentIdRef.current as string, { status: 'setup' });
     repo.pushAtomicUpdate(
       {
         history: [],
@@ -261,7 +258,7 @@ export function useTournamentLifecycle({
     setRoundKey((k) => k + 1);
     applyTimerState(false, null, s.timerDuration);
     setActiveTab('play');
-  }, [stateRef, closeModal, applyTimerState, setBackupRoundNums, repo, load, clubId, onFirebaseError]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stateRef, closeModal, applyTimerState, setBackupRoundNums, repo, load, onFirebaseError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doRevertToRound = useCallback(async () => {
     const target = modal.data?.roundNum;
@@ -371,27 +368,24 @@ export function useTournamentLifecycle({
       timerPausedSecsLeft: s,
       breakMode: null,
     });
-    if (clubId) {
-      const top3 = effectiveRankedRef.current
-        .slice(0, 3)
-        .map((t) => ({
-          name: t.name,
-          color: t.color || 'var(--court)',
-          text: t.text || '#fff',
-          wins: t.wins,
-          losses: t.losses,
-          scoreDiff: t.scoreDiff,
-        }));
-      writeTournamentMeta(clubId, tournamentIdRef.current as string, { status: 'finished', top3 });
-    }
-  }, [computeSecsLeft, applyTimerState, set, gatedUpdate, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
+    const top3 = effectiveRankedRef.current
+      .slice(0, 3)
+      .map((t) => ({
+        name: t.name,
+        color: t.color || 'var(--court)',
+        text: t.text || '#fff',
+        wins: t.wins,
+        losses: t.losses,
+        scoreDiff: t.scoreDiff,
+      }));
+    writeTournamentMeta(tournamentIdRef.current as string, { status: 'finished', top3 });
+  }, [computeSecsLeft, applyTimerState, set, gatedUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleResumeTournament = useCallback(() => {
     set('tournamentFinished', false);
     gatedUpdate('canFinishTournament', { tournamentFinished: false });
-    if (clubId)
-      writeTournamentMeta(clubId, tournamentIdRef.current as string, { status: 'active', top3: null });
-  }, [set, gatedUpdate, clubId]); // eslint-disable-line react-hooks/exhaustive-deps
+    writeTournamentMeta(tournamentIdRef.current as string, { status: 'active', top3: null });
+  }, [set, gatedUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     handleStart,

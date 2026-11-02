@@ -3,9 +3,9 @@ import { ROLES, hasPermission } from '../roleConfig';
 import { ALL_TEAMS } from '../constants';
 import PlayerNameField from '../components/PlayerNameField';
 import ColorSwatchPicker from '../components/ColorSwatchPicker';
+import ClubLogoInput from '../components/ClubLogoInput';
 import useKnownPlayers from '../hooks/useKnownPlayers';
 import { useTeamById, useTeamLabel } from '../context/TeamRegistryContext';
-import { useAppCtx } from '../state/AppCtx';
 import TiebreakOrderEditor from '../components/TiebreakOrderEditor';
 
 const iS = {
@@ -223,6 +223,8 @@ function StartTimePicker({ startTime, setStartTime }: { startTime: string; setSt
 export default function TournamentSettingsModal({
   role,
   tournamentTitle,
+  clubName: clubNameProp,
+  clubLogo: clubLogoProp,
   tournamentLocation,
   tournamentStartTime,
   tournamentDurationMins,
@@ -274,6 +276,8 @@ export default function TournamentSettingsModal({
 
   // Event info state
   const [title, setTitle] = useState(tournamentTitle || '');
+  const [clubName, setClubName] = useState(clubNameProp || '');
+  const [clubLogo, setClubLogo] = useState(clubLogoProp || '');
   const [location, setLocation] = useState(tournamentLocation || '');
   const [startTime, setStartTime] = useState(tournamentStartTime || '');
   const [durationMins, setDurationMins] = useState(tournamentDurationMins || 0);
@@ -311,8 +315,7 @@ export default function TournamentSettingsModal({
     })
   );
   const [expandedPlayerId, setExpandedPlayerId] = useState(null);
-  const { clubId } = useAppCtx();
-  const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers(clubId);
+  const { players: knownPlayers, save: saveKnownPlayer } = useKnownPlayers();
 
   // Teams state — TPT
   const [localTPTTeams, setLocalTPTTeams] = useState(() =>
@@ -399,7 +402,7 @@ export default function TournamentSettingsModal({
     rrCourtCount > 0 && localCourts.filter((_: any, i: number) => !localSocial[i]).length < rrCourtCount;
 
   const handleSave = () => {
-    if (canEditEventInfo) onSaveInfo({ title, location, startTime, durationMins, maxPlayers, gamesPerTeam, timerMins });
+    if (canEditEventInfo) onSaveInfo({ title, clubName, clubLogo, location, startTime, durationMins, maxPlayers, gamesPerTeam, timerMins });
     if (canEditTeams) {
       if (tournamentMode === 'tpt' && onManageTPTTeamsSave) {
         // Drop teams added this session via "+ Add team" that were never filled in
@@ -530,6 +533,20 @@ export default function TournamentSettingsModal({
                     style={iS}
                     placeholder="Tournament"
                   />
+                </div>
+                <div>
+                  <FL>Club name</FL>
+                  <input
+                    value={clubName}
+                    onChange={(e) => setClubName(e.target.value)}
+                    style={iS}
+                    placeholder="e.g. Lakeside Pickleball Club"
+                    maxLength={60}
+                  />
+                </div>
+                <div>
+                  <FL>Club logo</FL>
+                  <ClubLogoInput value={clubLogo} onChange={setClubLogo} />
                 </div>
                 <div>
                   <FL>Location</FL>
