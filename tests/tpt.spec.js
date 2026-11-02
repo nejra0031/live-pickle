@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { seedTPTTournament, clearE2EData } = require('./helpers/firebase.js');
+const { seedTPTTournament, clearE2EData, fbGet, E2E_TOURNAMENT_PATH } = require('./helpers/firebase.js');
 const { loginAsAdmin, navigateToTournament } = require('./helpers/app.js');
 
 // Smoke coverage for the 3-Player Team (TPT) play path — the surface a future
@@ -38,4 +38,27 @@ test('records a TPT game result', async ({ page }) => {
   // The submitted game collapses into a completed (✓) row.
   await expect(page.locator('text=✓').first()).toBeVisible({ timeout: 3000 });
   await expect(page.locator('text=11').first()).toBeVisible();
+});
+
+test('a team added in Settings with only a nickname is saved', async ({ page }) => {
+  await page.goto('/_admin.html');
+  await navigateToTournament(page, 'E2E TPT Tournament');
+  await loginAsAdmin(page);
+
+  await page.locator('button:has-text("Tournament Settings")').first().click();
+  await page.locator('text=Teams & players').click();
+  await page.locator('button:has-text("+ Add team")').click();
+  // Fill only the nickname ("Name") of the new team's first player.
+  await page.locator('input[placeholder="Name"]').last().fill('Zed');
+  await page.locator('button:has-text("Save")').click();
+
+  await expect
+    .poll(async () => {
+      const cur = await fbGet(E2E_TOURNAMENT_PATH);
+      return Object.keys(cur?.tptTeams || {}).length;
+    }, { timeout: 5000 })
+    .toBe(3);
+  const cur = await fbGet(E2E_TOURNAMENT_PATH);
+  const nicknames = Object.values(cur.players).map((p) => p.nickname);
+  expect(nicknames).toContain('Zed');
 });

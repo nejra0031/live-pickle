@@ -220,6 +220,11 @@ function StartTimePicker({ startTime, setStartTime }: { startTime: string; setSt
   );
 }
 
+// A player counts as entered when either the full name or the nickname is filled.
+function hasPlayerName(p: any): boolean {
+  return !!((p?.name || '').trim() || (p?.nickname || '').trim());
+}
+
 export default function TournamentSettingsModal({
   role,
   tournamentTitle,
@@ -406,12 +411,12 @@ export default function TournamentSettingsModal({
     if (canEditTeams) {
       if (tournamentMode === 'tpt' && onManageTPTTeamsSave) {
         // Drop teams added this session via "+ Add team" that were never filled in
-        // (no player name entered) — otherwise blank names fall back to internal
-        // ids and the team still joins the schedule as a real competitor.
+        // (no player name or nickname entered) — otherwise blank names fall back to
+        // internal ids and the team still joins the schedule as a real competitor.
         const keptTPTTeams = localTPTTeams.filter((t: any) => {
           if (!t._isNew || playedTPTTeamIds.has(t.id)) return true;
           const teamPlayerIds = [...(t.maleIds || []), t.femaleId].filter(Boolean);
-          return teamPlayerIds.some((pid: string) => (localTPTPlayers[pid]?.name || '').trim());
+          return teamPlayerIds.some((pid: string) => hasPlayerName(localTPTPlayers[pid]));
         });
         const keptTPTPlayerIds = new Set(
           keptTPTTeams.flatMap((t: any) => [...(t.maleIds || []), t.femaleId].filter(Boolean))
@@ -462,7 +467,7 @@ export default function TournamentSettingsModal({
         const keptTeams = localTeams.filter((t: any) => {
           if (!t._isNew || playedTeamIds.has(t.id)) return true;
           const nameUntouched = t.name.trim() === (t._defaultName || '').trim();
-          const noPlayers = t.players.every((p: any) => !p.name.trim());
+          const noPlayers = t.players.every((p: any) => !hasPlayerName(p));
           return !(nameUntouched && noPlayers);
         });
         const registry = keptTeams.map((t: any) => {
@@ -471,7 +476,7 @@ export default function TournamentSettingsModal({
             duprId: p.duprId.trim(),
             nickname: (p.nickname || '').trim(),
           }));
-          const hasPlayers = players.some((p: any) => p.name);
+          const hasPlayers = players.some((p: any) => hasPlayerName(p));
           players
             .filter((p: any) => p.name)
             .forEach((p: any) => saveKnownPlayer(p.name, p.duprId, p.nickname));
