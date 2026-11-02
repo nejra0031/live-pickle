@@ -401,6 +401,7 @@ function AppInner({
       onFirebaseError: setFirebaseError,
       closeModal,
       repo,
+      onCreated,
     });
   const {
     handleStartDoublesRR,
@@ -433,6 +434,7 @@ function AppInner({
     onFirebaseError: setFirebaseError,
     closeModal,
     repo,
+    onCreated,
   });
 
   // ── Extracted handler hooks ───────────────────────────────────────────────

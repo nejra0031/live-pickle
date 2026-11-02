@@ -43,6 +43,7 @@ export function useTPTManagement({
   onFirebaseError,
   closeModal,
   repo,
+  onCreated,
 }: {
   stateRef: MutableRefObject<any>;
   tournamentIdRef: MutableRefObject<string | null>;
@@ -69,6 +70,7 @@ export function useTPTManagement({
   onFirebaseError: (msg: string) => void;
   closeModal: () => void;
   repo: TournamentRepo;
+  onCreated?: ((tid: string, role: string) => void) | null;
 }) {
   const handleStartTPT = useCallback(
     (
@@ -155,8 +157,11 @@ export function useTPTManagement({
         setActiveTab,
         applyTimerState,
       });
+      // Tell Root the real tournament id so it records ownership and remounts
+      // App against the new tournament's repo (mirrors handleStart).
+      onCreated?.(tid, 'admin');
     },
-    [applyTimerState] // eslint-disable-line react-hooks/exhaustive-deps
+    [applyTimerState, onCreated] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleTPTResult = useCallback(

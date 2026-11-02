@@ -44,6 +44,7 @@ export function useDoublesRRManagement({
   onFirebaseError,
   closeModal,
   repo,
+  onCreated,
 }: {
   stateRef: MutableRefObject<any>;
   tournamentIdRef: MutableRefObject<string | null>;
@@ -68,6 +69,7 @@ export function useDoublesRRManagement({
   onFirebaseError: (msg: string) => void;
   closeModal: () => void;
   repo: TournamentRepo;
+  onCreated?: ((tid: string, role: string) => void) | null;
 }) {
   const handleStartDoublesRR = useCallback(
     (
@@ -149,8 +151,11 @@ export function useDoublesRRManagement({
         setActiveTab,
         applyTimerState,
       });
+      // Tell Root the real tournament id so it records ownership and remounts
+      // App against the new tournament's repo (mirrors handleStart).
+      onCreated?.(tid, 'admin');
     },
-    [applyTimerState] // eslint-disable-line react-hooks/exhaustive-deps
+    [applyTimerState, onCreated] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleDoublesRRResult = useCallback(
